@@ -230,7 +230,7 @@ export default function FoodJourneyPage({ searchParams }: { searchParams: { [key
   const paginatedStories = allStories.slice((page - 1) * limit, page * limit);
 
   return (
-    <div className="px-4 lg:px-0 py-12">
+    <div className="px-4 py-12">
       <h1 className="sub-heading text-center mb-10" id="stories">
         Food Journey Stories
       </h1>

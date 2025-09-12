@@ -18,7 +18,7 @@ export default function AnnouncementBar2({
       <div className="max-w-5xl w-full text-sm sm:text-base flex flex-wrap justify-center gap-2">
         <span>Limited Time Offer: Get 30% off on Premium Plan!</span>
         <Link
-          href="/subscription"
+          href="/auth/signup"
           className="font-bold hover:text-white/90 hover:underline transition-colors"
         >
           Sign up now →

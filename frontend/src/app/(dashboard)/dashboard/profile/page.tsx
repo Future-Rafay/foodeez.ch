@@ -25,11 +25,11 @@ export default function ProfilePage() {
   const [success, setSuccess] = useState("");
   const [activeTab, setActiveTab] = useState("general");
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
-  
+
 
   const [formData, setFormData] = useState({
-    firstName: session?.user?.name?.split(" ")[0] || "",
-    lastName: session?.user?.name?.split(" ")[1] || "",
+    firstName: session?.user?.name?.split(" ")?.[0] || "",
+    lastName: session?.user?.name?.split(" ")?.slice(1).join(" ") || "",
     email: session?.user?.email || "",
     phone: "",
     language: "en",
@@ -49,8 +49,8 @@ export default function ProfilePage() {
     if (session?.user) {
       setFormData((prev) => ({
         ...prev,
-        firstName: session.user.name?.split(" ")[0] || "",
-        lastName: session.user.name?.split(" ")[1] || "",
+        firstName: session.user.name?.split(" ")?.[0] || "",
+        lastName: session.user.name?.split(" ")?.slice(1).join(" ") || "",
         email: session.user.email || "",
       }));
     }
@@ -222,10 +222,9 @@ export default function ProfilePage() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`
                   flex items-center py-4 px-1 border-b-2 font-medium text-sm
-                  ${
-                    activeTab === tab.id
-                      ? "border-primary text-primary"
-                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  ${activeTab === tab.id
+                    ? "border-primary text-primary"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                   }
                 `}
               >

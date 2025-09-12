@@ -49,7 +49,7 @@ const FoodJourney = () => {
       alert('Failed to delete food journey');
     }
   };
-  
+
   return (
     <section className="w-full">
       <h2 className="sub-heading my-10 text-center">
@@ -57,8 +57,8 @@ const FoodJourney = () => {
       </h2>
 
       <Banner
-        desktopSrc="/images/banners/foodJourney.png"
-        mobileSrc="/images/bannerForMobile/foodJourney.png"
+        desktopSrc="/images/banners/foodjourney.png"
+        mobileSrc="/images/bannerForMobile/foodjourney.png"
         alt="Share Your Experience"
       />
 

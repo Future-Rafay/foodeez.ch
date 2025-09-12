@@ -60,7 +60,7 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="mx-auto px-4 lg:px-0 py-8 space-y-10">
+    <div className="mx-auto px-4 py-8 space-y-10">
       {/* Profile Card */}
       <motion.div
         initial={{ opacity: 0, y: 30 }}

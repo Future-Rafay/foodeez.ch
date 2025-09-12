@@ -226,7 +226,7 @@ export default function FeaturedBusiness() {
   // const visibleBusinesses = businesses.slice(0, perPage * currentBatch);
 
   return (
-    <section className="pb-10 px-4 lg:px-0">
+    <section id="featured-business" className="pb-10 px-4 lg:px-0">
       {/* <div className="text-center mb-10">
         <h2 className="main-heading">Foodeez's Top Selection</h2>
         <p className="main-heading-description">

@@ -69,10 +69,11 @@ const DropdownItem: React.FC<DropdownItemProps> = ({
     <Link
       href={href}
       className={`
-        flex items-center px-0 py-2 text-sm rounded-lg transition-colors duration-200
-        ${isActive ? "bg-primary/5 text-primary" : "text-gray-600 hover:bg-gray-100"}
+        flex items-center px-2 py-2 text-sm rounded-lg transition-colors duration-200
+        ${isActive ? "bg-primary/5 text-primary" : "text-gray-900 hover:bg-gray-100"}
         ${className}
       `}
+      target="_blank"
       onClick={onClick}
     >
       {children}
@@ -232,6 +233,7 @@ export default function MobileMenu({
             {/* Share Experience */}
             <NavLink
               href="/food-journey"
+           
               onClick={handleNavLinkClick}
               pathname={pathname} // Pass pathname for active link styling
             >

@@ -20,9 +20,9 @@ const AdsBar1: React.FC = () => {
   return (
     <div
       ref={containerRef}
-      className="w-full no-scrollbar"
+      className="hidden lg:block w-full no-scrollbar"
       aria-label="Scrolling list of featured businesses"
-    >
+    >   
       <div
         className={`
           grid grid-flow-col 

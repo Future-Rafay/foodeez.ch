@@ -9,6 +9,7 @@ import {
   Globe,
   Share2,
   Image as ImageIcon,
+  Check,
 } from "lucide-react";
 import Button from "@/components/core/Button";
 import Input from "@/components/core/Input";
@@ -190,22 +191,10 @@ export default function BusinessRegistrationForm() {
 
   if (submitSuccess) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center">
+      <div className="flex items-center justify-center">
         <div className="bg-white p-8 rounded-2xl shadow-lg max-w-md w-full text-center">
           <div className="w-16 h-16 bg-success/10 rounded-full flex items-center justify-center mx-auto mb-6">
-            <svg
-              className="w-8 h-8 text-success"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M5 13l4 4L19 7"
-              />
-            </svg>
+            <Check />
           </div>
           <h2 className="text-2xl font-bold text-success mb-4">
             Registration Successful!
@@ -221,14 +210,21 @@ export default function BusinessRegistrationForm() {
           >
             Go to Businesses
           </Button>
+          {/* <Button
+            variant="outline"
+            onClick={() => router.push("/dashboard")}
+            className="w-full"
+          >
+            Go to Dashboard
+          </Button> */}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background py-12">
-      <div className="max-w-4xl mx-auto px-4">
+    <div className="min-h-screen">
+      <div className="px-4">
         {/* Progress Steps */}
         <div className="relative px-4 sm:px-8 mb-12">
           {/* Base Line */}
@@ -254,28 +250,26 @@ export default function BusinessRegistrationForm() {
                 >
                   {/* Circle */}
                   <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center border-2 text-sm font-semibold transition-all duration-300 ${
-                      isActive
-                        ? "bg-primary text-white border-primary shadow-lg"
-                        : "bg-white text-gray-500 border-gray-300"
-                    }`}
+                    className={`w-10 h-10 rounded-full flex items-center justify-center border-2 text-sm font-semibold transition-all duration-300 ${isActive
+                      ? "bg-primary text-white border-primary shadow-lg"
+                      : "bg-white text-gray-500 border-gray-300"
+                      }`}
                   >
                     {step}
                   </div>
 
                   {/* Label */}
                   <div
-                    className={`text-xs sm:text-sm mt-2 transition-colors duration-300 ${
-                      isActive ? "text-primary font-medium" : "text-gray-400"
-                    }`}
+                    className={`text-xs sm:text-sm mt-2 transition-colors duration-300 ${isActive ? "text-primary font-medium" : "text-gray-400"
+                      }`}
                   >
                     {step === 1
                       ? "Basic Info"
                       : step === 2
-                      ? "Location"
-                      : step === 3
-                      ? "Contact"
-                      : "Social Media"}
+                        ? "Location"
+                        : step === 3
+                          ? "Contact"
+                          : "Social Media"}
                   </div>
                 </div>
               );
@@ -285,7 +279,7 @@ export default function BusinessRegistrationForm() {
 
         <form
           onSubmit={handleSubmit}
-          className="space-y-8 bg-background-card p-10"
+          className="space-y-8 bg-primary/10 rounded-2xl border-accent border p-4 md:p-6 lg:p-10"
         >
           {submitError && (
             <div className="bg-danger/10 p-4 rounded-lg text-danger border border-danger/20">
@@ -295,7 +289,7 @@ export default function BusinessRegistrationForm() {
 
           {/* Step 1: Basic Information */}
           {currentStep === 1 && (
-            <div className=" p-8 rounded-2xl shadow-sm">
+            <div className="bg-white p-8 rounded-2xl shadow-sm">
               <div className="flex items-center gap-3 mb-6">
                 <Building2 className="w-6 h-6 text-primary" />
                 <h3 className="text-xl font-semibold text-text-main">
@@ -311,7 +305,7 @@ export default function BusinessRegistrationForm() {
                   onChange={handleChange}
                   required
                   error={errors.businessName}
-                  className="bg-background"
+                  className="bg-background focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
                 />
 
                 <Input
@@ -321,7 +315,7 @@ export default function BusinessRegistrationForm() {
                   onChange={handleChange}
                   maxLength={20}
                   helperText="Max 20 characters"
-                  className="bg-background"
+                  className="bg-background focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
                 />
 
                 <div>
@@ -354,7 +348,7 @@ export default function BusinessRegistrationForm() {
                     value={formData.imageUrl}
                     onChange={handleChange}
                     placeholder="https://example.com/your-image.jpg"
-                    className="bg-background pl-10"
+                    className="bg-background pl-10 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
                   />
                   <ImageIcon className="absolute left-3 top-9 w-5 h-5 text-text-muted" />
                 </div>
@@ -380,7 +374,7 @@ export default function BusinessRegistrationForm() {
                   onChange={handleChange}
                   required
                   error={errors.addressStreet}
-                  className="bg-background"
+                  className="bg-background focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
                 />
 
                 <Input
@@ -390,7 +384,7 @@ export default function BusinessRegistrationForm() {
                   onChange={handleChange}
                   required
                   error={errors.addressZip}
-                  className="bg-background"
+                  className="bg-background focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
                 />
 
                 <Input
@@ -400,7 +394,7 @@ export default function BusinessRegistrationForm() {
                   onChange={handleChange}
                   required
                   error={errors.addressTown}
-                  className="bg-background"
+                  className="bg-background focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
                 />
 
                 <Input
@@ -410,7 +404,7 @@ export default function BusinessRegistrationForm() {
                   onChange={handleChange}
                   required
                   error={errors.addressCountry}
-                  className="bg-background"
+                  className="bg-background focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
                 />
               </div>
             </div>
@@ -434,7 +428,7 @@ export default function BusinessRegistrationForm() {
                   onChange={handleChange}
                   required
                   error={errors.phoneNumber}
-                  className="bg-background"
+                  className="bg-background focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
                 />
 
                 <Input
@@ -442,7 +436,7 @@ export default function BusinessRegistrationForm() {
                   name="phoneNumberShort"
                   value={formData.phoneNumberShort}
                   onChange={handleChange}
-                  className="bg-background"
+                  className="bg-background focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
                 />
 
                 <Input
@@ -450,7 +444,7 @@ export default function BusinessRegistrationForm() {
                   name="whatsappNumber"
                   value={formData.whatsappNumber}
                   onChange={handleChange}
-                  className="bg-background"
+                  className="bg-background focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
                 />
 
                 <div className="relative">
@@ -460,7 +454,7 @@ export default function BusinessRegistrationForm() {
                     value={formData.webAddress}
                     onChange={handleChange}
                     placeholder="https://yourbusiness.com"
-                    className="bg-background pl-10"
+                    className="bg-background pl-10 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
                   />
                   <Globe className="absolute left-3 top-9 w-5 h-5 text-text-muted" />
                 </div>
@@ -485,7 +479,7 @@ export default function BusinessRegistrationForm() {
                   value={formData.facebookLink}
                   onChange={handleChange}
                   placeholder="https://facebook.com/yourbusiness"
-                  className="bg-background"
+                  className="bg-background focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
                 />
 
                 <Input
@@ -494,7 +488,7 @@ export default function BusinessRegistrationForm() {
                   value={formData.instaLink}
                   onChange={handleChange}
                   placeholder="https://instagram.com/yourbusiness"
-                  className="bg-background"
+                  className="bg-background focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary "
                 />
 
                 <Input
@@ -503,7 +497,7 @@ export default function BusinessRegistrationForm() {
                   value={formData.tiktokLink}
                   onChange={handleChange}
                   placeholder="https://tiktok.com/@yourbusiness"
-                  className="bg-background"
+                  className="bg-background focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
                 />
 
                 <Input
@@ -512,7 +506,7 @@ export default function BusinessRegistrationForm() {
                   value={formData.googleProfile}
                   onChange={handleChange}
                   placeholder="https://g.page/yourbusiness"
-                  className="bg-background"
+                  className="bg-background focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
                 />
               </div>
             </div>

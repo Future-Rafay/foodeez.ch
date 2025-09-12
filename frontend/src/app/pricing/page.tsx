@@ -70,7 +70,7 @@ export default function PricingPage() {
         breadcrumbs={[{ name: 'Home', url: 'https://foodeez.ch' }, { name: 'Pricing', url: 'https://foodeez.ch/pricing' }]}
       />
       <motion.div
-        className="py-12 px-4 lg:px-0 flex flex-col items-center"
+        className="py-12 px-4  flex flex-col items-center"
         variants={containerVariants}
         initial="hidden"
         animate="visible"
@@ -137,7 +137,7 @@ export default function PricingPage() {
               ))}
             </ul>
             <span className="text-xs lg:text-base text-text-main mt-auto">
-              Contacted via email & phone
+              Contact via <a href="mailto:info@foodeez.ch" className="text-primary hover:underline">info@foodeez.ch</a> or Phone (+4176 408 94 30)
             </span>
           </motion.div>
 
@@ -194,7 +194,7 @@ export default function PricingPage() {
 
         {/* Setup Service Section */}
         <motion.div
-          className="w-full max-w-6xl rounded-2xl border border-secondary bg-secondary/5  p-6 mb-8 flex flex-col items-start"
+          className="w-full rounded-2xl border border-secondary bg-secondary/5  p-6 mb-8 flex flex-col items-start"
           variants={itemVariants}
         >
           <p className="font-medium text-lg lg:text-xl text-text-main mb-2">

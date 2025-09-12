@@ -71,12 +71,12 @@ export default function EventCard({ event }: EventCardProps) {
       <div className="hidden md:flex flex-shrink-0 text-center mr-6 mb-4 md:mb-0 relative">
         <div className="bg-gray-100 border-2 rounded-lg w-20 h-20 flex flex-col items-center justify-center">
           <span className="text-2xl font-bold text-primary">
-            {validDates[0]
+            {!isPlaceholder && validDates[0]
               ? validDates[0].date?.getDate().toString().padStart(2, "0")
               : "00"}
           </span>
           <span className="text-sm text-primary">
-            {validDates[0]
+            {!isPlaceholder && validDates[0]
               ? validDates[0].date?.toLocaleString("default", {
                   month: "short",
                 })
@@ -84,7 +84,7 @@ export default function EventCard({ event }: EventCardProps) {
           </span>
         </div>
         {isPlaceholder && (
-          <span className="absolute -top-3 -right-3 bg-yellow-400 text-xs font-bold px-2 py-1 rounded shadow">
+          <span className="absolute  top-0 left-0 right-0 bg-yellow-400 text-xs font-bold px-2 py-1 rounded shadow">
             Coming Soon
           </span>
         )}
