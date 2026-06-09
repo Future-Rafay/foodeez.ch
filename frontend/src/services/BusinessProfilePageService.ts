@@ -5,7 +5,10 @@ import { prisma } from "../lib/prisma";
 export async function getBusinesses() {
   try {
     const businesses = await prisma.business_detail_view_all.findMany({
-      take: 9 // Limit to 9 results
+      take: 9, // Limit to 9 results
+      orderBy: {
+        BUSINESS_ID: "asc", // Order by BUSINESS_ID ascending
+      },
     })
     // Return as is - already using uppercase field names from the DB view
     return businesses
@@ -17,7 +20,7 @@ export async function getBusinesses() {
 
 export async function getBusinessById(id: number) {
   try {
-    const business = await prisma.business_detail_view_all.findUnique({
+    const business = await prisma.business_detail_view_all.findFirst({
       where: {
         BUSINESS_ID: id
       }

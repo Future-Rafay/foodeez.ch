@@ -15,10 +15,10 @@ SELECT
 FROM
   (
     (
-      `foodeez`.`visitor_favorite_restaurants` `a`
-      JOIN `foodeez`.`business` `b`
+      `bqf5o0hficph9fg14fbs`.`visitor_favorite_restaurants` `a`
+      JOIN `bqf5o0hficph9fg14fbs`.`business` `b`
     )
-    JOIN `foodeez`.`city` `c`
+    JOIN `bqf5o0hficph9fg14fbs`.`city` `c`
   )
 WHERE
   (

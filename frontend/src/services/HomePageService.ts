@@ -84,7 +84,7 @@ export async function getAdsLinkData() {
 
 export async function getBusinessCategories() {
   try {
-    const categories = await prisma.business_category_view.findMany({});
+    const categories = await prisma.business_category_view.findMany();
     return categories;
   } catch (error) {
     console.error('Error fetching business categories:', error);

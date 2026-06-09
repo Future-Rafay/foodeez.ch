@@ -10,7 +10,7 @@ export async function getFoodJourney(userId?: number) {
     };
 
     if (userId) {
-      whereClause.OR.push({ VISITORS_ACCOUNT_ID: userId });
+      whereClause.OR.push({ VISITOR_ACCOUNT_ID: userId });
     }
 
     const journey = await prisma.visitor_food_journey_view.findMany({
@@ -37,7 +37,7 @@ export async function getFoodJourney(userId?: number) {
 
 export async function getFoodJourneyById(id: number) {
   try {
-    const journey = await prisma.visitor_food_journey_view.findUnique({
+    const journey = await prisma.visitor_food_journey_view.findFirst({
       where: { VISITOR_FOOD_JOURNEY_ID: id },
     });
     return journey;

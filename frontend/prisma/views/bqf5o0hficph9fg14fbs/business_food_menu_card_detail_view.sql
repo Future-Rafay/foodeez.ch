@@ -14,10 +14,7 @@ SELECT
   IFNULL(`f`.`DESCRIPTION`, `f`.`TITLE`) AS `PRODUCT_DESCRIPTION`,
   `f`.`PRODUCT_PRICE` AS `PRODUCT_PRICE`,
   `f`.`COMPARE_AS_PRICE` AS `COMPARE_AS_PRICE`,
-  IFNULL(
-    `f`.`PIC`,
-    'https://shining-fun-cae9b3168c.media.strapiapp.com/NOT_AVAILABLE_f2715698fd.jpg'
-  ) AS `PIC`
+  IFNULL(`f`.`PIC`, 'NOT_AVAILABLE.jpg') AS `PIC`
 FROM
   (
     (
@@ -26,20 +23,20 @@ FROM
           (
             (
               (
-                `foodeez`.`business` `x`
-                JOIN `foodeez`.`business_food_menu_card` `y`
+                `bqf5o0hficph9fg14fbs`.`business` `x`
+                JOIN `bqf5o0hficph9fg14fbs`.`business_food_menu_card` `y`
               )
-              JOIN `foodeez`.`business_food_menu_card_detail` `z`
+              JOIN `bqf5o0hficph9fg14fbs`.`business_food_menu_card_detail` `z`
             )
-            JOIN `foodeez`.`business_product_category` `b`
+            JOIN `bqf5o0hficph9fg14fbs`.`business_product_category` `b`
           )
-          JOIN `foodeez`.`business_product_category_2_tag` `c`
+          JOIN `bqf5o0hficph9fg14fbs`.`business_product_category_2_tag` `c`
         )
-        JOIN `foodeez`.`business_product_tag` `d`
+        JOIN `bqf5o0hficph9fg14fbs`.`business_product_tag` `d`
       )
-      JOIN `foodeez`.`business_product_2_tag` `e`
+      JOIN `bqf5o0hficph9fg14fbs`.`business_product_2_tag` `e`
     )
-    JOIN `foodeez`.`business_product` `f`
+    JOIN `bqf5o0hficph9fg14fbs`.`business_product` `f`
   )
 WHERE
   (

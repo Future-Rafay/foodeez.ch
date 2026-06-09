@@ -56,7 +56,9 @@ SELECT
   ) AS `CAN_RESERVE_TABLE`,
 (
     CASE
-      WHEN (`foodeez`.`menu`.`BUSINESS_ID` IS NULL) THEN 0
+      WHEN (
+        `bqf5o0hficph9fg14fbs`.`menu`.`BUSINESS_ID` IS NULL
+      ) THEN 0
       ELSE 1
     END
   ) AS `HAVING_ACTIVE_MENU_CARD`
@@ -67,35 +69,35 @@ FROM
         (
           (
             (
-              `foodeez`.`business` `a`
-              LEFT JOIN `foodeez`.`city` `c` ON((`a`.`ADDRESS_CITY_ID` = `c`.`CITY_ID`))
+              `bqf5o0hficph9fg14fbs`.`business` `a`
+              LEFT JOIN `bqf5o0hficph9fg14fbs`.`city` `c` ON((`a`.`ADDRESS_CITY_ID` = `c`.`CITY_ID`))
             )
-            LEFT JOIN `foodeez`.`foodeez_ranking` `d` ON((`a`.`BUSINESS_ID` = `d`.`BUSINESS_ID`))
+            LEFT JOIN `bqf5o0hficph9fg14fbs`.`foodeez_ranking` `d` ON((`a`.`BUSINESS_ID` = `d`.`BUSINESS_ID`))
           )
-          LEFT JOIN `foodeez`.`business_2_food_type` `vegan` ON(
+          LEFT JOIN `bqf5o0hficph9fg14fbs`.`business_2_food_type` `vegan` ON(
             (
               (`a`.`BUSINESS_ID` = `vegan`.`BUSINESS_ID`)
               AND (`vegan`.`FOOD_TYPE_ID` = 1)
             )
           )
         )
-        LEFT JOIN `foodeez`.`business_2_food_type` `veg` ON(
+        LEFT JOIN `bqf5o0hficph9fg14fbs`.`business_2_food_type` `veg` ON(
           (
             (`a`.`BUSINESS_ID` = `veg`.`BUSINESS_ID`)
             AND (`veg`.`FOOD_TYPE_ID` = 2)
           )
         )
       )
-      LEFT JOIN `foodeez`.`business_2_food_type` `halal` ON(
+      LEFT JOIN `bqf5o0hficph9fg14fbs`.`business_2_food_type` `halal` ON(
         (
           (`a`.`BUSINESS_ID` = `halal`.`BUSINESS_ID`)
           AND (`halal`.`FOOD_TYPE_ID` = 3)
         )
       )
     )
-    LEFT JOIN `foodeez`.`business_having_active_menu_card_view` `menu` ON(
+    LEFT JOIN `bqf5o0hficph9fg14fbs`.`business_having_active_menu_card_view` `menu` ON(
       (
-        `foodeez`.`menu`.`BUSINESS_ID` = `a`.`BUSINESS_ID`
+        `bqf5o0hficph9fg14fbs`.`menu`.`BUSINESS_ID` = `a`.`BUSINESS_ID`
       )
     )
   )

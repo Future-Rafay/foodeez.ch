@@ -27,8 +27,8 @@ SELECT
   `a`.`APPROVED` AS `APPROVED`,
   `a`.`STATUS` AS `STATUS`,
   IFNULL(`d`.`RANKING`, 0) AS `RANKING`,
-  0 AS `VEGAN`,
-  1 AS `VEGETARIAN`,
+  1 AS `VEGAN`,
+  0 AS `VEGETARIAN`,
   0 AS `HALAL`,
 (
     CASE
@@ -41,7 +41,9 @@ SELECT
   ) AS `CAN_RESERVE_TABLE`,
 (
     CASE
-      WHEN (`foodeez`.`menu`.`BUSINESS_ID` IS NULL) THEN 0
+      WHEN (
+        `bqf5o0hficph9fg14fbs`.`menu`.`BUSINESS_ID` IS NULL
+      ) THEN 0
       ELSE 1
     END
   ) AS `HAVING_ACTIVE_MENU_CARD`
@@ -49,25 +51,25 @@ FROM
   (
     (
       (
-        `foodeez`.`business` `a`
-        LEFT JOIN `foodeez`.`city` `c` ON((`a`.`ADDRESS_CITY_ID` = `c`.`CITY_ID`))
+        `bqf5o0hficph9fg14fbs`.`business` `a`
+        LEFT JOIN `bqf5o0hficph9fg14fbs`.`city` `c` ON((`a`.`ADDRESS_CITY_ID` = `c`.`CITY_ID`))
       )
-      LEFT JOIN `foodeez`.`foodeez_ranking` `d` ON((`a`.`BUSINESS_ID` = `d`.`BUSINESS_ID`))
+      LEFT JOIN `bqf5o0hficph9fg14fbs`.`foodeez_ranking` `d` ON((`a`.`BUSINESS_ID` = `d`.`BUSINESS_ID`))
     )
-    LEFT JOIN `foodeez`.`business_having_active_menu_card_view` `menu` ON(
+    LEFT JOIN `bqf5o0hficph9fg14fbs`.`business_having_active_menu_card_view` `menu` ON(
       (
-        `foodeez`.`menu`.`BUSINESS_ID` = `a`.`BUSINESS_ID`
+        `bqf5o0hficph9fg14fbs`.`menu`.`BUSINESS_ID` = `a`.`BUSINESS_ID`
       )
     )
   )
 WHERE
   `a`.`BUSINESS_ID` IN (
     SELECT
-      `foodeez`.`business_2_food_type`.`BUSINESS_ID`
+      `bqf5o0hficph9fg14fbs`.`business_2_food_type`.`BUSINESS_ID`
     FROM
-      `foodeez`.`business_2_food_type`
+      `bqf5o0hficph9fg14fbs`.`business_2_food_type`
     WHERE
       (
-        `foodeez`.`business_2_food_type`.`FOOD_TYPE_ID` = 2
+        `bqf5o0hficph9fg14fbs`.`business_2_food_type`.`FOOD_TYPE_ID` = 1
       )
   )

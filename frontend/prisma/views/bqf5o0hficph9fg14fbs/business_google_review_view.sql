@@ -6,10 +6,9 @@ SELECT
   `a`.`AUTHOR` AS `AUTHOR`,
   `a`.`RATING` AS `RATING`,
   `a`.`REVIEW` AS `REVIEW`,
-  `a`.`RELATIVE_TIME` AS `RELATIVE_TIME`,
-  `a`.`PROFILE_PHOTO_URL` AS `PROFILE_PHOTO_URL`
+  `a`.`RELATIVE_TIME` AS `RELATIVE_TIME`
 FROM
   (
-    `foodeez`.`business_google_reviews` `a`
-    LEFT JOIN `foodeez`.`business` `b` ON((`a`.`PLACE_ID` = `b`.`PLACE_ID`))
+    `bqf5o0hficph9fg14fbs`.`business_google_reviews` `a`
+    LEFT JOIN `bqf5o0hficph9fg14fbs`.`business` `b` ON((`a`.`PLACE_ID` = `b`.`PLACE_ID`))
   )
