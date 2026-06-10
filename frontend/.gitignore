@@ -3,6 +3,7 @@
 # dependencies
 /node_modules
 /prisma/node_modules
+/prisma/generated
 /.pnp
 .pnp.js
 .yarn/install-state.gz

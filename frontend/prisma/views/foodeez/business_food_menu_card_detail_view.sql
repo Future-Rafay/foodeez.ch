@@ -23,20 +23,20 @@ FROM
           (
             (
               (
-                `bqf5o0hficph9fg14fbs`.`business` `x`
-                JOIN `bqf5o0hficph9fg14fbs`.`business_food_menu_card` `y`
+                `foodeez`.`business` `x`
+                JOIN `foodeez`.`business_food_menu_card` `y`
               )
-              JOIN `bqf5o0hficph9fg14fbs`.`business_food_menu_card_detail` `z`
+              JOIN `foodeez`.`business_food_menu_card_detail` `z`
             )
-            JOIN `bqf5o0hficph9fg14fbs`.`business_product_category` `b`
+            JOIN `foodeez`.`business_product_category` `b`
           )
-          JOIN `bqf5o0hficph9fg14fbs`.`business_product_category_2_tag` `c`
+          JOIN `foodeez`.`business_product_category_2_tag` `c`
         )
-        JOIN `bqf5o0hficph9fg14fbs`.`business_product_tag` `d`
+        JOIN `foodeez`.`business_product_tag` `d`
       )
-      JOIN `bqf5o0hficph9fg14fbs`.`business_product_2_tag` `e`
+      JOIN `foodeez`.`business_product_2_tag` `e`
     )
-    JOIN `bqf5o0hficph9fg14fbs`.`business_product` `f`
+    JOIN `foodeez`.`business_product` `f`
   )
 WHERE
   (

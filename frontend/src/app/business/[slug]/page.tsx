@@ -59,7 +59,7 @@ const BusinessDetailPage = () => {
         }
 
         const data: BusinessGoogleDataResponse = await response.json();
-        console.log(data);
+        console.log(data.cached ? "Loaded Google data from cache" : "Fetched fresh Google data from API");
 
         if (!data.success) {
           throw new Error(data.error || 'Unknown error occurred');

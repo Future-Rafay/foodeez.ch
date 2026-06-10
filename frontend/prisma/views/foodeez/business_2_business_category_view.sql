@@ -6,8 +6,8 @@ SELECT
   `a`.`DISPLAY_SEQ` AS `DISPLAY_SEQ`
 FROM
   (
-    `bqf5o0hficph9fg14fbs`.`business_2_business_category` `a`
-    JOIN `bqf5o0hficph9fg14fbs`.`business_category` `b`
+    `foodeez`.`business_2_business_category` `a`
+    JOIN `foodeez`.`business_category` `b`
   )
 WHERE
   (

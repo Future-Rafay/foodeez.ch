@@ -32,13 +32,13 @@ FROM
   (
     SELECT
       count(1) AS `CNT`,
-      `bqf5o0hficph9fg14fbs`.`business_2_business_category_view`.`BUSINESS_CATEGORY_ID` AS `Business_category_id`,
-      `bqf5o0hficph9fg14fbs`.`business_2_business_category_view`.`CATEGORY_NAME` AS `Category_name`
+      `foodeez`.`business_2_business_category_view`.`BUSINESS_CATEGORY_ID` AS `Business_category_id`,
+      `foodeez`.`business_2_business_category_view`.`CATEGORY_NAME` AS `Category_name`
     FROM
-      `bqf5o0hficph9fg14fbs`.`business_2_business_category_view`
+      `foodeez`.`business_2_business_category_view`
     GROUP BY
-      `bqf5o0hficph9fg14fbs`.`business_2_business_category_view`.`BUSINESS_CATEGORY_ID`,
-      `bqf5o0hficph9fg14fbs`.`business_2_business_category_view`.`CATEGORY_NAME`
+      `foodeez`.`business_2_business_category_view`.`BUSINESS_CATEGORY_ID`,
+      `foodeez`.`business_2_business_category_view`.`CATEGORY_NAME`
   ) `a`
 ORDER BY
   `a`.`CNT` DESC

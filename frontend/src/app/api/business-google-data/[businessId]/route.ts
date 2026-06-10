@@ -27,7 +27,7 @@ export async function GET(
     // Prefer DB always; only call API when DB has no data
 
     // Get PLACE_ID from DB
-    const business = await prisma.business_detail_view_all.findUnique({
+    const business = await prisma.business_detail_view_all.findFirst({
       where: { BUSINESS_ID: businessId },
       select: { PLACE_ID: true }
     });
@@ -104,7 +104,7 @@ async function getCachedBusinessData(
       rating: parseFloat(r.RATING || '0'),
       text: r.REVIEW || '',
       relative_time_description: r.RELATIVE_TIME || '',
-      profile_photo_url: r.PROFILE_PHOTO_URL || ""
+      profile_photo_url: ''
     }));
 
     const openingHours: OpeningHourDay[] = cachedOpeningHours.map(h => ({
@@ -114,8 +114,8 @@ async function getCachedBusinessData(
 
     const photos: GooglePhoto[] = cachedPhotos.map(p => ({ 
       photoUrl: p.IMAGE_URL || '', 
-      width: parseInt(String(p.WIDTH || '0')), 
-      height: parseInt(String(p.HEIGHT || '0')) 
+      width: 0, 
+      height: 0 
     }));
 
     // Get the most recent creation date for lastUpdated
@@ -176,7 +176,6 @@ async function saveBusinessDataToDb(
             REVIEW: review.text,
             RELATIVE_TIME: review.relative_time_description,
             CREATION_DATETIME: new Date(),
-            PROFILE_PHOTO_URL: review.profile_photo_url,
           }
         });
       } catch (err) {
@@ -192,10 +191,14 @@ async function saveBusinessDataToDb(
         const timeRanges = hours.hours.split(',').map(r => r.trim());
         const [open1, close1] = timeRanges[0]?.split(/[-–]/).map(t => t.trim()) || ['', ''];
         const [open2, close2] = timeRanges[1]?.split(/[-–]/).map(t => t.trim()) || ['', ''];
+        const nextOpeningHoursId = await prisma.$queryRaw<Array<{ nextId: bigint | number }>>`
+          SELECT COALESCE(MAX(BUSINESS_OPENING_HOURS_ID), 0) + 1 AS nextId
+          FROM business_opening_hours
+        `;
         
         await prisma.$executeRaw`
-          INSERT INTO business_opening_hours (CREATION_DATETIME, BUSINESS_ID, PLACE_ID, DAY, OPEN_1, CLOSE_1, OPEN_2, CLOSE_2, REMARKS)
-          VALUES (NOW(), ${businessId}, ${placeId}, ${hours.day}, ${open1}, ${close1}, ${open2}, ${close2}, ${hours.hours})
+          INSERT INTO business_opening_hours (BUSINESS_OPENING_HOURS_ID, CREATION_DATETIME, BUSINESS_ID, PLACE_ID, DAY, OPEN_1, CLOSE_1, OPEN_2, CLOSE_2, REMARKS)
+          VALUES (${Number(nextOpeningHoursId[0]?.nextId ?? 1)}, NOW(), ${businessId}, ${placeId}, ${hours.day}, ${open1}, ${close1}, ${open2}, ${close2}, ${hours.hours})
         `;
       } catch (err) {
         console.error(`Error saving opening hours ${i + 1}:`, err);
@@ -208,8 +211,8 @@ async function saveBusinessDataToDb(
       const photo = data.photos[i];
       try {
         await prisma.$executeRaw`
-          INSERT INTO business_google_images (CREATION_DATETIME, BUSINESS_ID, PLACE_ID, IMAGE_URL, WIDTH, HEIGHT)
-          VALUES (NOW(), ${businessId}, ${placeId}, ${photo.photoUrl}, ${String(photo.width)}, ${String(photo.height)})
+          INSERT INTO business_google_images (CREATION_DATETIME, BUSINESS_ID, PLACE_ID, IMAGE_URL)
+          VALUES (NOW(), ${businessId}, ${placeId}, ${photo.photoUrl})
         `;
       } catch (err) {
         console.error(`Error saving photo ${i + 1}:`, err);

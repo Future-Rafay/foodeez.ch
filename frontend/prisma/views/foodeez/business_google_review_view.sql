@@ -9,6 +9,6 @@ SELECT
   `a`.`RELATIVE_TIME` AS `RELATIVE_TIME`
 FROM
   (
-    `bqf5o0hficph9fg14fbs`.`business_google_reviews` `a`
-    LEFT JOIN `bqf5o0hficph9fg14fbs`.`business` `b` ON((`a`.`PLACE_ID` = `b`.`PLACE_ID`))
+    `foodeez`.`business_google_reviews` `a`
+    LEFT JOIN `foodeez`.`business` `b` ON((`a`.`PLACE_ID` = `b`.`PLACE_ID`))
   )

@@ -28,7 +28,7 @@ const adapter = new PrismaMariaDb({
   password: process.env.DATABASE_PASSWORD,
   database: process.env.DATABASE_NAME,
   connectionLimit: 5,
-  connectTimeout: 5_000, // v6 default was 5s; v7 default is only 1s
+  connectTimeout: 1_000, // v6 default was 5s; v7 default is only 1s
 });
 
 

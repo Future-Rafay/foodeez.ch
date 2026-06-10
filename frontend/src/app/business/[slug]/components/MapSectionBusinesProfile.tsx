@@ -19,7 +19,8 @@ export default function MapCard({ placeId }: MapCardProps) {
   // ✅ Case: API key missing
   useEffect(() => {
     if (!apiKey) {
-      setError("Google Maps is not available because the API key is missing.");
+      setError("Google Maps is not available some thing went wrong.");
+      console.error("Google Maps API key is missing. Please set NEXT_PUBLIC_GOOGLE_MAPS_API_KEY in your environment variables.");
     }
   }, [apiKey]);
 
@@ -29,7 +30,8 @@ export default function MapCard({ placeId }: MapCardProps) {
       mapRef.current = map;
 
       if (!placeId) {
-        setError("Map location is not available at the moment. Place ID is missing.");
+        setError("Map location is not available at the moment.");
+        console.error("Place ID is missing. Cannot load map location.");
         return;
       }
 
@@ -112,8 +114,7 @@ export default function MapCard({ placeId }: MapCardProps) {
 
                 <Info className="w-12 h-12 text-primary" />
                 <h3>
-                  Map couldn’t load.
-                  May be API key is incorrect or CORS permission is missing.
+                  Map couldn’t load. Some thing went wrong.
                 </h3>
               </div>
            

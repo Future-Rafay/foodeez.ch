@@ -491,7 +491,7 @@ model business_google_images {
   CREATION_DATETIME         DateTime? @db.DateTime(0)
   BUSINESS_ID               Int?
   PLACE_ID                  String?   @db.VarChar(100)
-  IMAGE_URL                 String?   @db.VarChar(255)
+  IMAGE_URL                 String?   @db.VarChar(1000)
 }
 
 /// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
@@ -504,33 +504,6 @@ model business_2_business_category2 {
   DISPLAY_SEQ                   Int?
 
   @@ignore
-}
-
-model business_reviews {
-  BUSINESS_REVIEWS_ID Int       @id @default(autoincrement())
-  CREATION_DATETIME   DateTime? @db.DateTime(0)
-  BUSINESS_ID         Int?
-  PLACE_ID            String?   @db.VarChar(255)
-  AUTHOR              String?   @db.VarChar(100)
-  RATING              String?   @db.VarChar(5)
-  REVIEW              String?   @db.Text
-  RELATIVE_TIME       String?   @db.VarChar(45)
-}
-
-model upcoming_events {
-  UPCOMING_EVENTS_ID Int       @id
-  CREATION_DATETIME  DateTime? @db.DateTime(0)
-  EVENT_DATE_FROM    DateTime? @db.Date
-  EVENT_DATE_TO      DateTime? @db.Date
-  EVENT_TIME_FROM    String?   @db.VarChar(45)
-  EVENT_TIME_TO      String?   @db.VarChar(45)
-  EVENT_TITLE        String?   @db.VarChar(100)
-  EVENT_DESCRIPTION  String?   @db.VarChar(255)
-  ADDRESS_CITY       String?   @db.VarChar(45)
-  ADDRESS_ZIPCODE    String?   @db.VarChar(10)
-  ADDRESS_STREET     String?   @db.VarChar(100)
-  ADDRESS_HOUSE_NO   Int?
-  ADDRESS_TOWN       String?   @db.VarChar(100)
 }
 
 view adlink_view {
@@ -813,7 +786,7 @@ view top_events_view {
 
 view visitor_food_journey_view {
   VISITOR_FOOD_JOURNEY_ID Int     @default(0)
-  VISITOR_ACCOUNT_ID      Int?    @default(0)
+  VISITOR_ID              Int?    @default(0)
   VISITOR_NAME            String  @default("") @db.VarChar(100)
   VISITOR_PIC             String  @default("") @db.VarChar(100)
   VISITOR_EMAIL_ADDRESS   String  @default("") @db.VarChar(100)
@@ -863,18 +836,5 @@ view business_google_images_view {
   BUSINESS_GOOGLE_IMAGES_ID Int     @default(0)
   BUSINESS_ID               Int?
   PLACE_ID                  String? @db.VarChar(100)
-  IMAGE_URL                 String? @db.VarChar(255)
-}
-
-view business_food_menu_view {
-  BUSINESS_ID                  Int @default(0)
-  BUSINESS_NAME                Int @default(0)
-  BUSINESS_FOOD_MENU_CARD_ID   Int @default(0)
-  MENU_NAME                    Int @default(0)
-  BUSINESS_PRODUCT_CATEGORY_ID Int @default(0)
-  CATEGORY                     Int @default(0)
-  PRODUCT_NAME                 Int @default(0)
-  PRODUCT_DESCRIPTION          Int @default(0)
-  PRODUCT_PRICE                Int @default(0)
-  COMPARE_AS_PRICE             Int @default(0)
+  IMAGE_URL                 String? @db.VarChar(1000)
 }

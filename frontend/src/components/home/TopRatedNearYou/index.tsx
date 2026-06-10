@@ -14,7 +14,7 @@
  * - Reuses existing BusinessCard component
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { BusinessDetail } from "@/types/business.types";
 import { getTopRatedRestaurantsNearYou } from "@/services/HomePageService";
 import BusinessCard from "@/components/core/BusinessCard";
@@ -34,6 +34,7 @@ export default function TopRatedNearYou({ className = "" }: TopRatedNearYouProps
     const [userLocation, setUserLocation] = useState<{ lat: number; lng: number }>({ lat: 0, lng: 0 });
     const [initialLocationCheck, setInitialLocationCheck] = useState(true);
     const [shouldRender, setShouldRender] = useState(true);
+    const lastFetchKeyRef = useRef<string>("");
 
     // Get user location
     const getUserLocation = (): Promise<{ lat: number; lng: number }> => {
@@ -62,6 +63,13 @@ export default function TopRatedNearYou({ className = "" }: TopRatedNearYouProps
 
     // Fetch restaurants with location
     const fetchRestaurants = useCallback(async (location: { lat: number; lng: number } = userLocation) => {
+        const fetchKey = `${location.lat.toFixed(6)}:${location.lng.toFixed(6)}`;
+        if (lastFetchKeyRef.current === fetchKey) {
+            return;
+        }
+
+        lastFetchKeyRef.current = fetchKey;
+
         try {
             setLoading(true);
             setError(null);
@@ -110,7 +118,7 @@ export default function TopRatedNearYou({ className = "" }: TopRatedNearYouProps
         if (userLocation?.lat && userLocation?.lng) {
             fetchRestaurants(userLocation);
         }
-    }, [userLocation, fetchRestaurants]);
+    }, [fetchRestaurants, userLocation?.lat, userLocation?.lng]);
 
     useEffect(() => {
         if (navigator.geolocation) {
@@ -123,7 +131,7 @@ export default function TopRatedNearYou({ className = "" }: TopRatedNearYouProps
                     setInitialLocationCheck(false);
 
                     // Auto-fetch restaurants if location is already available
-                    fetchRestaurants(userLocation);
+                    fetchRestaurants(location);
                 },
                 () => {
                     // Location not available, try with default coordinates

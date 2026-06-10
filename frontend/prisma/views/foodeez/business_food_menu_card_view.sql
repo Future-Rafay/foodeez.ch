@@ -21,8 +21,8 @@ SELECT
   `y`.`TITLE` AS `MENU_NAME`
 FROM
   (
-    `bqf5o0hficph9fg14fbs`.`business` `x`
-    LEFT JOIN `bqf5o0hficph9fg14fbs`.`business_food_menu_card` `y` ON(
+    `foodeez`.`business` `x`
+    LEFT JOIN `foodeez`.`business_food_menu_card` `y` ON(
       (
         (`x`.`BUSINESS_ID` = `y`.`BUSINESS_ID`)
         AND (`y`.`VALID_FROM` <= NOW())
