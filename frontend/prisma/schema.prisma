@@ -465,6 +465,7 @@ model visitor_food_journey {
 model business_google_reviews {
   BUSINESS_GOOGLE_REVIEWS_ID Int       @id @default(autoincrement())
   CREATION_DATETIME          DateTime? @db.DateTime(0)
+  google_data_fetched_at     DateTime? @db.DateTime(0)
   BUSINESS_ID                Int?
   PLACE_ID                   String?   @db.VarChar(255)
   AUTHOR                     String?   @db.VarChar(100)
@@ -476,6 +477,7 @@ model business_google_reviews {
 model business_opening_hours {
   BUSINESS_OPENING_HOURS_ID Int       @id
   CREATION_DATETIME         DateTime? @db.DateTime(0)
+  google_data_fetched_at    DateTime? @db.DateTime(0)
   BUSINESS_ID               Int?
   PLACE_ID                  String?   @db.VarChar(100)
   DAY                       String?   @db.VarChar(45)
@@ -489,6 +491,7 @@ model business_opening_hours {
 model business_google_images {
   BUSINESS_GOOGLE_IMAGES_ID Int       @id @default(autoincrement())
   CREATION_DATETIME         DateTime? @db.DateTime(0)
+  google_data_fetched_at    DateTime? @db.DateTime(0)
   BUSINESS_ID               Int?
   PLACE_ID                  String?   @db.VarChar(100)
   IMAGE_URL                 String?   @db.VarChar(1000)

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { UnifiedGoogleService } from '@/services/UnifiedGoogleService';
-import { 
-  BusinessGoogleData, 
+import {
+  BusinessGoogleData,
   BusinessGoogleDataResponse,
   GoogleReview,
   OpeningHourDay,
@@ -9,7 +9,13 @@ import {
 } from '@/types/google-business';
 import prisma from '@/lib/prisma';
 import { CheckisOpenNow } from '@/lib/isOpenNow';
+import { evaluateGoogleCache } from '@/lib/googleCache';
 
+const GOOGLE_CACHE_TTL_MS = Number(process.env.NEXT_PUBLIC_GOOGLE_CACHE_TTL_MS ?? 90 * 24 * 60 * 60 * 1000);
+
+type GoogleDataTimestampRow = {
+  google_data_fetched_at: Date | null;
+};
 
 export async function GET(
   request: NextRequest,
@@ -18,32 +24,31 @@ export async function GET(
   try {
     const businessId = parseInt(params.businessId);
     if (!businessId) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Invalid business ID' 
-      } as BusinessGoogleDataResponse, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: 'Invalid business ID' } as BusinessGoogleDataResponse,
+        { status: 400 }
+      );
     }
 
-    // Prefer DB always; only call API when DB has no data
-
-    // Get PLACE_ID from DB
     const business = await prisma.business_detail_view_all.findFirst({
       where: { BUSINESS_ID: businessId },
       select: { PLACE_ID: true }
     });
 
     if (!business?.PLACE_ID) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Business not found' 
-      } as BusinessGoogleDataResponse, { status: 404 });
+      return NextResponse.json(
+        { success: false, error: 'Business not found' } as BusinessGoogleDataResponse,
+        { status: 404 }
+      );
     }
 
     const placeId = business.PLACE_ID;
+    const cacheStatus = await getGoogleCacheStatus(businessId, placeId);
+    const cachedData = cacheStatus.hasAnyData
+      ? await getCachedBusinessData(businessId, placeId, cacheStatus.lastFetchedAt)
+      : null;
 
-    // Check DB for data first
-    const cachedData = await getCachedBusinessData(businessId, placeId);
-    if (cachedData) {
+    if (cacheStatus.isFresh && cachedData) {
       return NextResponse.json({
         ...cachedData,
         success: true,
@@ -51,51 +56,56 @@ export async function GET(
       } as BusinessGoogleDataResponse as any);
     }
 
-    // Fetch fresh data from Google API
-    const freshData = await UnifiedGoogleService.fetchGooglePlaceDetails(placeId);
-    
-    // Save to database in background (don't await to return data quickly)
-    saveBusinessDataToDb(businessId, placeId, freshData).catch(err => {
-      console.error('Error saving Google data to DB:', err);
-    });
+    try {
+      const freshData = await UnifiedGoogleService.fetchGooglePlaceDetails(placeId);
+      await saveBusinessDataToDb(businessId, placeId, freshData);
 
-    return NextResponse.json({
-      ...freshData,
-      success: true,
-      dataSource: 'api'
-    } as BusinessGoogleDataResponse as any);
+      return NextResponse.json({
+        ...freshData,
+        success: true,
+        dataSource: 'api'
+      } as BusinessGoogleDataResponse as any);
+    } catch (error) {
+      console.error('Error refreshing Google data:', error);
 
+      if (cachedData) {
+        return NextResponse.json({
+          ...cachedData,
+          success: true,
+          dataSource: 'db'
+        } as BusinessGoogleDataResponse as any);
+      }
+
+      throw error;
+    }
   } catch (error) {
     console.error('Error in GET /business-google-data:', error);
-    return NextResponse.json({ 
-      success: false, 
-      error: 'Internal server error' 
-    } as BusinessGoogleDataResponse, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: 'Internal server error' } as BusinessGoogleDataResponse,
+      { status: 500 }
+    );
   }
 }
 
-/**
- * Get cached business data from database
- */
 async function getCachedBusinessData(
-  businessId: number, 
-  placeId: string
+  businessId: number,
+  placeId: string,
+  lastFetchedAt: Date | null
 ): Promise<BusinessGoogleData | null> {
   try {
     const [cachedReviews, cachedOpeningHours, cachedPhotos] = await Promise.all([
-      prisma.business_google_review_view.findMany({ 
-        where: { BUSINESS_ID: businessId, PLACE_ID: placeId } 
+      prisma.business_google_review_view.findMany({
+        where: { BUSINESS_ID: businessId, PLACE_ID: placeId }
       }),
-      prisma.business_opening_hours_view.findMany({ 
-        where: { BUSINESS_ID: businessId, PLACE_ID: placeId } 
+      prisma.business_opening_hours_view.findMany({
+        where: { BUSINESS_ID: businessId, PLACE_ID: placeId }
       }),
-      prisma.business_google_images_view.findMany({ 
-        where: { BUSINESS_ID: businessId, PLACE_ID: placeId } 
+      prisma.business_google_images_view.findMany({
+        where: { BUSINESS_ID: businessId, PLACE_ID: placeId }
       }),
     ]);
 
-    // Only return cached data if we have all three types
-    if (cachedReviews.length === 0 || cachedOpeningHours.length === 0 || cachedPhotos.length === 0) {
+    if (cachedReviews.length === 0 && cachedOpeningHours.length === 0 && cachedPhotos.length === 0) {
       return null;
     }
 
@@ -112,30 +122,22 @@ async function getCachedBusinessData(
       hours: `${h.OPEN_1 || ''} - ${h.CLOSE_1 || ''}${h.OPEN_2 ? `, ${h.OPEN_2} - ${h.CLOSE_2}` : ''}`
     }));
 
-    const photos: GooglePhoto[] = cachedPhotos.map(p => ({ 
-      photoUrl: p.IMAGE_URL || '', 
-      width: 0, 
-      height: 0 
+    const photos: GooglePhoto[] = cachedPhotos.map(p => ({
+      photoUrl: p.IMAGE_URL || '',
+      width: 0,
+      height: 0
     }));
 
-    // Get the most recent creation date for lastUpdated
-    const timestamps = [
-      ...cachedReviews.map(() => new Date().getTime()), // Fallback since view might not have CREATION_DATETIME
-      ...cachedOpeningHours.map(() => new Date().getTime()),
-      ...cachedPhotos.map(() => new Date().getTime())
-    ];
-    const lastUpdated = new Date(Math.max(...timestamps));
-
     return {
-      name: '', // We don't store business name in cache, will be filled from business table if needed
-      rating: 0, // Will be calculated from reviews if needed
+      name: '',
+      rating: 0,
       totalReviews: reviews.length,
       reviews,
       openingHours,
       photos,
-      isOpenNow : CheckisOpenNow(openingHours),
+      isOpenNow: CheckisOpenNow(openingHours),
       cached: true,
-      lastUpdated
+      lastUpdated: lastFetchedAt ?? new Date()
     };
   } catch (error) {
     console.error('Error fetching cached data:', error);
@@ -143,84 +145,117 @@ async function getCachedBusinessData(
   }
 }
 
-/**
- * Save business data to database
- * Fixed version with proper error handling and logging
- */
+async function getGoogleCacheStatus(businessId: number, placeId: string) {
+  const [latestReview, latestOpeningHours, latestPhoto, reviewCount, openingHoursCount, photoCount] = await Promise.all([
+    prisma.$queryRaw<GoogleDataTimestampRow[]>`
+      SELECT google_data_fetched_at
+      FROM business_google_reviews
+      WHERE BUSINESS_ID = ${businessId} AND PLACE_ID = ${placeId}
+      ORDER BY google_data_fetched_at DESC
+      LIMIT 1
+    `,
+    prisma.$queryRaw<GoogleDataTimestampRow[]>`
+      SELECT google_data_fetched_at
+      FROM business_opening_hours
+      WHERE BUSINESS_ID = ${businessId} AND PLACE_ID = ${placeId}
+      ORDER BY google_data_fetched_at DESC
+      LIMIT 1
+    `,
+    prisma.$queryRaw<GoogleDataTimestampRow[]>`
+      SELECT google_data_fetched_at
+      FROM business_google_images
+      WHERE BUSINESS_ID = ${businessId} AND PLACE_ID = ${placeId}
+      ORDER BY google_data_fetched_at DESC
+      LIMIT 1
+    `,
+    prisma.$queryRaw<Array<{ count: bigint | number }>>`
+      SELECT COUNT(*) AS count
+      FROM business_google_reviews
+      WHERE BUSINESS_ID = ${businessId} AND PLACE_ID = ${placeId}
+    `,
+    prisma.$queryRaw<Array<{ count: bigint | number }>>`
+      SELECT COUNT(*) AS count
+      FROM business_opening_hours
+      WHERE BUSINESS_ID = ${businessId} AND PLACE_ID = ${placeId}
+    `,
+    prisma.$queryRaw<Array<{ count: bigint | number }>>`
+      SELECT COUNT(*) AS count
+      FROM business_google_images
+      WHERE BUSINESS_ID = ${businessId} AND PLACE_ID = ${placeId}
+    `
+  ]);
+
+  return evaluateGoogleCache(
+    [
+      { hasData: Number(reviewCount[0]?.count ?? 0) > 0, fetchedAt: latestReview[0]?.google_data_fetched_at },
+      { hasData: Number(openingHoursCount[0]?.count ?? 0) > 0, fetchedAt: latestOpeningHours[0]?.google_data_fetched_at },
+      { hasData: Number(photoCount[0]?.count ?? 0) > 0, fetchedAt: latestPhoto[0]?.google_data_fetched_at },
+    ],
+    GOOGLE_CACHE_TTL_MS
+  );
+}
+
 async function saveBusinessDataToDb(
-  businessId: number, 
-  placeId: string, 
+  businessId: number,
+  placeId: string,
   data: BusinessGoogleData
 ): Promise<void> {
+  const fetchedAt = new Date();
+
   try {
-    // Guard: if any data already exists for this business/place, skip saving to avoid duplicates
-    const [existingReviews, existingHours, existingPhotos] = await Promise.all([
-      prisma.business_google_reviews.count({ where: { BUSINESS_ID: businessId, PLACE_ID: placeId } }),
-      prisma.business_opening_hours.count({ where: { BUSINESS_ID: businessId, PLACE_ID: placeId } }),
-      prisma.business_google_images.count({ where: { BUSINESS_ID: businessId, PLACE_ID: placeId } })
-    ]);
-    if (existingReviews > 0 || existingHours > 0 || existingPhotos > 0) {
-      return;
-    }
+    await prisma.$transaction(async (tx) => {
+      await Promise.all([
+        tx.$executeRaw`
+          DELETE FROM business_google_reviews
+          WHERE BUSINESS_ID = ${businessId} AND PLACE_ID = ${placeId}
+        `,
+        tx.$executeRaw`
+          DELETE FROM business_opening_hours
+          WHERE BUSINESS_ID = ${businessId} AND PLACE_ID = ${placeId}
+        `,
+        tx.$executeRaw`
+          DELETE FROM business_google_images
+          WHERE BUSINESS_ID = ${businessId} AND PLACE_ID = ${placeId}
+        `
+      ]);
 
-    // Save reviews
-    for (let i = 0; i < data.reviews.length; i++) {
-      const review = data.reviews[i];
-      try {
-        await prisma.business_google_reviews.create({
-          data: {
-            BUSINESS_ID: businessId,
-            PLACE_ID: placeId,
-            AUTHOR: review.author_name,
-            RATING: String(review.rating),
-            REVIEW: review.text,
-            RELATIVE_TIME: review.relative_time_description,
-            CREATION_DATETIME: new Date(),
-          }
-        });
-      } catch (err) {
-        console.error(`Error saving review ${i + 1}:`, err);
-        console.error('Review data:', review);
+      for (const review of data.reviews) {
+        await tx.$executeRaw`
+          INSERT INTO business_google_reviews
+            (CREATION_DATETIME, google_data_fetched_at, BUSINESS_ID, PLACE_ID, AUTHOR, RATING, REVIEW, RELATIVE_TIME)
+          VALUES
+            (${fetchedAt}, ${fetchedAt}, ${businessId}, ${placeId}, ${review.author_name}, ${String(review.rating)}, ${review.text}, ${review.relative_time_description})
+        `;
       }
-    }
 
-    // Save opening hours using direct SQL to avoid Prisma issues
-    for (let i = 0; i < data.openingHours.length; i++) {
-      const hours = data.openingHours[i];
-      try {
-        const timeRanges = hours.hours.split(',').map(r => r.trim());
-        const [open1, close1] = timeRanges[0]?.split(/[-–]/).map(t => t.trim()) || ['', ''];
-        const [open2, close2] = timeRanges[1]?.split(/[-–]/).map(t => t.trim()) || ['', ''];
-        const nextOpeningHoursId = await prisma.$queryRaw<Array<{ nextId: bigint | number }>>`
+      for (const hours of data.openingHours) {
+        const timeRanges = hours.hours.split(',').map((range: string) => range.trim());
+        const [open1, close1] = timeRanges[0]?.split(/[-–]/).map((time: string) => time.trim()) || ['', ''];
+        const [open2, close2] = timeRanges[1]?.split(/[-–]/).map((time: string) => time.trim()) || ['', ''];
+
+        const nextOpeningHoursId = await tx.$queryRaw<Array<{ nextId: bigint | number }>>`
           SELECT COALESCE(MAX(BUSINESS_OPENING_HOURS_ID), 0) + 1 AS nextId
           FROM business_opening_hours
         `;
-        
-        await prisma.$executeRaw`
-          INSERT INTO business_opening_hours (BUSINESS_OPENING_HOURS_ID, CREATION_DATETIME, BUSINESS_ID, PLACE_ID, DAY, OPEN_1, CLOSE_1, OPEN_2, CLOSE_2, REMARKS)
-          VALUES (${Number(nextOpeningHoursId[0]?.nextId ?? 1)}, NOW(), ${businessId}, ${placeId}, ${hours.day}, ${open1}, ${close1}, ${open2}, ${close2}, ${hours.hours})
-        `;
-      } catch (err) {
-        console.error(`Error saving opening hours ${i + 1}:`, err);
-        console.error('Hours data:', hours);
-      }
-    }
 
-    // Save photos using direct SQL
-    for (let i = 0; i < data.photos.length; i++) {
-      const photo = data.photos[i];
-      try {
-        await prisma.$executeRaw`
-          INSERT INTO business_google_images (CREATION_DATETIME, BUSINESS_ID, PLACE_ID, IMAGE_URL)
-          VALUES (NOW(), ${businessId}, ${placeId}, ${photo.photoUrl})
+        await tx.$executeRaw`
+          INSERT INTO business_opening_hours
+            (BUSINESS_OPENING_HOURS_ID, CREATION_DATETIME, google_data_fetched_at, BUSINESS_ID, PLACE_ID, DAY, OPEN_1, CLOSE_1, OPEN_2, CLOSE_2, REMARKS)
+          VALUES
+            (${Number(nextOpeningHoursId[0]?.nextId ?? 1)}, ${fetchedAt}, ${fetchedAt}, ${businessId}, ${placeId}, ${hours.day}, ${open1}, ${close1}, ${open2}, ${close2}, ${hours.hours})
         `;
-      } catch (err) {
-        console.error(`Error saving photo ${i + 1}:`, err);
-        console.error('Photo data:', photo);
       }
-    }
+
+      for (const photo of data.photos) {
+        await tx.$executeRaw`
+          INSERT INTO business_google_images
+            (CREATION_DATETIME, google_data_fetched_at, BUSINESS_ID, PLACE_ID, IMAGE_URL)
+          VALUES
+            (${fetchedAt}, ${fetchedAt}, ${businessId}, ${placeId}, ${photo.photoUrl})
+        `;
+      }
+    });
   } catch (error) {
     console.error('Critical error saving business data to database:', error);
-    // Don't throw error to prevent API from failing if DB save fails
   }
 }
