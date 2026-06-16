@@ -19,31 +19,22 @@ const initialForm = {
   images: [] as File[],
 };
 
-// Add Strapi upload helper
-const STRAPI_URL = process.env.NEXT_PUBLIC_STRAPI_URL || '';
-const STRAPI_API_TOKEN = process.env.NEXT_PUBLIC_STRAPI_API_TOKEN || '';
-
-async function uploadImagesToStrapi(images: File[]): Promise<string[]> {
-  const uploadedUrls: string[] = [];
-  for (const image of images) {
-    const formData = new FormData();
-    formData.append('files', image);
-    formData.append('folder', '14');
-    const res = await fetch(`${STRAPI_URL}/api/upload`, {
+async function uploadFile(file: File): Promise<{ url: string; key: string } | null> {
+  const formData = new FormData();
+  formData.append('file', file);
+  try {
+    const res = await fetch('/api/upload', {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${STRAPI_API_TOKEN}`,
-      },
       body: formData,
     });
-    if (!res.ok) throw new Error('Failed to upload to Strapi');
-    const data = await res.json();
-    if (data && data[0] && data[0].url) {
-      uploadedUrls.push(data[0].url.startsWith('http') ? data[0].url : `${STRAPI_URL}${data[0].url}`);
-    }
+    if (!res.ok) throw new Error('Failed to upload file');
+    return await res.json();
+  } catch (error) {
+    console.error('Error uploading file:', error);
+    return null;
   }
-  return uploadedUrls;
 }
+
 
 export default function FoodJourneyPage({ searchParams }: { searchParams: { [key: string]: string } })  {
 
@@ -170,10 +161,15 @@ export default function FoodJourneyPage({ searchParams }: { searchParams: { [key
     setSubmitting(true);
 
     try {
-      // Upload images to Strapi first
+      // Upload images to S3 first
       let imageUrls: string[] = [];
       if (images.length > 0) {
-        imageUrls = await uploadImagesToStrapi(images);
+        for (const image of images) {
+          const result = await uploadFile(image);
+          if (result) {
+            imageUrls.push(result.url);
+          }
+        }
       }
       // Prepare form data with image URLs, omitting 'images' field
       const { ...formRest } = form;

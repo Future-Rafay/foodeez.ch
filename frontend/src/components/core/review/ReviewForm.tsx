@@ -81,72 +81,51 @@ const ReviewForm: React.FC<ReviewFormProps> = ({
     if (file) setVideo(file);
   };
 
-  const STRAPI_URL = process.env.NEXT_PUBLIC_STRAPI_URL || '';
-  const STRAPI_API_TOKEN = process.env.NEXT_PUBLIC_STRAPI_API_TOKEN || process.env.STRAPI_API_TOKEN || '';
-
-  async function uploadImagesToStrapi(images: File[]): Promise<string[]> {
-    const uploadedUrls: string[] = [];
-    for (const image of images) {
-      const formData = new FormData();
-      formData.append('files', image);
-      formData.append('folder', '9');
-      const res = await fetch(`${STRAPI_URL}/api/upload`, {
+  async function uploadFile(file: File): Promise<{ url: string; key: string } | null> {
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const res = await fetch('/api/upload', {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${STRAPI_API_TOKEN}`,
-        },
         body: formData,
       });
-      if (!res.ok) throw new Error('Failed to upload to Strapi');
-      const data = await res.json();
-      if (data && data[0] && data[0].url) {
-        uploadedUrls.push(data[0].url.startsWith('http') ? data[0].url : `${STRAPI_URL}${data[0].url}`);
-      }
+      if (!res.ok) throw new Error('Failed to upload file');
+      return await res.json();
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      return null;
     }
-    return uploadedUrls;
   }
 
-  async function uploadVideoToStrapi(video: File): Promise<string | null> {
-    const formData = new FormData();
-    formData.append('files', video);
-    formData.append('folder', '9');
-    const res = await fetch(`${STRAPI_URL}/api/upload`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${STRAPI_API_TOKEN}`,
-      },
-      body: formData,
-    });
-    if (!res.ok) throw new Error('Failed to upload video to Strapi');
-    const data = await res.json();
-    if (data && data[0] && data[0].url) {
-      return data[0].url.startsWith('http') ? data[0].url : `${STRAPI_URL}${data[0].url}`;
-    }
-    return null;
-  }
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
     try {
-      // 1. Upload images to Strapi
-      let strapiImageUrls: string[] = [];
-      if (images.length > 0) {
-        strapiImageUrls = await uploadImagesToStrapi(images);
+      // 1. Upload images to S3
+      const uploadedImageUrls: string[] = [];
+      for (const image of images) {
+        const result = await uploadFile(image);
+        if (result) {
+          uploadedImageUrls.push(result.url);
+        }
       }
-      // 2. Upload video to Strapi (if any)
-      let strapiVideoUrl: string | null = null;
+      // 2. Upload video to S3 (if any)
+      let uploadedVideoUrl: string | null = null;
       if (video) {
-        strapiVideoUrl = await uploadVideoToStrapi(video);
+        const result = await uploadFile(video);
+        if (result) {
+          uploadedVideoUrl = result.url;
+        }
       }
       // 3. Prepare payload for your API
       const payload = {
         businessId,
         rating,
         remarks,
-        picUrls: strapiImageUrls,
-        videoUrl: strapiVideoUrl,
+        picUrls: uploadedImageUrls,
+        videoUrl: uploadedVideoUrl,
         ...(isEdit && reviewId ? { reviewId } : {}),
       };
       // 4. Submit to your local API as JSON

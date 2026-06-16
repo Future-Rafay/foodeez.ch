@@ -50,7 +50,7 @@ export async function POST(request: Request) {
         ...picFields,
         VIDEO_1: videoUrl || undefined,
         CREATION_DATETIME: new Date(),
-        LIKE_COUNT: 1,
+        LIKE_COUNT: 0,
         APPROVED: 0,
       },
     });
