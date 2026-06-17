@@ -145,7 +145,6 @@ const BusinessDetailPage = () => {
 
             <OpeningHours
               openingHours={googleBusinessData?.openingHours || []}
-              isOpenNow={googleBusinessData?.isOpenNow || false}
             />
 
           )}
