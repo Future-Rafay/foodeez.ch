@@ -8,7 +8,6 @@ import {
   GooglePhoto
 } from '@/types/google-business';
 import prisma from '@/lib/prisma';
-import { CheckisOpenNow } from '@/lib/isOpenNow';
 import { evaluateGoogleCache } from '@/lib/googleCache';
 
 const GOOGLE_CACHE_TTL_MS = Number(
@@ -268,7 +267,7 @@ async function getCachedBusinessData(
       rating: parseFloat(r.RATING || '0'),
       text: r.REVIEW || '',
       relative_time_description: r.RELATIVE_TIME || '',
-      profile_photo_url: ''
+      profile_photo_url: r.PROFILE_PHOTO_URL || ''
     }));
 
     const openingHours: OpeningHourDay[] = cachedOpeningHours.map(h => ({
@@ -280,8 +279,8 @@ async function getCachedBusinessData(
 
     const photos: GooglePhoto[] = cachedPhotos.map(p => ({
       photoUrl: p.IMAGE_URL || '',
-      width: 0,
-      height: 0
+      width: p.WIDTH ?? 800,
+      height: p.HEIGHT ?? 600
     }));
 
     return {
@@ -291,7 +290,6 @@ async function getCachedBusinessData(
       reviews,
       openingHours,
       photos,
-      isOpenNow: CheckisOpenNow(openingHours),
       cached: true,
       lastUpdated: lastFetchedAt ?? new Date()
     };
@@ -335,11 +333,11 @@ async function saveBusinessDataToDb(
         await tx.$executeRaw`
           INSERT INTO business_google_reviews
             (CREATION_DATETIME, google_data_fetched_at, BUSINESS_ID, PLACE_ID,
-             AUTHOR, RATING, REVIEW, RELATIVE_TIME)
+             AUTHOR, RATING, REVIEW, RELATIVE_TIME, PROFILE_PHOTO_URL)
           VALUES
             (${fetchedAt}, ${fetchedAt}, ${businessId}, ${placeId},
              ${review.author_name}, ${String(review.rating)}, ${review.text},
-             ${review.relative_time_description})
+             ${review.relative_time_description}, ${review.profile_photo_url ?? null})
         `;
       }
 
@@ -369,9 +367,11 @@ async function saveBusinessDataToDb(
       for (const photo of data.photos) {
         await tx.$executeRaw`
           INSERT INTO business_google_images
-            (CREATION_DATETIME, google_data_fetched_at, BUSINESS_ID, PLACE_ID, IMAGE_URL)
+            (CREATION_DATETIME, google_data_fetched_at, BUSINESS_ID, PLACE_ID,
+             IMAGE_URL, WIDTH, HEIGHT)
           VALUES
-            (${fetchedAt}, ${fetchedAt}, ${businessId}, ${placeId}, ${photo.photoUrl})
+            (${fetchedAt}, ${fetchedAt}, ${businessId}, ${placeId},
+             ${photo.photoUrl}, ${photo.width}, ${photo.height})
         `;
       }
     });

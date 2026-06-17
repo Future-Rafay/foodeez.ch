@@ -39,7 +39,6 @@ export interface BusinessGoogleData {
   reviews: GoogleReview[];
   photos: GooglePhoto[];
   openingHours: OpeningHourDay[];
-  isOpenNow: boolean;
   geometry?: GoogleGeometry;
   cached: boolean; // Indicates if data came from cache
   lastUpdated?: Date;

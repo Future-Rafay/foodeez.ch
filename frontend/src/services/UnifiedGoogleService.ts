@@ -76,8 +76,6 @@ export class UnifiedGoogleService {
       });
     }
 
-    const isOpenNow = result.opening_hours?.open_now ?? false;
-
     return {
       name: result.name,
       rating: result.rating || 0,
@@ -85,7 +83,6 @@ export class UnifiedGoogleService {
       reviews,
       photos,
       openingHours,
-      isOpenNow,
       geometry: result.geometry,
       cached: false,
       lastUpdated: new Date()

@@ -472,6 +472,7 @@ model business_google_reviews {
   RATING                     String?   @db.VarChar(5)
   REVIEW                     String?   @db.Text
   RELATIVE_TIME              String?   @db.VarChar(45)
+  PROFILE_PHOTO_URL          String?   @db.VarChar(1000)
 }
 
 model business_opening_hours {
@@ -495,6 +496,8 @@ model business_google_images {
   BUSINESS_ID               Int?
   PLACE_ID                  String?   @db.VarChar(100)
   IMAGE_URL                 String?   @db.VarChar(1000)
+  WIDTH                     Int?
+  HEIGHT                    Int?
 }
 
 /// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
@@ -819,6 +822,7 @@ view business_google_review_view {
   RATING                     String?   @db.VarChar(5)
   REVIEW                     String?   @db.Text
   RELATIVE_TIME              String?   @db.VarChar(45)
+  PROFILE_PHOTO_URL          String?   @db.VarChar(1000)
 }
 
 /// The underlying view does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
@@ -840,4 +844,6 @@ view business_google_images_view {
   BUSINESS_ID               Int?
   PLACE_ID                  String? @db.VarChar(100)
   IMAGE_URL                 String? @db.VarChar(1000)
+  WIDTH                     Int?
+  HEIGHT                    Int?
 }
