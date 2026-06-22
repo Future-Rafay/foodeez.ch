@@ -1,5 +1,5 @@
 import Separator from "@/components/ui/separator";
-import { isOpenNow } from "@/lib/isOpenNow";
+// import { isOpenNow } from "@/lib/isOpenNow";
 import { OpeningHourDay } from "@/types/google-business";
 import { format } from "date-fns";
 import { Clock } from "lucide-react";
@@ -12,7 +12,7 @@ const OpeningHours: React.FC<OpeningHoursProps> = ({ openingHours }) => {
   if (!openingHours || openingHours.length === 0) return null;
 
   const currentDay = format(new Date(), "EEEE");
-  const openNow = isOpenNow(openingHours);
+  // const openNow = isOpenNow(openingHours);
 
   return (
     <>
@@ -25,13 +25,13 @@ const OpeningHours: React.FC<OpeningHoursProps> = ({ openingHours }) => {
               <Clock className="ml-2" size={48} />
             </div>
 
-            <span
+            {/* <span
               className={`px-4 py-1 rounded-full text-base font-medium text-text-main ${
                 openNow ? "bg-highlight" : "bg-highlight-light"
               }`}
             >
               {openNow ? "Now Open" : "Now Closed"}
-            </span>
+            </span> */}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -13,11 +13,11 @@ export default function MapCard({ placeId }: MapCardProps) {
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
   if (!apiKey) {
-    throw new Error("Google Maps API key is not defined in environment variables.");
+    console.error("Google Maps API key is not defined in environment variables.");
   }
 
   if (!placeId) {
-    throw new Error("Place ID is required to display the map.");
+    console.error("Place ID is required to display the map.");
   }
 
   const [center, setCenter] = useState<{ lat: number; lng: number } | null>(null);

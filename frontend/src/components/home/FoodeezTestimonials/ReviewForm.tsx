@@ -33,9 +33,7 @@ const ReviewForm: React.FC<ReviewFormProps> = ({
     name: initialData?.name || session?.user?.name || "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
-  // const fileInputRef = useRef<HTMLInputElement>(null);
   const [showGuestSubmittedModal, setShowGuestSubmittedModal] = useState(false);
   const [pendingOnSubmit, setPendingOnSubmit] = useState(false);
 
@@ -61,58 +59,6 @@ const ReviewForm: React.FC<ReviewFormProps> = ({
       setErrors((prev) => ({ ...prev, review: "" }));
     }
   };
-
-  // const handleImageUpload = async (files: FileList | null) => {
-  //   if (!files) return;
-
-  //   const newImages: File[] = [];
-  //   const newUploadedImages: string[] = [];
-
-  //   for (let i = 0; i < files.length; i++) {
-  //     const file = files[i];
-  //     if (file.size > 5 * 1024 * 1024) {
-  //       // 5MB limit
-  //       setErrors((prev) => ({
-  //         ...prev,
-  //         images: "Each image must be less than 5MB",
-  //       }));
-  //       continue;
-  //     }
-
-  //     if (!file.type.startsWith("image/")) {
-  //       setErrors((prev) => ({
-  //         ...prev,
-  //         images: "Please select only image files",
-  //       }));
-  //       continue;
-  //     }
-
-  //     newImages.push(file);
-
-  //     // Create preview URL
-  //     const reader = new FileReader();
-  //     reader.onload = (e) => {
-  //       if (e.target?.result) {
-  //         newUploadedImages.push(e.target.result as string);
-  //         setUploadedImages((prev) => [...prev, e.target!.result as string]);
-  //       }
-  //     };
-  //     reader.readAsDataURL(file);
-  //   }
-
-  //   setFormData((prev) => ({
-  //     ...prev,
-  //     images: [...prev.images, ...newImages].slice(0, 3),
-  //   }));
-  // };
-
-  // const removeImage = (index: number) => {
-  //   setFormData((prev) => ({
-  //     ...prev,
-  //     images: prev.images.filter((_, i) => i !== index),
-  //   }));
-  //   setUploadedImages((prev) => prev.filter((_, i) => i !== index));
-  // };
 
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
@@ -150,25 +96,12 @@ const ReviewForm: React.FC<ReviewFormProps> = ({
     setErrors({});
 
     try {
-      // Upload images first
-      // const imageUrls: string[] = [];
-      // for (const image of formData.images) {
-      //   try {
-      //     const imageUrl = await FoodeezReviewService.uploadImage(image);
-      //     imageUrls.push(imageUrl);
-      //   } catch (error) {
-      //     console.error("Failed to upload image:", error);
-      //   }
-      // }
 
       // Create review data
       const reviewData = {
         REVIEWER_NAME: formData.name.trim(),
         RATING: formData.rating,
         REVIEW: formData.review.trim(),
-        // PIC_1: imageUrls[0] || undefined,
-        // PIC_2: imageUrls[1] || undefined,
-        // PIC_3: imageUrls[2] || undefined,
       };
 
       if (isEditing && reviewId) {
@@ -294,67 +227,6 @@ const ReviewForm: React.FC<ReviewFormProps> = ({
               </div>
             </div>
 
-            {/* Image Upload */}
-            {/* <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2 sm:mb-3">
-              Add photos (optional)
-            </label>
-            <div className="space-y-4">
-              {formData.images.length < 3 && (
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-full h-24 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-orange-400 hover:bg-orange-50 transition-colors"
-                >
-                  <div className="text-center">
-                    <Upload className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400 mx-auto mb-2" />
-                    <p className="text-sm text-gray-600">
-                      Click to upload images (max 3)
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      JPG, PNG up to 5MB each
-                    </p>
-                  </div>
-                </button>
-              )}
-
-              <AnimatePresence>
-                {uploadedImages.length > 0 && (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {uploadedImages.map((image, index) => (
-                      <motion.div
-                        key={index}
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.8 }}
-                        className="relative group"
-                      >
-                        <Image
-                          src={image}
-                          alt={`Preview ${index + 1}`}
-                          className="w-full h-24 sm:h-28 object-cover rounded-lg"
-                          width={200}
-                          height={200}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeImage(index)}
-                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors opacity-0 group-hover:opacity-100"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </motion.div>
-                    ))}
-                  </div>
-                )}
-              </AnimatePresence>
-
-              {errors.images && (
-                <p className="text-red-500 text-sm">{errors.images}</p>
-              )}
-            </div>
-          </div> */}
-
             {/* Error Messages */}
             {errors.auth && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -393,15 +265,6 @@ const ReviewForm: React.FC<ReviewFormProps> = ({
             </div>
           </form>
 
-          {/* Hidden input */}
-          {/* <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          accept="image/*"
-          onChange={(e) => handleImageUpload(e.target.files)}
-          className="hidden"
-        /> */}
         </Card>
       </motion.div>
       {/* Guest Submitted Modal */}

@@ -116,7 +116,7 @@ export default function TopRatedNearYou({ className = "" }: TopRatedNearYouProps
     // Check if location is already enabled on mount
     useEffect(() => {
         if (userLocation?.lat && userLocation?.lng) {
-            fetchRestaurants(userLocation);
+            fetchRestaurants({ lat: 0, lng: 0 });
         }
     }, [fetchRestaurants, userLocation?.lat, userLocation?.lng]);
 
