@@ -448,7 +448,7 @@ model top_events {
 model visitor_food_journey {
   VISITOR_FOOD_JOURNEY_ID Int       @id @default(autoincrement())
   CREATION_DATETIME       DateTime? @db.DateTime(0)
-  VISITOR_ID              Int?      @default(0)
+  VISITORS_ACCOUNT_ID     Int?      @default(0)
   VISITOR_NAME            String?   @db.VarChar(100)
   VISITOR_PIC             String?   @db.VarChar(100)
   VISITOR_EMAIL_ADDRESS   String?   @db.VarChar(100)
@@ -465,7 +465,6 @@ model visitor_food_journey {
 model business_google_reviews {
   BUSINESS_GOOGLE_REVIEWS_ID Int       @id @default(autoincrement())
   CREATION_DATETIME          DateTime? @db.DateTime(0)
-  google_data_fetched_at     DateTime? @db.DateTime(0)
   BUSINESS_ID                Int?
   PLACE_ID                   String?   @db.VarChar(255)
   AUTHOR                     String?   @db.VarChar(100)
@@ -473,12 +472,12 @@ model business_google_reviews {
   REVIEW                     String?   @db.Text
   RELATIVE_TIME              String?   @db.VarChar(45)
   PROFILE_PHOTO_URL          String?   @db.VarChar(1000)
+  google_data_fetched_at     DateTime? @db.DateTime(0)
 }
 
 model business_opening_hours {
   BUSINESS_OPENING_HOURS_ID Int       @id
   CREATION_DATETIME         DateTime? @db.DateTime(0)
-  google_data_fetched_at    DateTime? @db.DateTime(0)
   BUSINESS_ID               Int?
   PLACE_ID                  String?   @db.VarChar(100)
   DAY                       String?   @db.VarChar(45)
@@ -487,17 +486,18 @@ model business_opening_hours {
   OPEN_2                    String?   @db.VarChar(45)
   CLOSE_2                   String?   @db.VarChar(45)
   REMARKS                   String?   @db.VarChar(45)
+  google_data_fetched_at    DateTime? @db.DateTime(0)
 }
 
 model business_google_images {
   BUSINESS_GOOGLE_IMAGES_ID Int       @id @default(autoincrement())
   CREATION_DATETIME         DateTime? @db.DateTime(0)
-  google_data_fetched_at    DateTime? @db.DateTime(0)
   BUSINESS_ID               Int?
   PLACE_ID                  String?   @db.VarChar(100)
   IMAGE_URL                 String?   @db.VarChar(1000)
   WIDTH                     Int?
   HEIGHT                    Int?
+  google_data_fetched_at    DateTime? @db.DateTime(0)
 }
 
 /// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
@@ -790,22 +790,6 @@ view top_events_view {
   HREF          String?   @db.VarChar(255)
 }
 
-view visitor_food_journey_view {
-  VISITOR_FOOD_JOURNEY_ID Int     @default(0)
-  VISITOR_ID              Int?    @default(0)
-  VISITOR_NAME            String  @default("") @db.VarChar(100)
-  VISITOR_PIC             String  @default("") @db.VarChar(100)
-  VISITOR_EMAIL_ADDRESS   String  @default("") @db.VarChar(100)
-  TITLE                   String? @db.VarChar(255)
-  DESCRIPTION             String? @db.VarChar(1000)
-  RESTAURANT_NAME         String  @default("") @db.VarChar(100)
-  ADDRESS_GOOGLE_URL      String? @db.VarChar(255)
-  PIC_1                   String? @db.VarChar(255)
-  PIC_2                   String? @db.VarChar(255)
-  PIC_3                   String? @db.VarChar(255)
-  APPROVED                Int?    @default(0) @db.TinyInt
-}
-
 view business_having_active_menu_card_view {
   BUSINESS_ID Int?
 
@@ -816,7 +800,7 @@ view business_having_active_menu_card_view {
 view business_google_review_view {
   BUSINESS_GOOGLE_REVIEWS_ID Int       @default(0)
   CREATION_DATETIME          DateTime? @db.DateTime(0)
-  BUSINESS_ID                Int?      @default(0)
+  BUSINESS_ID                Int?
   PLACE_ID                   String?   @db.VarChar(255)
   AUTHOR                     String?   @db.VarChar(100)
   RATING                     String?   @db.VarChar(5)
@@ -846,4 +830,21 @@ view business_google_images_view {
   IMAGE_URL                 String? @db.VarChar(1000)
   WIDTH                     Int?
   HEIGHT                    Int?
+}
+
+/// This view or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+view visitor_food_journey_view {
+  VISITOR_FOOD_JOURNEY_ID Int     @default(0)
+  VISITORS_ACCOUNT_ID     Int?    @default(0)
+  VISITOR_NAME            String  @default("") @db.VarChar(100)
+  VISITOR_PIC             String  @default("") @db.VarChar(100)
+  VISITOR_EMAIL_ADDRESS   String  @default("") @db.VarChar(100)
+  TITLE                   String? @db.VarChar(255)
+  DESCRIPTION             String? @db.VarChar(1000)
+  RESTAURANT_NAME         String  @default("") @db.VarChar(100)
+  ADDRESS_GOOGLE_URL      String? @db.VarChar(255)
+  PIC_1                   String? @db.VarChar(255)
+  PIC_2                   String? @db.VarChar(255)
+  PIC_3                   String? @db.VarChar(255)
+  APPROVED                Int?    @default(0) @db.TinyInt
 }

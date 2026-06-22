@@ -1,6 +1,6 @@
 SELECT
   `foodeez`.`visitor_food_journey`.`VISITOR_FOOD_JOURNEY_ID` AS `VISITOR_FOOD_JOURNEY_ID`,
-  `foodeez`.`visitor_food_journey`.`VISITOR_ID` AS `VISITOR_ID`,
+  `foodeez`.`visitor_food_journey`.`VISITORS_ACCOUNT_ID` AS `VISITORS_ACCOUNT_ID`,
   IFNULL(
     `foodeez`.`visitor_food_journey`.`VISITOR_NAME`,
     'Guest'
