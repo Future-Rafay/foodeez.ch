@@ -1,80 +1,136 @@
-"use client";
-
-import React, { useEffect, useState } from "react";
 import Image from "next/image";
-import ReactMarkdown from "react-markdown";
-import { useParams } from "next/navigation";
+import Link from "next/link";
+import {
+  ArrowLeft,
+  ArrowUpRight,
+  CalendarDays,
+  MessageCircle,
+  UserRound,
+} from "lucide-react";
+import { notFound } from "next/navigation";
+import { getBlogPost } from "@/lib/wordpress";
 
-interface BlogPost {
-  id: number;
-  title: string;
-  slug: string;
-  content: string;
-  createdAt: string;
-  publishedAt: string;
-  coverImage?: {
-    formats?: {
-      medium?: {
-        url: string;
-      };
-    };
-  };
-}
+type SingleBlogPostPageProps = {
+  params: { slug: string };
+};
 
-export default function SingleBlogPostPage() {
-  const { slug } = useParams();
-  const [blog, setBlog] = useState<BlogPost | null>(null);
-  const [loading, setLoading] = useState(true);
+export default async function SingleBlogPostPage({ params }: SingleBlogPostPageProps) {
+  const blog = await getBlogPost(params.slug);
 
-  useEffect(() => {
-    const fetchBlogPost = async () => {
-      if (!slug) return;
-      try {
-        const res = await fetch(`http://localhost:1337/api/blogs?filters[slug][$eq]=${slug}&populate=*`);
-        const data = await res.json();
-        if (data.data && data.data.length > 0) {
-          setBlog(data.data[0]);
-        } else {
-          setBlog(null);
-        }
-      } catch (error) {
-        console.error("Failed to fetch blog post:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchBlogPost();
-  }, [slug]);
-
-  if (loading) return <p className="text-center mt-10 text-text-main">Loading blog post...</p>;
-  if (!blog) return <p className="text-center mt-10 text-danger-DEFAULT">Blog post not found.</p>;
+  if (!blog) notFound();
 
   return (
-    <div className="max-w-4xl mx-auto py-8 px-4 md:px-6 lg:px-8 bg-background-DEFAULT shadow-lg rounded-lg my-8">
-      {blog.coverImage && (
-        <div className="mb-6">
-          <Image
-            src={`http://localhost:1337${blog.coverImage.formats?.medium?.url}`}
-            alt={blog.title}
-            width={1200}
-            height={600}
-            className="w-full h-auto object-cover rounded-lg shadow-md"
-          />
+    <main className="bg-background-DEFAULT py-8 sm:py-12">
+      <article className="">
+        <Link
+          href="/blog"
+          className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-text-muted transition-colors hover:text-primary"
+        >
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+          Back to all articles
+        </Link>
+
+        <div className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
+          {blog.coverImageUrl && (
+            <div className="relative aspect-[16/7] min-h-64 w-full overflow-hidden bg-gray-100">
+              <Image
+                src={blog.coverImageUrl}
+                alt={blog.coverImageAlt || blog.title}
+                fill
+                sizes="(min-width: 1280px) 1280px, 100vw"
+                priority
+                className="object-cover"
+              />
+            </div>
+          )}
+
+          <div className="px-5 py-8 sm:px-10 sm:py-10 lg:px-14 lg:py-12">
+            {blog.categories.length > 0 && (
+              <div className="mb-5 flex flex-wrap gap-2">
+                {blog.categories.map((category) => (
+                  <span
+                    key={category.id}
+                    className="rounded-full bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary"
+                  >
+                    {category.name}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <h1 className="max-w-5xl text-3xl font-extrabold leading-tight text-text-main sm:text-4xl lg:text-5xl">
+              {blog.title}
+            </h1>
+
+            <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-3 border-b border-gray-200 pb-7 text-sm text-text-muted">
+              {blog.publishedAt && (
+                <span className="inline-flex items-center gap-2">
+                  <CalendarDays className="h-4 w-4 text-primary" aria-hidden="true" />
+                  Published {formatDate(blog.publishedAt)}
+                </span>
+              )}
+              {blog.authorName && (
+                <span className="inline-flex items-center gap-2">
+                  <UserRound className="h-4 w-4 text-primary" aria-hidden="true" />
+                  By {blog.authorName}
+                </span>
+              )}
+            </div>
+
+            <div
+              className="prose prose-lg mt-8 max-w-none text-text-main prose-headings:text-text-main prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-img:mx-auto prose-img:rounded-xl"
+              dangerouslySetInnerHTML={{ __html: blog.contentHtml }}
+            />
+
+            {blog.sourceUrl && (
+              <aside className="relative mt-12 overflow-hidden rounded-3xl bg-gradient-to-br from-primary via-primary-light to-secondary p-6 text-white shadow-lg sm:p-8 lg:p-10">
+                <div
+                  className="absolute -right-16 -top-16 h-52 w-52 rounded-full bg-white/10"
+                  aria-hidden="true"
+                />
+                <div
+                  className="absolute -bottom-20 left-1/3 h-40 w-40 rounded-full bg-white/10"
+                  aria-hidden="true"
+                />
+
+                <div className="relative flex flex-col gap-7 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="max-w-3xl">
+                    <span className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider backdrop-blur-sm">
+                      <MessageCircle className="h-4 w-4" aria-hidden="true" />
+                      Join the conversation
+                    </span>
+                    <h2 className="text-2xl font-bold leading-tight sm:text-3xl">
+                      Want to follow this article or share your thoughts?
+                    </h2>
+                    <p className="mt-3 max-w-2xl leading-7 text-white/90">
+                      Visit the official blog page to follow the discussion, leave a
+                      comment, and read what other readers have shared.
+                    </p>
+                  </div>
+
+                  <a
+                    href={blog.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-white px-6 py-3.5 font-semibold text-primary shadow-md transition duration-300 hover:-translate-y-0.5 hover:bg-orange-50 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-primary"
+                  >
+                    Visit official blog
+                    <ArrowUpRight className="h-5 w-5" aria-hidden="true" />
+                  </a>
+                </div>
+              </aside>
+            )}
+          </div>
         </div>
-      )}
-
-      <h1 className="text-4xl md:text-5xl font-bold text-primary-dark mb-4 leading-tight">
-        {blog.title}
-      </h1>
-
-      <p className="text-sm text-text-muted mb-6 border-b border-background-muted pb-4">
-        Published: {new Date(blog.publishedAt).toLocaleDateString()}
-      </p>
-
-      <div className="prose prose-lg max-w-none text-text-main">
-        <ReactMarkdown>{blog.content}</ReactMarkdown>
-      </div>
-    </div>
+      </article>
+    </main>
   );
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat("en", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(value));
 }
