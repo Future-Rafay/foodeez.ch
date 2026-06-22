@@ -16,8 +16,11 @@ const initialForm = {
   DESCRIPTION: "",
   RESTAURANT_NAME: "",
   ADDRESS_GOOGLE_URL: "",
-  images: [] as File[],
 };
+
+const emptyImageSlots = () => [null, null, null] as (File | null)[];
+const emptyPreviewSlots = () => [null, null, null] as (string | null)[];
+const emptyImageValues = () => ["", "", ""];
 
 async function uploadFile(file: File): Promise<{ url: string; key: string } | null> {
   const formData = new FormData();
@@ -47,8 +50,9 @@ export default function FoodJourneyPage({ searchParams }: { searchParams: { [key
   const [success, setSuccess] = useState("");
   const [allStories, setAllStories] = useState<visitor_food_journey_view[]>([]);
   const [page, setPage] = useState(1);
-  const [images, setImages] = useState<File[]>([]);
-  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [images, setImages] = useState<(File | null)[]>(emptyImageSlots);
+  const [imageValues, setImageValues] = useState<string[]>(emptyImageValues);
+  const [imagePreviews, setImagePreviews] = useState<(string | null)[]>(emptyPreviewSlots);
   const [editStory, setEditStory] = useState<visitor_food_journey_view | null>(null);
   const limit = 9;
 
@@ -72,19 +76,17 @@ export default function FoodJourneyPage({ searchParams }: { searchParams: { [key
       (async () => {
         const data = await getFoodJourneyById(Number(editId));
         if (data) {
-          const previews = [data.PIC_1, data.PIC_2, data.PIC_3].filter((x): x is string => Boolean(x));
-          console.log('Edit from detail page, image URLs:', [data.PIC_1, data.PIC_2, data.PIC_3]);
-          console.log('Setting imagePreviews:', previews);
+          const existingImages = [data.PIC_1 || "", data.PIC_2 || "", data.PIC_3 || ""];
           setEditStory(data);
           setForm({
             TITLE: data.TITLE || '',
             DESCRIPTION: data.DESCRIPTION || '',
             RESTAURANT_NAME: data.RESTAURANT_NAME || '',
             ADDRESS_GOOGLE_URL: data.ADDRESS_GOOGLE_URL || '',
-            images: [],
           });
-          setImages([]);
-          setImagePreviews(previews);
+          setImages(emptyImageSlots());
+          setImageValues(existingImages);
+          setImagePreviews(emptyPreviewSlots());
           setError('');
           setSuccess('');
           setTimeout(() => {
@@ -95,18 +97,6 @@ export default function FoodJourneyPage({ searchParams }: { searchParams: { [key
     }
   }, [searchParams]);
 
-  // Generate image previews when images change
-  useEffect(() => {
-    if (images.length === 0) {
-      setImagePreviews([]);
-      return;
-    }
-    const urls = images.map((file) => URL.createObjectURL(file));
-    setImagePreviews(urls);
-    // Cleanup
-    return () => urls.forEach((url) => URL.revokeObjectURL(url));
-  }, [images]);
-
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
@@ -114,33 +104,31 @@ export default function FoodJourneyPage({ searchParams }: { searchParams: { [key
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files) return;
-    const files = Array.from(e.target.files);
-    // Only allow up to 3 images
-    const newImages = [...images, ...files].slice(0, 3);
-    setImages(newImages);
+  const handleImageFileChange = (idx: number, file: File | null) => {
+    setImages((prev) => prev.map((item, i) => (i === idx ? file : item)));
   };
 
-  const handleRemoveImage = (idx: number) => {
-    setImages((prev) => prev.filter((_, i) => i !== idx));
+  const handleImageValueChange = (idx: number, value: string) => {
+    setImageValues((prev) => prev.map((item, i) => (i === idx ? value : item)));
+  };
+
+  const handleImagePreviewChange = (idx: number, preview: string | null) => {
+    setImagePreviews((prev) => prev.map((item, i) => (i === idx ? preview : item)));
   };
 
   // Edit handler
   const handleEdit = (story: visitor_food_journey_view) => {
-    const previews = [story.PIC_1, story.PIC_2, story.PIC_3].filter((x): x is string => Boolean(x));
-    console.log('Edit from card, image URLs:', [story.PIC_1, story.PIC_2, story.PIC_3]);
-    console.log('Setting imagePreviews:', previews);
+    const existingImages = [story.PIC_1 || "", story.PIC_2 || "", story.PIC_3 || ""];
     setEditStory(story);
     setForm({
       TITLE: story.TITLE || '',
       DESCRIPTION: story.DESCRIPTION || '',
       RESTAURANT_NAME: story.RESTAURANT_NAME || '',
       ADDRESS_GOOGLE_URL: story.ADDRESS_GOOGLE_URL || '',
-      images: [], // Images will be handled separately
     });
-    setImages([]);
-    setImagePreviews(previews);
+    setImages(emptyImageSlots());
+    setImageValues(existingImages);
+    setImagePreviews(emptyPreviewSlots());
     setError('');
     setSuccess('');
     // Scroll to form
@@ -162,22 +150,20 @@ export default function FoodJourneyPage({ searchParams }: { searchParams: { [key
 
     try {
       // Upload images to S3 first
-      let imageUrls: string[] = [];
-      if (images.length > 0) {
-        for (const image of images) {
+      const imageUrls = [...imageValues];
+      for (let idx = 0; idx < images.length; idx += 1) {
+        const image = images[idx];
+        if (image) {
           const result = await uploadFile(image);
-          if (result) {
-            imageUrls.push(result.url);
-          }
+          if (!result) throw new Error(`Failed to upload photo ${idx + 1}`);
+          imageUrls[idx] = result.url;
         }
       }
-      // Prepare form data with image URLs, omitting 'images' field
-      const { ...formRest } = form;
       const formToSend = {
-        ...formRest,
-        PIC_1: imageUrls[0] || (editStory?.PIC_1 ?? undefined),
-        PIC_2: imageUrls[1] || (editStory?.PIC_2 ?? undefined),
-        PIC_3: imageUrls[2] || (editStory?.PIC_3 ?? undefined),
+        ...form,
+        PIC_1: imageUrls[0] || null,
+        PIC_2: imageUrls[1] || null,
+        PIC_3: imageUrls[2] || null,
       };
 
       if (editStory) {
@@ -201,7 +187,9 @@ export default function FoodJourneyPage({ searchParams }: { searchParams: { [key
         setSuccess("Your food journey has been submitted for review!");
       }
       setForm(initialForm);
-      setImages([]);
+      setImages(emptyImageSlots());
+      setImageValues(emptyImageValues());
+      setImagePreviews(emptyPreviewSlots());
       fetchStories();
     } catch (err: any) {
       setError(err.message || "Failed to submit food journey");
@@ -252,9 +240,12 @@ export default function FoodJourneyPage({ searchParams }: { searchParams: { [key
       <FoodJourneyForm
         form={form}
         onInputChange={handleInputChange}
-        onImageChange={handleImageChange}
-        onRemoveImage={handleRemoveImage}
+        imageFiles={images}
+        imageValues={imageValues}
         imagePreviews={imagePreviews}
+        onImageFileChange={handleImageFileChange}
+        onImageValueChange={handleImageValueChange}
+        onImagePreviewChange={handleImagePreviewChange}
         onSubmit={handleSubmit}
         submitting={submitting}
         error={error}

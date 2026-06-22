@@ -9,13 +9,10 @@ interface ReviewEditModalProps {
 }
 
 const ReviewEditModal = ({ review, onClose }: ReviewEditModalProps) => {
-  
-  // const [loading, setLoading] = useState(false);
-
   return (
     <ModalPortal>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-        <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-lg relative">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm w-full">
+        <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-4xl relative">
           <button
             className="absolute top-3 right-3 text-gray-400 hover:text-primary"
             onClick={onClose}
@@ -29,7 +26,11 @@ const ReviewEditModal = ({ review, onClose }: ReviewEditModalProps) => {
             onSuccess={onClose}
             initialRemarks={review.REMARKS}
             initialRating={review.RATING}
-            initialImages={[]}
+            initialImages={[
+              review.PIC_1 || '',
+              review.PIC_2 || '',
+              review.PIC_3 || '',
+            ]}
             initialVideo={review.VIDEO_1}
             reviewId={review.VISITOR_BUSINESS_REVIEW_ID}
             isEdit

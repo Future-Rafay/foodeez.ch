@@ -1,7 +1,6 @@
-import Image from "next/image";
 import React from "react";
 import Input from "../Input";
-import { Plus } from "lucide-react";
+import ImageUploadField from "@/components/ui/ImageUploadField";
 
 interface FoodJourneyFormProps {
   form: {
@@ -9,14 +8,16 @@ interface FoodJourneyFormProps {
     DESCRIPTION: string;
     RESTAURANT_NAME: string;
     ADDRESS_GOOGLE_URL: string;
-    images: File[];
   };
   onInputChange: (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => void;
-  onImageChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onRemoveImage: (idx: number) => void;
-  imagePreviews: string[];
+  imageFiles: (File | null)[];
+  imageValues: string[];
+  imagePreviews: (string | null)[];
+  onImageFileChange: (idx: number, file: File | null) => void;
+  onImageValueChange: (idx: number, value: string) => void;
+  onImagePreviewChange: (idx: number, preview: string | null) => void;
   onSubmit: (e: React.FormEvent) => void;
   submitting: boolean;
   error: string;
@@ -27,20 +28,18 @@ interface FoodJourneyFormProps {
 const FoodJourneyForm: React.FC<FoodJourneyFormProps> = ({
   form,
   onInputChange,
-  onImageChange,
-  onRemoveImage,
+  imageFiles,
+  imageValues,
   imagePreviews,
+  onImageFileChange,
+  onImageValueChange,
+  onImagePreviewChange,
   onSubmit,
   submitting,
   error,
   success,
   isEdit = false,
 }) => {
-  const handleRemovePreview = (idx: number) => {
-    onRemoveImage(idx);
-  };
-  const canAddMore = imagePreviews.length < 3;
-
   return (
     <div className="border border-primary  rounded-2xl p-4 lg:p-8 bg-primary/10">
       <form
@@ -103,47 +102,24 @@ const FoodJourneyForm: React.FC<FoodJourneyFormProps> = ({
           </div>
 
           {/* Image Upload */}
-          <div className="flex flex-col md:col-span-2">
-            <label className="font-semibold mb-1">
-              Upload Images (up to 3)
-            </label>
-            <div className="flex gap-4">
+          <div className="flex flex-col gap-4 md:col-span-2">
+            <p className="font-semibold">Upload Images (up to 3)</p>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {[0, 1, 2].map((idx) => (
-                <div key={idx} className="relative group w-24 h-36 bg-gray-100 rounded-xl flex items-center justify-center shadow-md overflow-hidden">
-                  {imagePreviews[idx] ? (
-                    <>
-                      <Image
-                        src={imagePreviews[idx]}
-                        alt={`Preview ${idx + 1}`}
-                        className="object-cover w-full h-full rounded-xl"
-                        width={200}
-                        height={300}
-                        style={{ aspectRatio: '3/4' }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleRemovePreview(idx)}
-                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors shadow"
-                        aria-label="Remove image"
-                      >
-                        &times;
-                      </button>
-                    </>
-                  ) : canAddMore ? (
-                    <label htmlFor={`food-journey-image-${idx}`} className="flex flex-col items-center justify-center w-full h-full cursor-pointer text-gray-400 hover:text-primary transition-colors">
-                      <Plus />
-                      <span className="text-xs">Add Photo</span>
-                      <input
-                        id={`food-journey-image-${idx}`}
-                        type="file"
-                        accept="image/*"
-                        onChange={onImageChange}
-                        className="hidden"
-                        disabled={imagePreviews.length >= 3}
-                      />
-                    </label>
-                  ) : null}
-                </div>
+                <ImageUploadField
+                  key={idx}
+                  label={`Photo ${idx + 1}`}
+                  value={imageValues[idx] ?? ""}
+                  onChange={(value) => onImageValueChange(idx, value)}
+                  onFileSelect={(file) => onImageFileChange(idx, file)}
+                  imageFile={imageFiles[idx] ?? null}
+                  previewUrl={imagePreviews[idx] ?? null}
+                  onPreviewChange={(preview) =>
+                    onImagePreviewChange(idx, preview)
+                  }
+                  disabled={submitting}
+                  uploading={submitting}
+                />
               ))}
             </div>
           </div>

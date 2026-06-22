@@ -36,9 +36,9 @@ export async function POST(request: Request) {
     }
 
     // Map picUrls to PIC_1...PIC_10
-    const picFields: { [key: string]: string | undefined } = {};
+    const picFields: { [key: string]: string | null } = {};
     for (let i = 0; i < 10; i++) {
-      picFields[`PIC_${i + 1}`] = picUrls && picUrls[i] ? picUrls[i] : undefined;
+      picFields[`PIC_${i + 1}`] = picUrls?.[i] || null;
     }
 
     const review = await prisma.visitor_business_review.create({
@@ -48,7 +48,7 @@ export async function POST(request: Request) {
         RATING: String(rating),
         REMARKS: String(remarks),
         ...picFields,
-        VIDEO_1: videoUrl || undefined,
+        VIDEO_1: videoUrl || null,
         CREATION_DATETIME: new Date(),
         LIKE_COUNT: 0,
         APPROVED: 0,
@@ -125,9 +125,9 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
     // Map picUrls to PIC_1...PIC_10
-    const picFields: { [key: string]: string | undefined } = {};
+    const picFields: { [key: string]: string | null } = {};
     for (let i = 0; i < 10; i++) {
-      picFields[`PIC_${i + 1}`] = picUrls && picUrls[i] ? picUrls[i] : undefined;
+      picFields[`PIC_${i + 1}`] = picUrls?.[i] || null;
     }
     const updated = await prisma.visitor_business_review.update({
       where: { VISITOR_BUSINESS_REVIEW_ID: Number(reviewId) },
@@ -135,7 +135,7 @@ export async function PUT(request: Request) {
         REMARKS: remarks ? String(remarks) : undefined,
         RATING: rating ? String(rating) : undefined,
         ...picFields,
-        VIDEO_1: videoUrl || undefined,
+        VIDEO_1: videoUrl || null,
       },
     });
     return NextResponse.json({ success: true, review: updated });

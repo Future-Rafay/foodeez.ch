@@ -38,14 +38,14 @@ const EditReviewModal: React.FC<EditReviewModalProps> = ({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+          className=" fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
           onClick={onClose}
         >
           <motion.div
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
-            className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto relative"
+            className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto relative"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
@@ -67,7 +67,11 @@ const EditReviewModal: React.FC<EditReviewModalProps> = ({
                 onSuccess={handleSubmit}
                 initialRemarks={review.REMARKS || ''}
                 initialRating={Number(review.RATING) || 5}
-                initialImages={[]}
+                initialImages={[
+                  review.PIC_1 || '',
+                  review.PIC_2 || '',
+                  review.PIC_3 || '',
+                ]}
                 initialVideo={review.VIDEO_1 || undefined}
                 reviewId={Number(review.VISITOR_BUSINESS_REVIEW_ID)}
                 isEdit
@@ -80,4 +84,4 @@ const EditReviewModal: React.FC<EditReviewModalProps> = ({
   );
 };
 
-export default EditReviewModal; 
+export default EditReviewModal;
