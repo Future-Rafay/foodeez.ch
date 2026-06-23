@@ -18,6 +18,7 @@ const Separator = dynamic(() => import('@/components/ui/separator'));
 const CommunitySection = dynamic(() => import('@/components/home/CommunitySection'));
 const UpcomingEvents = dynamic(() => import('@/components/home/EventSection/UpcomingEvents'));
 const FoodJourney = dynamic(() => import('@/components/home/CTAs/FoodJourney'));
+const RecentBlogs = dynamic(() => import('@/components/home/RecentBlogs'));
 
 // Loading fallback
 const LoadingSpinner = () => (
@@ -51,6 +52,10 @@ export default function Home() {
 
         {/* Food Journey CTA */}
         <FoodJourney />
+        <Separator />
+
+        {/* Latest Blogs */}
+        <RecentBlogs />
         <Separator />
 
         {/* Testimonials */}

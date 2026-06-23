@@ -95,7 +95,7 @@ export default function VideoUploadField({
           "relative cursor-pointer rounded-xl border-2 border-dashed transition-colors",
           dragActive
             ? "border-primary bg-primary/5"
-            : "border-gray-200 hover:border-primary/50 hover:bg-gray-50",
+            : "border-primary hover:border-primary/50 hover:bg-gray-50",
           (disabled || uploading) && "cursor-not-allowed opacity-60"
         )}
       >
@@ -159,8 +159,8 @@ export default function VideoUploadField({
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center px-3 py-5 text-center">
-            <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-gray-100">
-              <Film className="h-5 w-5 text-gray-400" />
+            <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-primary">
+              <Film className="h-5 w-5 text-white" />
             </div>
             <p className="text-sm font-medium leading-5 text-gray-700">
               Drop a video here or click to browse

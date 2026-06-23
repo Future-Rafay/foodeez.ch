@@ -98,7 +98,7 @@ export default function ImageUploadField({
           "relative rounded-xl border-2 border-dashed transition-colors cursor-pointer",
           dragActive
             ? "border-foodeez-primary bg-foodeez-primary/5"
-            : "border-gray-200 hover:border-foodeez-primary/50 hover:bg-gray-50",
+            : "border-primary hover:border-foodeez-primary/50 hover:bg-gray-50",
           disabled && "opacity-60 cursor-not-allowed"
         )}
       >
@@ -118,12 +118,12 @@ export default function ImageUploadField({
                 src={displaySrc}
                 alt="Preview"
                 fill
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain"
               />
             </div>
             <div className="min-w-0 flex-1 space-y-2 text-left">
               {imageFile && (
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-primary">
                   {imageFile.name} · {formatFileSize(imageFile.size)}
                 </p>
               )}
@@ -166,8 +166,8 @@ export default function ImageUploadField({
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center px-3 py-4 text-center">
-            <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-gray-100">
-              <ImageIcon className="h-5 w-5 text-gray-400" />
+            <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-primary">
+              <ImageIcon className="h-5 w-5 text-white" />
             </div>
             <p className="max-w-full text-sm font-medium leading-5 text-gray-700">
               Drop an image here or click to browse
