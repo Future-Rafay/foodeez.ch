@@ -3,6 +3,8 @@ import Stripe from 'stripe';
 import { prisma } from '@/lib/prisma';
 import { authOptions } from '@/lib/auth';
 import { getServerSession } from 'next-auth';
+import { getDeliveryQuote, getFulfillmentOptions } from '@/lib/fulfillment';
+import { ORDER_STATUS, ORDER_TYPE, PAYMENT_DONE } from '@/lib/order';
 
 // Simple interface for the order items
 interface OrderItem {
@@ -58,7 +60,7 @@ export async function GET(req: NextRequest) {
     // Check if this exact session was already processed
     if (existingOrder && 
         existingOrder.EMAIL_ADDRESS === (session.customer_email || session.metadata?.customerEmail) &&
-        Math.abs(Number(existingOrder.ORDER_AMOUNT) - Number(session.amount_total || 0) / 100) < 0.01) {
+        Math.abs(Number(existingOrder.ORDER_FINAL_AMOUNT || existingOrder.ORDER_AMOUNT) - Number(session.amount_total || 0) / 100) < 0.01) {
       
       // Get line items with expanded product details
       const lineItems = await stripe.checkout.sessions.listLineItems(sessionId, {
@@ -127,6 +129,23 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Could not determine business for this order.' }, { status: 500 });
     }
     const businessId = productRecord.BUSINESS_ID;
+    const orderType = session.metadata?.orderType === ORDER_TYPE.pickup ? ORDER_TYPE.pickup : ORDER_TYPE.delivery;
+    const settings = await prisma.business_settings.findUnique({ where: { BUSINESS_ID: businessId } });
+
+    if (orderType === ORDER_TYPE.pickup) {
+      if (!getFulfillmentOptions(settings).pickupEnabled) {
+        return NextResponse.json({ success: false, error: 'Pickup is currently unavailable.' }, { status: 400 });
+      }
+    } else {
+      const quote = getDeliveryQuote(
+        settings,
+        session.metadata?.zip || '',
+        Number(session.metadata?.totalAmount || 0)
+      );
+      if (!quote.available) {
+        return NextResponse.json({ success: false, error: quote.reason || 'Delivery unavailable.' }, { status: 400 });
+      }
+    }
 
     // Get or create customer in our database
     let customerId: number | null = null;
@@ -151,23 +170,6 @@ export async function GET(req: NextRequest) {
 
       if (existingUser) {
         customerId = Number(existingUser.VISITORS_ACCOUNT_ID);
-      } else if (session.metadata?.saveInfo === 'true') {
-        // Create a guest user account if they chose to save their info
-        const userData: any = {
-          EMAIL_ADDRESS: session.customer_email,
-          FIRST_NAME: session.metadata?.customerName?.split(' ')[0] || 'Guest',
-          LAST_NAME: session.metadata?.customerName?.split(' ').slice(1).join(' ') || 'User',
-        };
-        
-        // Only add phone if it exists in metadata
-        if (session.metadata?.customerPhone) {
-          userData.WHATSAPP_NUMBER = session.metadata.customerPhone;
-        }
-        
-        const newUser = await prisma.visitors_account.create({
-          data: userData,
-        });
-        customerId = Number(newUser.VISITORS_ACCOUNT_ID);
       }
     }
 
@@ -175,6 +177,8 @@ export async function GET(req: NextRequest) {
     const orderTotal = lineItems.reduce((sum, item) => {
       return sum + (item.amount_total || 0);
     }, 0) / 100; // Convert from cents to currency
+    const shippingCharges = Number(session.metadata?.shippingCharges || 0);
+    const finalTotal = Number(session.amount_total || 0) / 100 || orderTotal + shippingCharges;
 
     // Get shipping details from session or metadata
     const shippingAddress = (session as any).shipping?.address as Stripe.Address | null;
@@ -187,24 +191,26 @@ export async function GET(req: NextRequest) {
         CREATION_DATETIME: new Date(),
         BUSINESS_ID: businessId,
         VISITOR_ID: customerId || 0,
-        PAYMENT_DONE: 1,
+        PAYMENT_DONE: PAYMENT_DONE.paid,
         PAYMENT_MODE: 'stripe',
-        ORDER_STATUS: 1, // 1 = New order
+        ORDER_STATUS: ORDER_STATUS.preparing,
+        ORDER_TYPE: orderType,
         TERMINAL: 'web',
         FIRST_NAME: session.metadata?.customerName?.split(' ')[0] || 'Guest',
         LAST_NAME: session.metadata?.customerName?.split(' ').slice(1).join(' ') || 'User',
-        ADDRESS_STREET: shippingAddress?.line1 || session.metadata?.deliveryAddress?.split(',')[0] || '',
+        ADDRESS_STREET: orderType === ORDER_TYPE.delivery ? shippingAddress?.line1 || session.metadata?.street || '' : '',
         // Convert ZIP code to string to match the expected type
-        ADDRESS_ZIP: shippingAddress?.postal_code ? String(shippingAddress.postal_code) : '',
-        ADDRESS_TOWN: shippingAddress?.city || session.metadata?.deliveryAddress?.split(',').slice(-2, -1)[0]?.trim() || '',
-        ADDRESS_COUNTRY_CODE: shippingAddress?.country || session.metadata?.deliveryAddress?.split(',').pop()?.trim() || 'CH',
+        ADDRESS_ZIP: orderType === ORDER_TYPE.delivery ? shippingAddress?.postal_code || session.metadata?.zip || '' : '',
+        ADDRESS_TOWN: orderType === ORDER_TYPE.delivery ? shippingAddress?.city || session.metadata?.city || '' : '',
+        ADDRESS_COUNTRY_CODE: shippingAddress?.country || session.metadata?.country || 'CH',
         // Using PHONE_NUMBER to match the Prisma schema
         PHONE_NUMBER: customerDetails?.phone || session.metadata?.customerPhone || '',
         EMAIL_ADDRESS: session.customer_email || session.metadata?.customerEmail || '',
         ORDER_GROSS_AMOUNT: orderTotal,
         ORDER_NET_AMOUNT: orderTotal,
         ORDER_AMOUNT: orderTotal,
-        ORDER_FINAL_AMOUNT: orderTotal,
+        SHIPPING_CHARGES: shippingCharges,
+        ORDER_FINAL_AMOUNT: finalTotal,
         // Note: Additional order details will be stored in the database via raw SQL
       },
     });
@@ -272,7 +278,7 @@ export async function GET(req: NextRequest) {
     
     // Convert to currency
     subtotal = subtotal / 100;
-    const total = subtotal; // Add shipping if needed
+    const total = finalTotal;
 
     return NextResponse.json({ 
       success: true, 
@@ -283,10 +289,10 @@ export async function GET(req: NextRequest) {
       customerEmail: session.customer_email || session.metadata?.customerEmail || '',
       shipping: {
         address: {
-          line1: shippingAddress?.line1 || session.metadata?.deliveryAddress?.split(',')[0] || '',
-          city: shippingAddress?.city || session.metadata?.deliveryAddress?.split(',').slice(-2, -1)[0]?.trim() || '',
-          postal_code: shippingAddress?.postal_code || '',
-          country: shippingAddress?.country || session.metadata?.deliveryAddress?.split(',').pop()?.trim() || 'CH'
+          line1: orderType === ORDER_TYPE.delivery ? shippingAddress?.line1 || session.metadata?.street || '' : '',
+          city: orderType === ORDER_TYPE.delivery ? shippingAddress?.city || session.metadata?.city || '' : '',
+          postal_code: orderType === ORDER_TYPE.delivery ? shippingAddress?.postal_code || session.metadata?.zip || '' : '',
+          country: shippingAddress?.country || session.metadata?.country || 'CH'
         }
       },
       items: orderItems.map(item => ({
@@ -305,6 +311,8 @@ export async function GET(req: NextRequest) {
       })),
       amount_subtotal: subtotal * 100, // In cents
       amount_total: total * 100, // In cents
+      shipping_amount: shippingCharges * 100,
+      orderType,
       payment_method_types: ['card']
     });
 

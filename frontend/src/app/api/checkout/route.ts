@@ -1,14 +1,19 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { headers } from 'next/headers';
-import Stripe from 'stripe';
-import { CartItem } from '@/stores/cartStore';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { NextRequest, NextResponse } from "next/server";
+import { headers } from "next/headers";
+import Stripe from "stripe";
+import type { CartItem } from "@/stores/cartStore";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { getDeliveryQuote, getFulfillmentOptions } from "@/lib/fulfillment";
+import { ORDER_STATUS, ORDER_TYPE, PAYMENT_DONE } from "@/lib/order";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-07-30.basil',
+  apiVersion: "2025-07-30.basil",
   typescript: true,
 });
+
+type PaymentMethod = "card" | "cash_on_delivery" | "pay_at_pickup";
 
 type CustomerInfo = {
   userId?: string;
@@ -16,210 +21,234 @@ type CustomerInfo = {
   lastName: string;
   email: string;
   phone: string;
-  street: string;
-  zip: string;
-  city: string;
-  country: string;
-  // notes?: string;
-  saveInfo: boolean;
+  street?: string;
+  zip?: string;
+  city?: string;
+  country?: string;
 };
+
+const temporaryId = () => Math.floor(Date.now() / 1000) + Math.floor(Math.random() * 1000000);
+
+const cartTotal = (items: CartItem[]) =>
+  items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+async function visitorIdFor(email?: string | null) {
+  if (!email) return 0;
+  const user = await prisma.visitors_account.findUnique({
+    where: { EMAIL_ADDRESS: email },
+    select: { VISITORS_ACCOUNT_ID: true },
+  });
+  return user ? Number(user.VISITORS_ACCOUNT_ID) : 0;
+}
+
+async function createUnpaidOrder(params: {
+  items: CartItem[];
+  businessId: number;
+  customerInfo: CustomerInfo;
+  orderType: "delivery" | "pickup";
+  paymentMethod: PaymentMethod;
+  shippingCharges: number;
+  totalAmount: number;
+  visitorId: number;
+}) {
+  const order = await prisma.business_order.create({
+    data: {
+      BUSINESS_ORDER_ID: temporaryId(),
+      CREATION_DATETIME: new Date(),
+      BUSINESS_ID: params.businessId,
+      VISITOR_ID: params.visitorId,
+      PAYMENT_DONE: PAYMENT_DONE.pending,
+      PAYMENT_MODE: params.paymentMethod,
+      ORDER_STATUS: ORDER_STATUS.preparing,
+      ORDER_TYPE: params.orderType,
+      TERMINAL: "web",
+      FIRST_NAME: params.customerInfo.firstName,
+      LAST_NAME: params.customerInfo.lastName,
+      ADDRESS_STREET: params.orderType === ORDER_TYPE.delivery ? params.customerInfo.street || "" : "",
+      ADDRESS_ZIP: params.orderType === ORDER_TYPE.delivery ? params.customerInfo.zip || "" : "",
+      ADDRESS_TOWN: params.orderType === ORDER_TYPE.delivery ? params.customerInfo.city || "" : "",
+      ADDRESS_COUNTRY_CODE: params.customerInfo.country || "CH",
+      PHONE_NUMBER: params.customerInfo.phone,
+      EMAIL_ADDRESS: params.customerInfo.email,
+      ORDER_GROSS_AMOUNT: params.totalAmount,
+      ORDER_NET_AMOUNT: params.totalAmount,
+      ORDER_AMOUNT: params.totalAmount,
+      SHIPPING_CHARGES: params.shippingCharges,
+      ORDER_FINAL_AMOUNT: params.totalAmount + params.shippingCharges,
+    },
+  });
+
+  for (const item of params.items) {
+    await prisma.$executeRaw`
+      INSERT INTO business_order_detail (
+        BUSINESS_ORDER_DETAIL_ID,
+        CREATION_DATETIME,
+        BUSINESS_ORDER_ID,
+        BUSINESS_PRODUCT_ID,
+        ORDER_QUANTITY,
+        PRODUCT_SELL_PRICE,
+        PRODUCT_PRICE,
+        QUANTITY_BALANCE
+      ) VALUES (
+        ${temporaryId()},
+        NOW(),
+        ${order.BUSINESS_ORDER_ID},
+        ${Number(item.id)},
+        ${item.quantity},
+        ${item.price},
+        ${item.price * item.quantity},
+        ${item.quantity}
+      )
+    `;
+  }
+
+  return order;
+}
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { items, customerInfo } = body as { 
+  const {
+    items,
+    customerInfo,
+    orderType = ORDER_TYPE.delivery,
+    paymentMethod = "card",
+  } = body as {
     items: CartItem[];
     customerInfo: CustomerInfo;
+    businessId?: string | number;
+    orderType?: "delivery" | "pickup";
+    paymentMethod?: PaymentMethod;
   };
 
-  if (!items || items.length === 0) {
-    return new NextResponse('Cart is empty', { status: 400 });
+  if (!items?.length) return new NextResponse("Cart is empty", { status: 400 });
+  if (orderType !== ORDER_TYPE.delivery && orderType !== ORDER_TYPE.pickup) {
+    return new NextResponse("Invalid order type", { status: 400 });
   }
 
-  // Validate required customer information
-  const requiredFields: (keyof CustomerInfo)[] = [
-    'firstName', 'lastName', 'email', 'phone', 'street', 'zip', 'city', 'country'
-  ];
-  
-  const missingFields = requiredFields.filter(field => !customerInfo[field]);
-  if (missingFields.length > 0) {
-    return new NextResponse(
-      `Missing required fields: ${missingFields.join(', ')}`,
-      { status: 400 }
-    );
+  const productIds = Array.from(new Set(items.map((item) => Number(item.id))));
+  if (productIds.some((id) => !id)) return new NextResponse("Invalid cart item", { status: 400 });
+
+  const products = await prisma.business_product.findMany({
+    where: { BUSINESS_PRODUCT_ID: { in: productIds } },
+    select: { BUSINESS_PRODUCT_ID: true, BUSINESS_ID: true },
+  });
+  if (products.length !== productIds.length) return new NextResponse("Invalid cart item", { status: 400 });
+
+  const businessIds = Array.from(new Set(products.map((product) => product.BUSINESS_ID).filter(Boolean)));
+  if (businessIds.length !== 1) return new NextResponse("Please order from one restaurant at a time", { status: 400 });
+
+  const businessId = Number(businessIds[0]);
+  const settings = await prisma.business_settings.findUnique({ where: { BUSINESS_ID: businessId } });
+  const options = getFulfillmentOptions(settings);
+  const totalAmount = cartTotal(items);
+  let shippingCharges = 0;
+
+  const requiredFields: (keyof CustomerInfo)[] = ["firstName", "lastName", "email", "phone"];
+  if (orderType === ORDER_TYPE.delivery) {
+    requiredFields.push("street", "zip", "city", "country");
+    const quote = getDeliveryQuote(settings, customerInfo.zip || "", totalAmount);
+    if (!quote.available) return new NextResponse(quote.reason || "Delivery unavailable", { status: 400 });
+    shippingCharges = quote.deliveryPrice;
+  } else if (!options.pickupEnabled) {
+    return new NextResponse("Pickup is currently unavailable", { status: 400 });
   }
 
-  const origin = headers().get('origin') || 'http://localhost:3000';
+  const missingFields = requiredFields.filter((field) => !customerInfo[field]);
+  if (missingFields.length) {
+    return new NextResponse(`Missing required fields: ${missingFields.join(", ")}`, { status: 400 });
+  }
+
+  if (orderType === ORDER_TYPE.pickup && paymentMethod === "cash_on_delivery") {
+    return new NextResponse("Invalid payment method for pickup", { status: 400 });
+  }
+  if (orderType === ORDER_TYPE.delivery && paymentMethod === "pay_at_pickup") {
+    return new NextResponse("Invalid payment method for delivery", { status: 400 });
+  }
+
   const session = await getServerSession(authOptions);
-  const userId = session?.user?.id || customerInfo.userId;
-
-  try {
-    // Calculate total amount for metadata
-    const totalAmount = items.reduce(
-      (sum, item) => sum + (item.price * item.quantity), 
-      0
-    );
-
-    // Create line items for Stripe
-    const line_items = items.map((item) => ({
-      price_data: {
-        currency: 'chf',
-        product_data: {
-          name: item.name,
-          images: item.image ? [item.image] : [],
-          metadata: {
-            productId: item.id,
-          },
-        },
-        unit_amount: Math.round(item.price * 100), // Convert to cents
-      },
-      quantity: item.quantity,
-    }));
-
-    // Create metadata for the order
-    const metadata = {
-      customerId: userId || 'guest',
-      customerEmail: customerInfo.email,
-      customerName: `${customerInfo.firstName} ${customerInfo.lastName}`,
-      customerPhone: customerInfo.phone,
-      deliveryAddress: `${customerInfo.street}, ${customerInfo.zip} ${customerInfo.city}, ${customerInfo.country}`,
-      // orderNotes: customerInfo.notes || '',
-      totalItems: items.reduce((sum, item) => sum + item.quantity, 0).toString(),
-      totalAmount: totalAmount.toFixed(2),
-      saveInfo: customerInfo.saveInfo.toString(),
-    };
-
-    // Create a customer in Stripe with address information
-    let customer: Stripe.Customer | null = null;
-    if (customerInfo.email) {
-      // Check if customer already exists
-      const existingCustomers = await stripe.customers.list({
-        email: customerInfo.email,
-        limit: 1,
-      });
-
-      if (existingCustomers.data.length > 0) {
-        customer = existingCustomers.data[0];
-        // Update existing customer with new address info
-        customer = await stripe.customers.update(customer.id, {
-          name: `${customerInfo.firstName} ${customerInfo.lastName}`,
-          phone: customerInfo.phone,
-          address: {
-            line1: customerInfo.street,
-            city: customerInfo.city,
-            postal_code: customerInfo.zip,
-            country: customerInfo.country === 'Switzerland' ? 'CH' : customerInfo.country,
-          },
-          shipping: {
-            name: `${customerInfo.firstName} ${customerInfo.lastName}`,
-            phone: customerInfo.phone,
-            address: {
-              line1: customerInfo.street,
-              city: customerInfo.city,
-              postal_code: customerInfo.zip,
-              country: customerInfo.country === 'Switzerland' ? 'CH' : customerInfo.country,
-            },
-          },
-        });
-      } else {
-        customer = await stripe.customers.create({
-          email: customerInfo.email,
-          name: `${customerInfo.firstName} ${customerInfo.lastName}`,
-          phone: customerInfo.phone,
-          address: {
-            line1: customerInfo.street,
-            city: customerInfo.city,
-            postal_code: customerInfo.zip,
-            country: customerInfo.country === 'Switzerland' ? 'CH' : customerInfo.country,
-          },
-          shipping: {
-            name: `${customerInfo.firstName} ${customerInfo.lastName}`,
-            phone: customerInfo.phone,
-            address: {
-              line1: customerInfo.street,
-              city: customerInfo.city,
-              postal_code: customerInfo.zip,
-              country: customerInfo.country === 'Switzerland' ? 'CH' : customerInfo.country,
-            },
-          },
-          metadata: {
-            userId: userId || 'guest',
-            address: metadata.deliveryAddress,
-          },
-        });
-      }
-    }
-
-    // Create checkout session configuration
-    const sessionConfig: Stripe.Checkout.SessionCreateParams = {
-      payment_method_types: ['card'],
-      line_items,
-      mode: 'payment',
-      success_url: `${origin}/order/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/cart`,
-      client_reference_id: userId || undefined,
-      metadata,
-      submit_type: 'pay',
-      shipping_options: [
-        {
-          shipping_rate_data: {
-            type: 'fixed_amount',
-            fixed_amount: {
-              amount: 0,
-              currency: 'chf',
-            },
-            display_name: 'Standard Shipping',
-            delivery_estimate: {
-              minimum: {
-                unit: 'business_day',
-                value: 1,
-              },
-              maximum: {
-                unit: 'business_day',
-                value: 3,
-              },
-            },
-          },
-        },
-      ],
-    };
-
-    // If we have a customer with address info, use it and don't collect address again
-    if (customer?.id) {
-      sessionConfig.customer = customer.id;
-      // Don't collect shipping address since customer already has it
-      sessionConfig.shipping_address_collection = undefined;
-      // Don't collect billing address since customer already has it
-      sessionConfig.billing_address_collection = undefined;
-      // Allow automatic updates to customer info
-      sessionConfig.customer_update = {
-        address: 'auto',
-        name: 'auto',
-        shipping: 'auto',
-      };
-    } else {
-      // For guest users without customer record, collect addresses
-      sessionConfig.customer_email = customerInfo.email;
-      sessionConfig.shipping_address_collection = {
-        allowed_countries: ['CH'],
-      };
-      sessionConfig.billing_address_collection = 'required';
-    }
-
-    // Always enable phone collection for verification
-    sessionConfig.phone_number_collection = {
-      enabled: true,
-    };
-
-    // Create the session
-    const session = await stripe.checkout.sessions.create(sessionConfig);
-
-    return NextResponse.json({ 
-      sessionId: session.id,
-      customerId: customer?.id,
-    });
-  } catch (error) {
-    console.error('Error creating checkout session:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Internal Server Error';
-    return new NextResponse(errorMessage, { status: 500 });
+  if (!session?.user?.email) {
+    return new NextResponse("Please log in to place your order", { status: 401 });
   }
+
+  const visitorId = await visitorIdFor(session?.user?.email || customerInfo.email);
+
+  if (paymentMethod !== "card") {
+    const order = await createUnpaidOrder({
+      items,
+      businessId,
+      customerInfo,
+      orderType,
+      paymentMethod,
+      shippingCharges,
+      totalAmount,
+      visitorId,
+    });
+
+    return NextResponse.json({
+      orderId: order.BUSINESS_ORDER_ID,
+      redirectUrl: `/order/success?orderId=${order.BUSINESS_ORDER_ID}`,
+    });
+  }
+
+  const origin = headers().get("origin") || "http://localhost:3000";
+  const line_items = items.map((item) => ({
+    price_data: {
+      currency: "chf",
+      product_data: {
+        name: item.name,
+        images: item.image ? [item.image] : [],
+        metadata: { productId: item.id },
+      },
+      unit_amount: Math.round(item.price * 100),
+    },
+    quantity: item.quantity,
+  }));
+
+  const metadata = {
+    businessId: String(businessId),
+    customerId: String(visitorId || customerInfo.userId || "guest"),
+    customerEmail: customerInfo.email,
+    customerName: `${customerInfo.firstName} ${customerInfo.lastName}`,
+    customerPhone: customerInfo.phone,
+    orderType,
+    paymentMethod,
+    street: customerInfo.street || "",
+    zip: customerInfo.zip || "",
+    city: customerInfo.city || "",
+    country: customerInfo.country || "CH",
+    shippingCharges: shippingCharges.toFixed(2),
+    totalAmount: totalAmount.toFixed(2),
+  };
+
+  const sessionConfig: Stripe.Checkout.SessionCreateParams = {
+    payment_method_types: ["card"],
+    line_items,
+    mode: "payment",
+    success_url: `${origin}/order/success?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${origin}/cart`,
+    client_reference_id: String(visitorId || customerInfo.userId || "") || undefined,
+    metadata,
+    submit_type: "pay",
+    shipping_options: [
+      {
+        shipping_rate_data: {
+          type: "fixed_amount",
+          fixed_amount: {
+            amount: Math.round(shippingCharges * 100),
+            currency: "chf",
+          },
+          display_name: orderType === ORDER_TYPE.pickup ? "Pickup" : "Delivery",
+        },
+      },
+    ],
+    customer_email: customerInfo.email,
+    phone_number_collection: { enabled: true },
+  };
+
+  if (orderType === ORDER_TYPE.delivery) {
+    sessionConfig.shipping_address_collection = { allowed_countries: ["CH"] };
+  }
+
+  const checkoutSession = await stripe.checkout.sessions.create(sessionConfig);
+  return NextResponse.json({ sessionId: checkoutSession.id });
 }

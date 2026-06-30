@@ -24,7 +24,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const review = await prisma.foodeez_review_view.findUnique({
+    const review = await prisma.foodeez_review.findUnique({
       where: {
         FOODEEZ_REVIEW_ID: BigInt(params.id),
       },
