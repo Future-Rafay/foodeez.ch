@@ -57,23 +57,27 @@ interface LoginRequiredModalProps {
   isOpen: boolean;
   onClose: () => void;
   message?: string;
+  title?: string;
+  callbackUrl?: string;
 }
 
 const LoginRequiredModal: React.FC<LoginRequiredModalProps> = ({
   isOpen,
   onClose,
+  title = 'Login Required',
   message = 'You need to be logged in to access this feature.',
+  callbackUrl,
 }) => {
   const router = useRouter();
 
   const handleSignIn = () => {
     onClose();
-    router.push('/auth/signin');
+    router.push(`/auth/signin${callbackUrl ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : ''}`);
   };
 
   const handleSignUp = () => {
     onClose();
-    router.push('/auth/signup');
+    router.push(`/auth/signup${callbackUrl ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : ''}`);
   };
 
   return (
@@ -99,7 +103,7 @@ const LoginRequiredModal: React.FC<LoginRequiredModalProps> = ({
             <Lock className="w-8 h-8 text-primary" />
           </div>
           <h3 className="text-lg font-semibold text-primary mb-2">
-            Login Required
+            {title}
           </h3>
           <p className="text-gray-600 mb-4">{message}</p>
         </div>

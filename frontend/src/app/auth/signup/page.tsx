@@ -2,16 +2,18 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/components/core/Input";
 import { Button } from "@/components/core/Button";
 import { FcGoogle } from "react-icons/fc";
 import SEO from "@/components/seo/SEO";
 
-export default function SignUp() {
+function SignUpContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callbackUrl") || "/";
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -74,7 +76,7 @@ export default function SignUp() {
         return;
       }
 
-      router.push("/");
+      router.push(callbackUrl);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
@@ -86,7 +88,7 @@ export default function SignUp() {
 
   const handleGoogleSignIn = async () => {
     try {
-      await signIn("google", { callbackUrl: "/" });
+      await signIn("google", { callbackUrl });
     } catch (err) {
       setError("Failed to Log in with Google");
       console.error("Google Log in error:", err);
@@ -122,7 +124,7 @@ export default function SignUp() {
           <p className="mt-2 text-sm text-gray-600">
             Already have an account?{" "}
             <Link
-              href="/auth/signin"
+              href={`/auth/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`}
               className="font-medium text-primary hover:text-primary-dark transition-colors"
             >
               Log in
@@ -249,5 +251,17 @@ export default function SignUp() {
         </form>
       </div>
     </div>
+  );
+}
+
+export default function SignUp() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    }>
+      <SignUpContent />
+    </Suspense>
   );
 }

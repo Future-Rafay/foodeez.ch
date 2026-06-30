@@ -2,27 +2,23 @@
 
 import Image from "next/image";
 import { MenuProduct } from "@/types/product";
-import DeliveryInfoModal from "./DeliveryInfoModal";
 import { useState } from "react";
 import { useCartStore } from "@/stores/cartStore";
 import Button from "../core/Button";
 import ProductDetailsModal from "./ProductDetailsModal";
+import { toast } from "react-hot-toast";
 
 interface MenuProductCardProps {
   product: MenuProduct;
   businessZipCode?: string;
 }
 
-export default function MenuProductCard({ product, businessZipCode }: MenuProductCardProps) {
-  const [showDeliveryModal, setShowDeliveryModal] = useState(false);
+export default function MenuProductCard({ product }: MenuProductCardProps) {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const { items, addToCart } = useCartStore();
   const isInCart = items.some((item) => item.id === String(product.BUSINESS_PRODUCT_ID));
 
-  const handleAddToCart = (dontShowAgain: boolean) => {
-    if (dontShowAgain) {
-      localStorage.setItem('deliveryAcknowledged', 'true');
-    }
+  const handleAddToCart = () => {
     addToCart({
       id: String(product.BUSINESS_PRODUCT_ID),
       name: product.PRODUCT_NAME,
@@ -31,32 +27,16 @@ export default function MenuProductCard({ product, businessZipCode }: MenuProduc
       image: product.PIC,
       businessId: String(product.BUSINESS_ID)
     });
-    setShowDeliveryModal(false);
-  };
-
-  const handleAddToCartClick = () => {
-    const hasAcknowledged = localStorage.getItem('deliveryAcknowledged') === 'true';
-    if (hasAcknowledged) {
-      handleAddToCart(false);
-    } else {
-      setShowDeliveryModal(true);
-    }
+    toast.success("Added to cart");
   };
 
   return (
     <>
-      <DeliveryInfoModal
-        showDeliveryInfoModal={showDeliveryModal}
-        setShowDeliveryInfoModal={setShowDeliveryModal}
-        businessZipCode={businessZipCode}
-        onProceed={handleAddToCart}
-      />
-
       <ProductDetailsModal
         isOpen={showDetailsModal}
         onClose={() => setShowDetailsModal(false)}
         product={product}
-        onAddToCart={handleAddToCartClick}
+        onAddToCart={handleAddToCart}
         isInCart={isInCart}
       />
 
@@ -112,7 +92,7 @@ export default function MenuProductCard({ product, businessZipCode }: MenuProduc
             <Button
               onClick={(e) => {
                 e.stopPropagation();
-                handleAddToCartClick();
+                handleAddToCart();
               }}
               className={`w-full text-white transition-colors ${
                 isInCart

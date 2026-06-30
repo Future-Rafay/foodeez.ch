@@ -1,9 +1,95 @@
+"use client";
+
 import { SocialLinks } from "@/components/core/SocialLinks";
 import { MapPin, Phone, Globe } from "lucide-react";
 import Link from "next/link";
 import FoodTypeBadges from "@/components/core/FoodTypeBadges";
-import { business_detail_view_all } from "@prisma/client";
+import type { business_detail_view_all } from "@prisma/client";
 import Separator from "@/components/ui/separator";
+import { useEffect, useState } from "react";
+import { formatCHF } from "@/lib/orderStatus";
+
+type DeliveryZone = {
+  zoneName: string;
+  postalCodes: string[];
+  minimumOrderPrice: number;
+  deliveryPrice: number;
+  freeDeliveryAbove: number;
+  deliveryInformation?: string;
+};
+
+type FulfillmentOptions = {
+  deliveryEnabled: boolean;
+  pickupEnabled: boolean;
+  pickupInstructions?: string;
+  deliveryZones?: DeliveryZone[];
+};
+
+function StatusBadge({ enabled, label }: { enabled: boolean; label: string }) {
+  return (
+    <span className={`rounded-full px-3 py-1 text-xs font-medium ${enabled ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-600"}`}>
+      {label} {enabled ? "available" : "not available"}
+    </span>
+  );
+}
+
+function FulfillmentInfoBox({ businessId }: { businessId: number }) {
+  const [options, setOptions] = useState<FulfillmentOptions | null>(null);
+
+  useEffect(() => {
+    fetch(`/api/businesses/${businessId}/fulfillment-options`)
+      .then((response) => (response.ok ? response.json() : null))
+      .then(setOptions)
+      .catch(() => setOptions(null));
+  }, [businessId]);
+
+  if (!options) return null;
+
+  return (
+    <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+      <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h3 className="text-lg font-semibold text-gray-900">Ordering options</h3>
+        <div className="flex flex-wrap gap-2">
+          <StatusBadge enabled={options.pickupEnabled} label="Pickup" />
+          <StatusBadge enabled={options.deliveryEnabled} label="Delivery" />
+        </div>
+      </div>
+
+      {!options.pickupEnabled && !options.deliveryEnabled ? (
+        <p className="text-sm text-gray-700">Online ordering is currently unavailable.</p>
+      ) : (
+        <div className="space-y-4 text-sm text-gray-700">
+          <p>{options.pickupEnabled ? "Pickup is available." : "Pickup is not available."}</p>
+          {options.deliveryEnabled ? (
+            <div className="space-y-3">
+              <p>Delivery is available in these zipcode areas:</p>
+              {(options.deliveryZones || []).map((zone) => (
+                <div key={zone.zoneName} className="rounded-md border border-gray-200 bg-white p-3">
+                  {/* <p className="font-medium text-gray-900">{zone.zoneName}</p> */}
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {zone.postalCodes.map((code) => (
+                      <span key={code} className="rounded-full bg-primary/10 px-2 py-1 text-xs text-primary">
+                        {code}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-gray-600">
+                    Delivery {formatCHF(zone.deliveryPrice)}
+                    {zone.freeDeliveryAbove > 0 ? ` · Free above ${formatCHF(zone.freeDeliveryAbove)}` : ""}
+                    {zone.minimumOrderPrice > 0 ? ` · Minimum ${formatCHF(zone.minimumOrderPrice)}` : ""}
+                  </p>
+                  {zone.deliveryInformation && <p className="mt-1 text-gray-500">{zone.deliveryInformation}</p>}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p>Delivery is not available right now.</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const BusinessInfoSection: React.FC<{ business: business_detail_view_all, genSlug: string }> = ({
   business,
@@ -99,6 +185,7 @@ const BusinessInfoSection: React.FC<{ business: business_detail_view_all, genSlu
           className="gap-2 [&>a]:text-primary"
         />
       </div>
+      <FulfillmentInfoBox businessId={business.BUSINESS_ID} />
     </div>
   );
 };
