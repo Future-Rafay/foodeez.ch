@@ -34,7 +34,6 @@ export default function DashboardPage() {
       description: "View your order history",
       icon: Package,
       href: "/dashboard/orders",
-      isComingSoon: true,
     },
     {
       title: "Favorites",

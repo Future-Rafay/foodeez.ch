@@ -7,7 +7,7 @@ import {
   ChevronDown,
   ChevronUp,
   LogOut,
-  User,
+  Package,
   Settings,
   CircleUser,
 } from "lucide-react"; // Added Plus icon for "Register Business"
@@ -275,13 +275,6 @@ export default function MobileMenu({
                   {" "}
                   {/* Tighter spacing for profile links */}
                   <ProfileMenuItem
-                    href="/dashboard"
-                    icon={<User />}
-                    label="My Dashboard"
-                    onClick={handleNavLinkClick}
-                    pathname={pathname} // Pass pathname for active link styling
-                  />
-                  <ProfileMenuItem
                     href="/dashboard/profile"
                     icon={<Settings />}
                     label="Update Profile"
@@ -289,8 +282,15 @@ export default function MobileMenu({
                     pathname={pathname} // Pass pathname for active link styling
                   />
                   <ProfileMenuItem
+                    href="/dashboard/orders"
+                    icon={<Package />}
+                    label="My Orders"
+                    onClick={handleNavLinkClick}
+                    pathname={pathname}
+                  />
+                  <ProfileMenuItem
                     icon={<LogOut />}
-                    label="Sign Out"
+                    label="Logout"
                     onClick={onSignOut}
                     isDanger
                     pathname={pathname} // Pass pathname for active link styling

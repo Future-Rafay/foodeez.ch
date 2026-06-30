@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { CircleUser, LogOut, User as UserIcon, Settings } from "lucide-react";
+import { CircleUser, LogOut, User as UserIcon, Settings, Package } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
@@ -61,10 +61,10 @@ export default function ProfileDropdown({ session }: ProfileDropdownProps) {
 
   const items = [
     { label: "My Dashboard", href: "/dashboard", icon: <UserIcon className="w-4 h-4 mr-2" /> },
-    // { label: "My Orders", href: "/dashboard/orders", icon: <Package className="w-4 h-4 mr-2" /> },
+    { label: "My Orders", href: "/dashboard/orders", icon: <Package className="w-4 h-4 mr-2" /> },
     { label: "Update Profile", href: "/dashboard/profile", icon: <Settings className="w-4 h-4 mr-2" /> },
     {
-      label: "Sign Out",
+      label: "Logout",
       href: "/signin",
       icon: <LogOut className="w-4 h-4 mr-2" />,
       onClick: () => signOut({ callbackUrl: "/" }),
