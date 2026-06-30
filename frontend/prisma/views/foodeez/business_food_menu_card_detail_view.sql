@@ -43,9 +43,11 @@ WHERE
     (`x`.`BUSINESS_ID` = `y`.`BUSINESS_ID`)
     AND (`y`.`VALID_FROM` <= NOW())
     AND (IFNULL(`y`.`VALID_TO`, NOW()) >= NOW())
+    AND (IFNULL(`y`.`STATUS`, 1) = 1)
     AND (
       `y`.`BUSINESS_FOOD_MENU_CARD_ID` = `z`.`BUSINESS_FOOD_MENU_CARD_ID`
     )
+    AND (IFNULL(`z`.`STATUS`, 1) = 1)
     AND (`x`.`BUSINESS_ID` = `b`.`BUSINESS_ID`)
     AND (
       `z`.`BUSINESS_PRODUCT_CATEGORY_ID` = `b`.`BUSINESS_PRODUCT_CATEGORY_ID`

@@ -7,7 +7,7 @@ SELECT
   ) AS `VISITOR_NAME`,
   IFNULL(
     `foodeez`.`visitor_food_journey`.`VISITOR_PIC`,
-    'star.jpg'
+    ''
   ) AS `VISITOR_PIC`,
   IFNULL(
     `foodeez`.`visitor_food_journey`.`VISITOR_EMAIL_ADDRESS`,
