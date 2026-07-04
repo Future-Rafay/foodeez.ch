@@ -13,6 +13,7 @@ import {
   isPickupOrder,
 } from "@/lib/orderStatus";
 import { generateSlug } from "@/lib/utils/genSlug";
+import { PAYMENT_DONE } from "@/lib/order";
 
 type Order = {
   BUSINESS_ORDER_ID: number;
@@ -66,6 +67,15 @@ const defaultEta = (order: Order) => {
   const eta = new Date(order.CREATION_DATETIME);
   eta.setMinutes(eta.getMinutes() + minutes);
   return eta.toLocaleString();
+};
+
+const paymentMessage = (order: Order) => {
+  if (order.PAYMENT_DONE === PAYMENT_DONE.paid) return "Payment received";
+  if (order.PAYMENT_DONE === PAYMENT_DONE.failed) return "Payment failed";
+  if (order.PAYMENT_DONE === PAYMENT_DONE.pending && ["stripe", "card"].includes((order.PAYMENT_MODE || "").toLowerCase())) {
+    return "Payment confirmation is processing";
+  }
+  return getPaymentStatusLabel(order.PAYMENT_DONE);
 };
 
 function Timeline({ order }: { order: Order }) {
@@ -152,14 +162,18 @@ function SuccessContent() {
     : "/";
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
+    <div className=" px-4 py-10 sm:px-6 lg:px-8">
       <div className="mb-8 rounded-xl border bg-white p-6 text-center shadow-sm">
-        <CheckCircle className="mx-auto mb-4 h-12 w-12 text-green-600" />
+        {order.PAYMENT_DONE === PAYMENT_DONE.failed ? (
+          <AlertTriangle className="mx-auto mb-4 h-12 w-12 text-red-600" />
+        ) : (
+          <CheckCircle className="mx-auto mb-4 h-12 w-12 text-green-600" />
+        )}
         <h1 className="main-heading mb-2">Order received</h1>
         <p className="text-gray-600">Order #{order.BUSINESS_ORDER_ID}</p>
         <div className="mt-4 flex flex-wrap justify-center gap-2 text-sm">
           <span className="rounded-full bg-primary/10 px-3 py-1 text-primary">{getOrderStatusLabel(order)}</span>
-          <span className="rounded-full bg-gray-100 px-3 py-1">{getPaymentStatusLabel(order.PAYMENT_DONE)}</span>
+          <span className="rounded-full bg-gray-100 px-3 py-1">{paymentMessage(order)}</span>
         </div>
       </div>
 
@@ -193,7 +207,7 @@ function SuccessContent() {
                 <p>
                   {order.DELIVERY_ET
                     ? eta
-                    : `${pickup ? "Estimated pickup time" : "Estimated delivery time"}: around ${eta || "soon"}`}
+                    : `around ${eta || "soon"}`}
                 </p>
               </div>
             </div>
@@ -215,7 +229,7 @@ function SuccessContent() {
             )}
             <div className="flex justify-between border-t pt-2 font-semibold"><dt>Final total</dt><dd>{formatCHF(order.ORDER_FINAL_AMOUNT)}</dd></div>
             <div className="flex justify-between"><dt>Payment mode</dt><dd>{order.PAYMENT_MODE || "Not set"}</dd></div>
-            <div className="flex justify-between"><dt>Payment status</dt><dd>{getPaymentStatusLabel(order.PAYMENT_DONE)}</dd></div>
+            <div className="flex justify-between"><dt>Payment status</dt><dd>{paymentMessage(order)}</dd></div>
           </dl>
         </section>
       </div>
@@ -230,7 +244,7 @@ function SuccessContent() {
         <table className="w-full min-w-[560px] text-sm">
           <thead className="text-left text-gray-500">
             <tr>
-              <th className="py-2">Product</th>
+             <th className="py-2">Product</th>
               <th>Quantity</th>
               <th>Unit price</th>
               <th>Subtotal</th>

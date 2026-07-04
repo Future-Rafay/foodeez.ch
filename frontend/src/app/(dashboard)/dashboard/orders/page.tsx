@@ -30,6 +30,8 @@ type Order = {
   CREATION_DATETIME?: string | null;
   PAYMENT_DONE?: number | null;
   PAYMENT_MODE?: string | null;
+  STRIPE_REFUND_STATUS?: string | null;
+  STRIPE_REFUNDED_DATETIME?: string | null;
   DELIVERY_ET?: string | null;
   ORDER_STATUS?: number | null;
   ORDER_TYPE: string;
@@ -86,6 +88,11 @@ const isCompletedOrder = (order: Order) =>
 
 const isRefundedOrder = (order: Order) =>
   order.PAYMENT_DONE === PAYMENT_DONE.refunded || order.ORDER_REFUND_AMOUNT > 0;
+
+const paymentLabel = (order: Order) =>
+  order.PAYMENT_DONE === PAYMENT_DONE.pending && ["stripe", "card"].includes((order.PAYMENT_MODE || "").toLowerCase())
+    ? "Payment processing"
+    : getPaymentStatusLabel(order.PAYMENT_DONE);
 
 const matchesFilter = (order: Order, filter: Filter) => {
   if (filter === "Active") return isActiveOrder(order);
@@ -146,7 +153,7 @@ function OrderModal({ order, onClose }: { order: Order; onClose: () => void }) {
             <h3 className="font-semibold">Payment details</h3>
             <dl className="grid grid-cols-2 gap-2 text-sm">
               <dt className="text-gray-500">Mode</dt><dd>{order.PAYMENT_MODE || "Not set"}</dd>
-              <dt className="text-gray-500">Status</dt><dd>{getPaymentStatusLabel(order.PAYMENT_DONE)}</dd>
+              <dt className="text-gray-500">Status</dt><dd>{paymentLabel(order)}</dd>
               <dt className="text-gray-500">Gross</dt><dd>{formatCHF(order.ORDER_GROSS_AMOUNT)}</dd>
               <dt className="text-gray-500">Discount</dt><dd>{formatCHF(order.ORDER_DISCOUNT_AMOUNT)}</dd>
               <dt className="text-gray-500">Delivery fee</dt>
@@ -159,10 +166,19 @@ function OrderModal({ order, onClose }: { order: Order; onClose: () => void }) {
               </dd>
               <dt className="text-gray-500">Tax</dt><dd>{formatCHF(order.ORDER_TAX_AMOUNT)}</dd>
               <dt className="text-gray-500">Refund</dt><dd>{formatCHF(order.ORDER_REFUND_AMOUNT)}</dd>
+              {isRefundedOrder(order) && order.STRIPE_REFUND_STATUS && (
+                <><dt className="text-gray-500">Refund status</dt><dd>{order.STRIPE_REFUND_STATUS}</dd></>
+              )}
+              {isRefundedOrder(order) && order.STRIPE_REFUNDED_DATETIME && (
+                <><dt className="text-gray-500">Refunded at</dt><dd>{dateTime(order.STRIPE_REFUNDED_DATETIME)}</dd></>
+              )}
               <dt className="font-medium">Final total</dt><dd className="font-medium">{formatCHF(order.ORDER_FINAL_AMOUNT)}</dd>
             </dl>
             {isRefundedOrder(order) && (
-              <p className="rounded-md bg-blue-50 p-3 text-sm text-blue-800">Refunded: {formatCHF(order.ORDER_REFUND_AMOUNT)}</p>
+              <p className="rounded-md bg-blue-50 p-3 text-sm text-blue-800">
+                Refunded: {formatCHF(order.ORDER_REFUND_AMOUNT)}
+                {order.STRIPE_REFUND_STATUS ? ` · ${order.STRIPE_REFUND_STATUS}` : ""}
+              </p>
             )}
             {!isPickupOrder(order) && order.SHIPPING_CHARGES === 0 && (
               <p className="rounded-md bg-green-50 p-3 text-sm text-green-800">Free delivery applied.</p>
@@ -227,6 +243,7 @@ function OrderModal({ order, onClose }: { order: Order; onClose: () => void }) {
           </table>
         </div>
       </div>
+    
     </div>
   );
 }
@@ -234,7 +251,7 @@ function OrderModal({ order, onClose }: { order: Order; onClose: () => void }) {
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [filter, setFilter] = useState<Filter>("All");
+  const [filter, setFilter] = useState<Filter>("Active");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -273,7 +290,7 @@ export default function OrdersPage() {
   ];
 
   return (
-    <div className="mx-auto px-4 lg:px-0 py-8 space-y-8">
+    <div className="mx-auto min-h-screen px-4 lg:px-0 py-8 space-y-8">
       <div>
         <h1 className="sub-heading">My orders</h1>
         <p className="text-gray-500">Track your recent orders and payments</p>
@@ -366,13 +383,16 @@ export default function OrdersPage() {
                 <span>{order.business?.BUSINESS_NAME || "Restaurant"}</span>
                 <span>{isPickupOrder(order) ? "Pickup" : "Delivery"}</span>
                 <span>{getOrderStatusLabel(order)}</span>
-                <span>{getPaymentStatusLabel(order.PAYMENT_DONE)}</span>
+                <span>{paymentLabel(order)}</span>
                 <span>{dateTime(order.CREATION_DATETIME)}</span>
                 <span>{order.DELIVERY_ET ? dateTime(order.DELIVERY_ET) : "Not set"}</span>
                 <span className="lg:text-right">
                   {formatCHF(order.ORDER_FINAL_AMOUNT)}
                   {order.ORDER_REFUND_AMOUNT > 0 && (
                     <span className="block text-xs text-blue-700">Refund {formatCHF(order.ORDER_REFUND_AMOUNT)}</span>
+                  )}
+                  {isRefundedOrder(order) && order.STRIPE_REFUNDED_DATETIME && (
+                    <span className="block text-xs text-blue-700">{dateTime(order.STRIPE_REFUNDED_DATETIME)}</span>
                   )}
                 </span>
               </button>

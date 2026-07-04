@@ -7,6 +7,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getDeliveryQuote, getFulfillmentOptions } from "@/lib/fulfillment";
 import { ORDER_STATUS, ORDER_TYPE, PAYMENT_DONE } from "@/lib/order";
+import { reserveCartInventory, validateCartInventory } from "@/lib/inventory";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-07-30.basil",
@@ -46,40 +47,43 @@ async function createUnpaidOrder(params: {
   businessId: number;
   customerInfo: CustomerInfo;
   orderType: "delivery" | "pickup";
-  paymentMethod: PaymentMethod;
+  paymentMethod: PaymentMethod | "stripe";
   shippingCharges: number;
   totalAmount: number;
   visitorId: number;
 }) {
-  const order = await prisma.business_order.create({
-    data: {
-      BUSINESS_ORDER_ID: temporaryId(),
-      CREATION_DATETIME: new Date(),
-      BUSINESS_ID: params.businessId,
-      VISITOR_ID: params.visitorId,
-      PAYMENT_DONE: PAYMENT_DONE.pending,
-      PAYMENT_MODE: params.paymentMethod,
-      ORDER_STATUS: ORDER_STATUS.preparing,
-      ORDER_TYPE: params.orderType,
-      TERMINAL: "web",
-      FIRST_NAME: params.customerInfo.firstName,
-      LAST_NAME: params.customerInfo.lastName,
-      ADDRESS_STREET: params.orderType === ORDER_TYPE.delivery ? params.customerInfo.street || "" : "",
-      ADDRESS_ZIP: params.orderType === ORDER_TYPE.delivery ? params.customerInfo.zip || "" : "",
-      ADDRESS_TOWN: params.orderType === ORDER_TYPE.delivery ? params.customerInfo.city || "" : "",
-      ADDRESS_COUNTRY_CODE: params.customerInfo.country || "CH",
-      PHONE_NUMBER: params.customerInfo.phone,
-      EMAIL_ADDRESS: params.customerInfo.email,
-      ORDER_GROSS_AMOUNT: params.totalAmount,
-      ORDER_NET_AMOUNT: params.totalAmount,
-      ORDER_AMOUNT: params.totalAmount,
-      SHIPPING_CHARGES: params.shippingCharges,
-      ORDER_FINAL_AMOUNT: params.totalAmount + params.shippingCharges,
-    },
-  });
+  return prisma.$transaction(async (tx) => {
+    await reserveCartInventory(tx, params.items);
 
-  for (const item of params.items) {
-    await prisma.$executeRaw`
+    const order = await tx.business_order.create({
+      data: {
+        BUSINESS_ORDER_ID: temporaryId(),
+        CREATION_DATETIME: new Date(),
+        BUSINESS_ID: params.businessId,
+        VISITOR_ID: params.visitorId,
+        PAYMENT_DONE: PAYMENT_DONE.pending,
+        PAYMENT_MODE: params.paymentMethod,
+        ORDER_STATUS: ORDER_STATUS.preparing,
+        ORDER_TYPE: params.orderType,
+        TERMINAL: "web",
+        FIRST_NAME: params.customerInfo.firstName,
+        LAST_NAME: params.customerInfo.lastName,
+        ADDRESS_STREET: params.orderType === ORDER_TYPE.delivery ? params.customerInfo.street || "" : "",
+        ADDRESS_ZIP: params.orderType === ORDER_TYPE.delivery ? params.customerInfo.zip || "" : "",
+        ADDRESS_TOWN: params.orderType === ORDER_TYPE.delivery ? params.customerInfo.city || "" : "",
+        ADDRESS_COUNTRY_CODE: params.customerInfo.country || "CH",
+        PHONE_NUMBER: params.customerInfo.phone,
+        EMAIL_ADDRESS: params.customerInfo.email,
+        ORDER_GROSS_AMOUNT: params.totalAmount,
+        ORDER_NET_AMOUNT: params.totalAmount,
+        ORDER_AMOUNT: params.totalAmount,
+        SHIPPING_CHARGES: params.shippingCharges,
+        ORDER_FINAL_AMOUNT: params.totalAmount + params.shippingCharges,
+      },
+    });
+
+    for (const item of params.items) {
+      await tx.$executeRaw`
       INSERT INTO business_order_detail (
         BUSINESS_ORDER_DETAIL_ID,
         CREATION_DATETIME,
@@ -100,9 +104,10 @@ async function createUnpaidOrder(params: {
         ${item.quantity}
       )
     `;
-  }
+    }
 
-  return order;
+    return order;
+  });
 }
 
 export async function POST(req: NextRequest) {
@@ -125,14 +130,15 @@ export async function POST(req: NextRequest) {
     return new NextResponse("Invalid order type", { status: 400 });
   }
 
-  const productIds = Array.from(new Set(items.map((item) => Number(item.id))));
-  if (productIds.some((id) => !id)) return new NextResponse("Invalid cart item", { status: 400 });
-
-  const products = await prisma.business_product.findMany({
-    where: { BUSINESS_PRODUCT_ID: { in: productIds } },
-    select: { BUSINESS_PRODUCT_ID: true, BUSINESS_ID: true },
-  });
-  if (products.length !== productIds.length) return new NextResponse("Invalid cart item", { status: 400 });
+  let products;
+  try {
+    products = await validateCartInventory(items);
+  } catch (error) {
+    return new NextResponse(
+      error instanceof Error ? error.message : "Invalid cart item",
+      { status: 400 }
+    );
+  }
 
   const businessIds = Array.from(new Set(products.map((product) => product.BUSINESS_ID).filter(Boolean)));
   if (businessIds.length !== 1) return new NextResponse("Please order from one restaurant at a time", { status: 400 });
@@ -204,7 +210,19 @@ export async function POST(req: NextRequest) {
     quantity: item.quantity,
   }));
 
+  const order = await createUnpaidOrder({
+    items,
+    businessId,
+    customerInfo,
+    orderType,
+    paymentMethod: "stripe",
+    shippingCharges,
+    totalAmount,
+    visitorId,
+  });
+
   const metadata = {
+    orderId: String(order.BUSINESS_ORDER_ID),
     businessId: String(businessId),
     customerId: String(visitorId || customerInfo.userId || "guest"),
     customerEmail: customerInfo.email,
@@ -228,6 +246,7 @@ export async function POST(req: NextRequest) {
     cancel_url: `${origin}/cart`,
     client_reference_id: String(visitorId || customerInfo.userId || "") || undefined,
     metadata,
+    payment_intent_data: { metadata },
     submit_type: "pay",
     shipping_options: [
       {
@@ -250,5 +269,16 @@ export async function POST(req: NextRequest) {
   }
 
   const checkoutSession = await stripe.checkout.sessions.create(sessionConfig);
-  return NextResponse.json({ sessionId: checkoutSession.id });
+  const paymentIntentId =
+    typeof checkoutSession.payment_intent === "string" ? checkoutSession.payment_intent : checkoutSession.payment_intent?.id;
+
+  await prisma.business_order.update({
+    where: { BUSINESS_ORDER_ID: order.BUSINESS_ORDER_ID },
+    data: {
+      STRIPE_CHECKOUT_SESSION_ID: checkoutSession.id,
+      STRIPE_PAYMENT_INTENT_ID: paymentIntentId || null,
+    },
+  });
+
+  return NextResponse.json({ sessionId: checkoutSession.id, orderId: order.BUSINESS_ORDER_ID });
 }
