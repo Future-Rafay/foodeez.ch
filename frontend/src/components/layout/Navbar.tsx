@@ -11,6 +11,7 @@ import { useSession, signOut } from "next-auth/react";
 import ProfileDropdown from "./ProfileDropdown";
 import MobileMenu from "../ui/MobileMenu";
 import CartIcon from "../cart/CartIcon";
+import CustomerNotifications from "./CustomerNotifications";
 
 export const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -91,6 +92,7 @@ export const Navbar = () => {
               {link.label}
             </Link>
           ))}
+          <CustomerNotifications userEmail={session?.user?.email} />
           <CartIcon />
           <div className="ml-6">
             {status === "loading" ? (
@@ -118,6 +120,7 @@ export const Navbar = () => {
 
         {/* Mobile Hamburger */}
         <div className="lg:hidden flex items-center">
+          <CustomerNotifications userEmail={session?.user?.email} />
           <CartIcon />
           <button
             type="button"
