@@ -5,6 +5,7 @@ import { MenuProduct } from "@/types/product";
 import ModalPortal from "../core/ModalPortal";
 import Button from "../core/Button";
 import { X } from "lucide-react";
+import { formatCHF } from "@/lib/order";
 
 interface ProductDetailsModalProps {
   isOpen: boolean;
@@ -12,6 +13,7 @@ interface ProductDetailsModalProps {
   product: MenuProduct;
   onAddToCart?: () => void;
   isInCart?: boolean;
+  outOfStock?: boolean;
 }
 
 export default function ProductDetailsModal({
@@ -19,9 +21,16 @@ export default function ProductDetailsModal({
   onClose,
   product,
   onAddToCart,
-  isInCart = false
+  isInCart = false,
+  outOfStock = false
 }: ProductDetailsModalProps) {
   if (!isOpen) return null;
+
+  const price = Number(product.PRODUCT_PRICE);
+  const compareAtPrice = Number(product.COMPARE_AS_PRICE ?? 0);
+  const tracksInventory = Number(product.TRACK_INVENTORY ?? 0) === 1;
+  const inventoryAvailable = Number(product.INVENTORY_AVAILABLE ?? 0);
+  const weight = Number(product.WEIGHT ?? 0);
 
   return (
     <ModalPortal>
@@ -63,11 +72,28 @@ export default function ProductDetailsModal({
                 
                 <div className="flex items-center gap-3 mb-4">
                   <span className="text-2xl font-bold text-primary">
-                    CHF {Number(product.PRODUCT_PRICE).toFixed(2)}
+                    {formatCHF(price)}
                   </span>
-                  {product.COMPARE_AS_PRICE && Number(product.COMPARE_AS_PRICE) > 0 ? (
+                  {compareAtPrice > price ? (
                     <span className="text-lg line-through text-gray-400">
-                      CHF {Number(product.COMPARE_AS_PRICE).toFixed(2)}
+                      {formatCHF(compareAtPrice)}
+                    </span>
+                  ) : null}
+                </div>
+
+                <div className="mb-5 flex flex-wrap gap-2 text-sm">
+                  {weight > 0 && (
+                    <span className="rounded-full bg-gray-100 px-3 py-1 text-gray-700">
+                      {weight} {product.WEIGHT_UNIT || "gm"}
+                    </span>
+                  )}
+                  {outOfStock ? (
+                    <span className="rounded-full bg-red-50 px-3 py-1 text-red-700">
+                      Out of stock
+                    </span>
+                  ) : tracksInventory ? (
+                    <span className="rounded-full bg-green-50 px-3 py-1 text-green-700">
+                      {inventoryAvailable} available
                     </span>
                   ) : null}
                 </div>
@@ -86,10 +112,10 @@ export default function ProductDetailsModal({
                   <div className="mt-8">
                     <Button
                       onClick={onAddToCart}
-                      className={`w-full py-3 text-lg ${isInCart ? 'bg-secondary hover:bg-secondary/90' : 'bg-primary hover:bg-primary/90'}`}
-                      disabled={isInCart}
+                      className={`w-full py-3 text-lg ${outOfStock ? 'bg-gray-400 cursor-not-allowed' : isInCart ? 'bg-secondary hover:bg-secondary/90' : 'bg-primary hover:bg-primary/90'}`}
+                      disabled={isInCart || outOfStock}
                     >
-                      {isInCart ? 'Added to Cart' : 'Add to Cart'}
+                      {outOfStock ? 'Out of stock' : isInCart ? 'Added to Cart' : 'Add to Cart'}
                     </Button>
                   </div>
                 )}

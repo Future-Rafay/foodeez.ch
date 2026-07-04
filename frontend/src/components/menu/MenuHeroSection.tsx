@@ -1,14 +1,11 @@
 "use client";
 
-import {
-  business_food_menu_card_view,
-  business_food_menu_card_detail_view,
-} from "@prisma/client";
 import Image from "next/image";
+import type { MenuCard } from "@/types/product";
 
 interface MenuHeroSectionProps {
-  business: business_food_menu_card_view | null;
-  Menu: Partial<business_food_menu_card_detail_view>[];
+  business: MenuCard | null;
+  Menu: MenuCard[];
   setSelectedMenuId: (id: number) => void;
   selectedMenuId: number | null;
 }

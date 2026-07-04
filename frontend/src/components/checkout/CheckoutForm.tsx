@@ -67,6 +67,9 @@ export default function CheckoutForm({
     () => Array.from(new Set(items.map((item) => item.businessId).filter(Boolean))),
     [items]
   );
+  const stockIssue = items.find(
+    (item) => item.trackInventory && item.quantity > (item.inventoryAvailable ?? 0)
+  );
   const businessId = businessIds.length === 1 ? businessIds[0] : "";
 
   const [loading, setLoading] = useState(false);
@@ -161,7 +164,7 @@ export default function CheckoutForm({
   const deliveryBlocked = isDelivery && (!formData.zip.trim() || quoteLoading || !quote.available);
   const orderingUnavailable = !optionsLoading && options && !options.deliveryEnabled && !options.pickupEnabled;
   const mixedCart = businessIds.length > 1;
-  const disabled = loading || optionsLoading || mixedCart || !businessId || !orderType || !!orderingUnavailable || deliveryBlocked;
+  const disabled = loading || optionsLoading || mixedCart || !!stockIssue || !businessId || !orderType || !!orderingUnavailable || deliveryBlocked;
   const shippingCharge = isDelivery && quote.available ? quote.deliveryPrice : 0;
 
   useEffect(() => {
@@ -186,6 +189,10 @@ export default function CheckoutForm({
       return;
     }
 
+    if (stockIssue) {
+      setError(`Only ${stockIssue.inventoryAvailable ?? 0} left in stock for ${stockIssue.name}.`);
+      return;
+    }
     if (disabled) return;
     setLoading(true);
 
@@ -387,6 +394,11 @@ export default function CheckoutForm({
       </div>
 
       {error && <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md p-3">{error}</p>}
+      {stockIssue && (
+        <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md p-3">
+          Only {stockIssue.inventoryAvailable ?? 0} left in stock for {stockIssue.name}.
+        </p>
+      )}
 
       <div className="flex justify-end">
         <button

@@ -12,6 +12,7 @@ import { useSession } from "next-auth/react";
 import LoginRequiredModal from "@/components/core/LoginRequiredModal";
 import { calculateCartTotals } from "@/lib/cartTotals";
 import { formatCHF, ORDER_TYPE } from "@/lib/orderStatus";
+import { toast } from "react-hot-toast";
 
 type SummaryProps = {
   items: ReturnType<typeof useCartStore.getState>["items"];
@@ -61,10 +62,7 @@ function OrderSummary({ items, totalItems, checkoutSummary, showPayment = false 
             <span>-{formatCHF(totals.discount)}</span>
           </div>
         )}
-        <div className="flex justify-between">
-          <span>Fulfillment</span>
-          <span>{isPickup ? "Pickup" : isDelivery ? "Delivery" : "Not selected"}</span>
-        </div>
+       
         {showPayment && checkoutSummary?.paymentMethod && (
           <div className="flex justify-between">
             <span>Payment</span>
@@ -118,6 +116,10 @@ export default function CartPage() {
   const [checkoutSummary, setCheckoutSummary] = useState<CheckoutSummaryState | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
   const router = useRouter();
+  const stockIssues = items.filter(
+    (item) => item.trackInventory && item.quantity > (item.inventoryAvailable ?? 0)
+  );
+  const hasStockIssues = stockIssues.length > 0;
 
   useEffect(() => {
     setIsClient(true);
@@ -136,6 +138,10 @@ export default function CartPage() {
   };
 
   const handleCheckoutClick = () => {
+    if (hasStockIssues) {
+      toast.error("Please fix stock issues before checkout.");
+      return;
+    }
     if (status !== "authenticated") {
       setShowLoginModal(true);
       return;
@@ -160,8 +166,20 @@ export default function CartPage() {
       PRODUCT_PRICE: item.price,
       COMPARE_AS_PRICE: null, // Can be null according to schema
       PIC: item.image || '', // Default to empty string if no image
+      TRACK_INVENTORY: item.trackInventory ? 1 : 0,
+      INVENTORY_AVAILABLE: item.inventoryAvailable ?? 0,
+      WEIGHT: 0,
+      WEIGHT_UNIT: "gm",
     };
     setSelectedProduct(product);
+  };
+
+  const handleQuantityChange = (item: ReturnType<typeof useCartStore.getState>["items"][number], quantity: number) => {
+    if (item.trackInventory && quantity > (item.inventoryAvailable ?? 0)) {
+      toast.error(`Only ${item.inventoryAvailable ?? 0} left in stock.`);
+      return;
+    }
+    updateQuantity(item.id, quantity);
   };
 
   const isInCart = (productId: string) => {
@@ -174,7 +192,7 @@ export default function CartPage() {
 
   if (items.length === 0) {
     return (
-      <div className="container mx-auto px-4 py-16 text-center">
+      <div className="container min-h-screen mx-auto px-4 flex flex-col items-center justify-center text-center">
         <h1 className="sub-heading mb-4">Your Cart is Empty</h1>
         <p className="sub-heading-description mb-8">Looks like you haven't added anything to your cart yet.</p>
         <Link href="/" className="btn-primary">
@@ -238,6 +256,11 @@ export default function CartPage() {
                 >
                   <h2 className="font-semibold text-lg">{item.name}</h2>
                   <p className="text-primary font-bold">CHF {item.price.toFixed(2)}</p>
+                  {item.trackInventory && item.quantity > (item.inventoryAvailable ?? 0) && (
+                    <p className="mt-1 text-sm text-red-700">
+                      Only {item.inventoryAvailable ?? 0} left in stock for {item.name}.
+                    </p>
+                  )}
                 </div>
                 <div className="flex flex-col lg:flex-row items-end lg:items-center gap-4">
                   <button
@@ -249,7 +272,7 @@ export default function CartPage() {
                   </button>
                   <div className="flex items-center bg-primary/10 border rounded-md">
                     <button
-                      onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}
+                      onClick={() => handleQuantityChange(item, Math.max(1, item.quantity - 1))}
                       className="p-2 hover:bg-gray-100 rounded-l-md"
                       aria-label="Decrease quantity"
                     >
@@ -257,7 +280,7 @@ export default function CartPage() {
                     </button>
                     <span className="px-4 py-1 font-semibold">{item.quantity}</span>
                     <button
-                      onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                      onClick={() => handleQuantityChange(item, item.quantity + 1)}
                       className="p-2 hover:bg-gray-100 rounded-r-md"
                       aria-label="Increase quantity"
                     >
@@ -293,6 +316,7 @@ export default function CartPage() {
 
             <button
               onClick={handleCheckoutClick}
+              disabled={hasStockIssues}
               className="w-full bg-primary text-white mt-6 py-3 rounded-lg font-semibold hover:bg-primary-dark transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
               Proceed to Checkout

@@ -10,6 +10,8 @@ export interface CartItem {
   image?: string;
   description?: string;
   businessId?: string;
+  trackInventory?: boolean;
+  inventoryAvailable?: number;
 }
 
 // Define the state structure for the cart
@@ -17,7 +19,7 @@ interface CartState {
   items: CartItem[];
   totalItems: number;
   totalPrice: number;
-  addToCart: (product: Omit<CartItem, 'quantity'>) => void;
+  addToCart: (product: Omit<CartItem, 'quantity'>) => { ok: boolean; message?: string };
   removeFromCart: (itemId: string) => void;
   updateQuantity: (itemId: string, quantity: number) => void;
   clearCart: () => void;
@@ -41,7 +43,20 @@ export const useCartStore = create<CartState>()(
         const existingItem = get().items.find((item) => item.id === product.id);
         let updatedItems;
 
+        if (product.trackInventory && (product.inventoryAvailable ?? 0) <= 0) {
+          return { ok: false, message: "Only 0 left in stock." };
+        }
+
         if (existingItem) {
+          if (
+            existingItem.trackInventory &&
+            existingItem.quantity + 1 > (existingItem.inventoryAvailable ?? 0)
+          ) {
+            return {
+              ok: false,
+              message: `Only ${existingItem.inventoryAvailable ?? 0} left in stock.`,
+            };
+          }
           updatedItems = get().items.map((item) =>
             item.id === product.id
               ? { ...item, quantity: item.quantity + 1 }
@@ -53,6 +68,7 @@ export const useCartStore = create<CartState>()(
         
         const { totalItems, totalPrice } = calculateTotals(updatedItems);
         set({ items: updatedItems, totalItems, totalPrice });
+        return { ok: true };
       },
 
       removeFromCart: (itemId) => {
@@ -64,6 +80,13 @@ export const useCartStore = create<CartState>()(
       updateQuantity: (itemId, quantity) => {
         let updatedItems;
         if (quantity > 0) {
+          const currentItem = get().items.find((item) => item.id === itemId);
+          if (
+            currentItem?.trackInventory &&
+            quantity > (currentItem.inventoryAvailable ?? 0)
+          ) {
+            return;
+          }
           updatedItems = get().items.map((item) =>
             item.id === itemId ? { ...item, quantity } : item
           );
