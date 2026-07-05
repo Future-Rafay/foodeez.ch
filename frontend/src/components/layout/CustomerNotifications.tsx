@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Bell, Check, Package } from "lucide-react";
-import { getOrderStatusLabel, getPaymentStatusLabel, PAYMENT_DONE } from "@/lib/order";
+import { getDisplayOrderNumber, getOrderStatusLabel, getPaymentStatusLabel, PAYMENT_DONE } from "@/lib/order";
 
 type OrderNotification = {
   BUSINESS_ORDER_ID: number;
+  ORDER_NUMBER?: string | null;
   CREATION_DATETIME?: string | null;
   DELIVERY_ET?: string | null;
   ORDER_STATUS?: number | null;
@@ -52,7 +53,7 @@ const toNotifications = (orders: OrderNotification[]): NotificationItem[] =>
     return {
       id: `${order.BUSINESS_ORDER_ID}:${order.ORDER_STATUS ?? "x"}:${order.PAYMENT_DONE ?? "x"}:${order.DELIVERY_ET ?? ""}`,
       orderId: order.BUSINESS_ORDER_ID,
-      title: `Order #${order.BUSINESS_ORDER_ID} is ${status.toLowerCase()}`,
+      title: `${getDisplayOrderNumber(order)} is ${status.toLowerCase()}`,
       body: `${business}${payment}`,
       time: order.DELIVERY_ET || order.CREATION_DATETIME || null,
     };

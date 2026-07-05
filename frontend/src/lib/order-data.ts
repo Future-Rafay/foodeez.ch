@@ -121,6 +121,7 @@ function formatOrder(
 ) {
   return {
     BUSINESS_ORDER_ID: order.BUSINESS_ORDER_ID,
+    ORDER_NUMBER: order.ORDER_NUMBER,
     CREATION_DATETIME: iso(order.CREATION_DATETIME),
     BUSINESS_ID: order.BUSINESS_ID,
     VISITOR_ID: order.VISITOR_ID,

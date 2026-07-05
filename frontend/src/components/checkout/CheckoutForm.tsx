@@ -239,7 +239,7 @@ export default function CheckoutForm({
 
         {mixedCart ? (
           <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md p-3">
-            Please order from one restaurant at a time.
+            You can only order from one restaurant at a time.
           </p>
         ) : orderingUnavailable ? (
           <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md p-3">

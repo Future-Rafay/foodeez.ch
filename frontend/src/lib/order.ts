@@ -20,8 +20,17 @@ export const ORDER_TYPE = {
 } as const;
 
 type OrderLike = {
+  BUSINESS_ORDER_ID?: number | null;
+  ORDER_NUMBER?: string | null;
+  CREATION_DATETIME?: string | null;
+  DELIVERY_ET?: string | null;
   ORDER_STATUS?: number | null;
   ORDER_TYPE?: string | null;
+  business?: {
+    BUSINESS_NAME?: string | null;
+    DEFAULT_DELIVERY_PREP_MINUTES?: number | null;
+    DEFAULT_PICKUP_PREP_MINUTES?: number | null;
+  } | null;
 };
 
 type MoneyLike = number | string | { toString(): string } | null | undefined;
@@ -106,4 +115,34 @@ export const getPaymentStatusColor = (paymentDone?: number | null) =>
 export const formatCHF = (amount: MoneyLike) => {
   const value = Number(amount ?? 0);
   return chfFormatter.format(Number.isFinite(value) ? value : 0);
+};
+
+export const formatOrderNumberFromId = (id: number) =>
+  `FDZ.${Math.trunc(id).toString().padStart(6, "0")}`;
+
+export const generateOrderNumberFromId = formatOrderNumberFromId;
+
+export const getDisplayOrderNumber = (order: OrderLike) =>
+  order.ORDER_NUMBER || formatOrderNumberFromId(order.BUSINESS_ORDER_ID ?? 0);
+
+export const formatEtaTimeOnly = (value?: string | Date | null) => {
+  if (!value) return "Not set";
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "Not set";
+  return new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(date);
+};
+
+export const getDisplayEta = (order: OrderLike) => {
+  if (order.DELIVERY_ET) return formatEtaTimeOnly(order.DELIVERY_ET);
+  if (!order.CREATION_DATETIME) return "Not set";
+  const minutes = isPickupOrder(order)
+    ? order.business?.DEFAULT_PICKUP_PREP_MINUTES ?? 20
+    : order.business?.DEFAULT_DELIVERY_PREP_MINUTES ?? 45;
+  const eta = new Date(order.CREATION_DATETIME);
+  eta.setMinutes(eta.getMinutes() + minutes);
+  return formatEtaTimeOnly(eta);
 };

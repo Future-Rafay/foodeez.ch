@@ -97,3 +97,13 @@ The project is a Next.js 14 application with a clear separation of concerns.
 - The navbar notification bell is `frontend/src/components/layout/CustomerNotifications.tsx` and is mounted by `frontend/src/components/layout/Navbar.tsx`.
 - Notifications are derived from the signed-in visitor's `/api/orders/history` response and use localStorage only for per-customer read state; admin/business notifications remain separate.
 - Keep notification labels based on shared order helpers in `frontend/src/lib/order.ts` so delivery, pickup, payment, and refund wording stays aligned with My Orders.
+
+## Customer Order Display and Cart Notes
+
+- Customer-facing order numbers must use `getDisplayOrderNumber(order)` from `frontend/src/lib/order.ts`: prefer `ORDER_NUMBER` such as `FDZ.000001`, and only fall back to formatted `BUSINESS_ORDER_ID`.
+- Customer checkout order creation in `frontend/src/app/api/checkout/route.ts` must populate `business_order.ORDER_NUMBER` with `generateOrderNumberFromId(orderId)` so new web orders display the DB order number column.
+- Customer ETA displays must use `getDisplayEta(order)` / `formatEtaTimeOnly()` from `frontend/src/lib/order.ts` and show time only, for example `20:20`; when `DELIVERY_ET` is missing, compute from `CREATION_DATETIME` plus the business default prep minutes.
+- The customer cart store is `frontend/src/stores/cartStore.ts`; it persists `business` metadata and cart items with `businessId`, `businessSlug`, and `businessName`.
+- Adding a product from a different restaurant returns a mixed-business result from `addToCart`; the menu card shows the `Start a new order?` confirmation before clearing the cart.
+- `/api/checkout` validates product ownership from the database before order creation and rejects mixed-business payloads with `You can only order from one restaurant at a time.`
+- My Orders lives at `frontend/src/app/(dashboard)/dashboard/orders/page.tsx`; it defaults to the `Active` filter, highlights the newest active order at the top, still shows active orders in the spreadsheet-style filtered table below, keeps the filtered content area at a stable minimum height to prevent tab-switch jumps, includes `View details` as the final table column, silently refreshes `/api/orders/history` every 30 seconds while the page is open, and sends `Explore Restaurants` to `/business`.

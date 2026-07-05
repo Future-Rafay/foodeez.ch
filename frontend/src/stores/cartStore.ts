@@ -10,16 +10,32 @@ export interface CartItem {
   image?: string;
   description?: string;
   businessId?: string;
+  businessSlug?: string;
+  businessName?: string;
   trackInventory?: boolean;
   inventoryAvailable?: number;
 }
 
+type CartBusiness = {
+  businessId: string;
+  businessSlug?: string;
+  businessName?: string;
+};
+
+type AddToCartResult = {
+  ok: boolean;
+  message?: string;
+  reason?: "mixed-business";
+  currentBusinessName?: string;
+};
+
 // Define the state structure for the cart
 interface CartState {
   items: CartItem[];
+  business: CartBusiness | null;
   totalItems: number;
   totalPrice: number;
-  addToCart: (product: Omit<CartItem, 'quantity'>) => { ok: boolean; message?: string };
+  addToCart: (product: Omit<CartItem, 'quantity'>, replaceCart?: boolean) => AddToCartResult;
   removeFromCart: (itemId: string) => void;
   updateQuantity: (itemId: string, quantity: number) => void;
   clearCart: () => void;
@@ -32,15 +48,52 @@ const calculateTotals = (items: CartItem[]) => {
   return { totalItems, totalPrice };
 };
 
+const businessFromProduct = (product: Omit<CartItem, "quantity">): CartBusiness | null =>
+  product.businessId
+    ? {
+        businessId: product.businessId,
+        businessSlug: product.businessSlug,
+        businessName: product.businessName,
+      }
+    : null;
+
+const businessFromItems = (items: CartItem[]): CartBusiness | null =>
+  items[0]?.businessId
+    ? {
+        businessId: items[0].businessId,
+        businessSlug: items[0].businessSlug,
+        businessName: items[0].businessName,
+      }
+    : null;
+
 export const useCartStore = create<CartState>()(
   persist(
     (set, get) => ({
       items: [],
+      business: null,
       totalItems: 0,
       totalPrice: 0,
 
-      addToCart: (product) => {
-        const existingItem = get().items.find((item) => item.id === product.id);
+      addToCart: (product, replaceCart = false) => {
+        const currentBusiness = get().business ?? businessFromItems(get().items);
+        const nextBusiness = businessFromProduct(product);
+        if (
+          !replaceCart &&
+          get().items.length > 0 &&
+          currentBusiness?.businessId &&
+          nextBusiness?.businessId &&
+          String(currentBusiness.businessId) !== String(nextBusiness.businessId)
+        ) {
+          return {
+            ok: false,
+            reason: "mixed-business",
+            currentBusinessName: currentBusiness.businessName || "another restaurant",
+            message: "You can only order from one restaurant at a time.",
+          };
+        }
+
+        const currentItems = replaceCart ? [] : get().items;
+        const existingItem = currentItems.find((item) => item.id === product.id);
         let updatedItems;
 
         if (product.trackInventory && (product.inventoryAvailable ?? 0) <= 0) {
@@ -63,18 +116,18 @@ export const useCartStore = create<CartState>()(
               : item
           );
         } else {
-          updatedItems = [...get().items, { ...product, quantity: 1 }];
+          updatedItems = [...currentItems, { ...product, quantity: 1 }];
         }
         
         const { totalItems, totalPrice } = calculateTotals(updatedItems);
-        set({ items: updatedItems, totalItems, totalPrice });
+        set({ items: updatedItems, business: businessFromItems(updatedItems), totalItems, totalPrice });
         return { ok: true };
       },
 
       removeFromCart: (itemId) => {
         const updatedItems = get().items.filter((item) => item.id !== itemId);
         const { totalItems, totalPrice } = calculateTotals(updatedItems);
-        set({ items: updatedItems, totalItems, totalPrice });
+        set({ items: updatedItems, business: businessFromItems(updatedItems), totalItems, totalPrice });
       },
 
       updateQuantity: (itemId, quantity) => {
@@ -95,11 +148,11 @@ export const useCartStore = create<CartState>()(
           updatedItems = get().items.filter((item) => item.id !== itemId);
         }
         const { totalItems, totalPrice } = calculateTotals(updatedItems);
-        set({ items: updatedItems, totalItems, totalPrice });
+        set({ items: updatedItems, business: businessFromItems(updatedItems), totalItems, totalPrice });
       },
 
       clearCart: () => {
-        set({ items: [], totalItems: 0, totalPrice: 0 });
+        set({ items: [], business: null, totalItems: 0, totalPrice: 0 });
       },
     }),
     {
@@ -111,6 +164,7 @@ export const useCartStore = create<CartState>()(
           const { totalItems, totalPrice } = calculateTotals(state.items);
           state.totalItems = totalItems;
           state.totalPrice = totalPrice;
+          state.business = state.business ?? businessFromItems(state.items);
         }
       },
     }

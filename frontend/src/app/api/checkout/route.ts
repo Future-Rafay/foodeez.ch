@@ -6,7 +6,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getDeliveryQuote, getFulfillmentOptions } from "@/lib/fulfillment";
-import { ORDER_STATUS, ORDER_TYPE, PAYMENT_DONE } from "@/lib/order";
+import { generateOrderNumberFromId, ORDER_STATUS, ORDER_TYPE, PAYMENT_DONE } from "@/lib/order";
 import { reserveCartInventory, validateCartInventory } from "@/lib/inventory";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -54,10 +54,16 @@ async function createUnpaidOrder(params: {
 }) {
   return prisma.$transaction(async (tx) => {
     await reserveCartInventory(tx, params.items);
+    const latestOrder = await tx.business_order.findFirst({
+      orderBy: { BUSINESS_ORDER_ID: "desc" },
+      select: { BUSINESS_ORDER_ID: true },
+    });
+    const orderId = (latestOrder?.BUSINESS_ORDER_ID || 0) + 1;
 
     const order = await tx.business_order.create({
       data: {
-        BUSINESS_ORDER_ID: temporaryId(),
+        BUSINESS_ORDER_ID: orderId,
+        ORDER_NUMBER: generateOrderNumberFromId(orderId),
         CREATION_DATETIME: new Date(),
         BUSINESS_ID: params.businessId,
         VISITOR_ID: params.visitorId,
@@ -141,7 +147,9 @@ export async function POST(req: NextRequest) {
   }
 
   const businessIds = Array.from(new Set(products.map((product) => product.BUSINESS_ID).filter(Boolean)));
-  if (businessIds.length !== 1) return new NextResponse("Please order from one restaurant at a time", { status: 400 });
+  if (businessIds.length !== 1) {
+    return new NextResponse("You can only order from one restaurant at a time.", { status: 400 });
+  }
 
   const businessId = Number(businessIds[0]);
   const settings = await prisma.business_settings.findUnique({ where: { BUSINESS_ID: businessId } });

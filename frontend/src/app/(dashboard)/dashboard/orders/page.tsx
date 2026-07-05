@@ -1,10 +1,25 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Package, X, XCircle } from "lucide-react";
+import {
+  CalendarDays,
+  ChevronRight,
+  Clock,
+  MapPin,
+  Package,
+  ReceiptText,
+  RefreshCcw,
+  ShoppingBag,
+  Truck,
+  Wallet,
+  X,
+  XCircle,
+} from "lucide-react";
 import {
   formatCHF,
+  getDisplayEta,
+  getDisplayOrderNumber,
   getOrderProgressSteps,
   getOrderStatusLabel,
   getPaymentStatusLabel,
@@ -27,6 +42,7 @@ type OrderItem = {
 
 type Order = {
   BUSINESS_ORDER_ID: number;
+  ORDER_NUMBER?: string | null;
   CREATION_DATETIME?: string | null;
   PAYMENT_DONE?: number | null;
   PAYMENT_MODE?: string | null;
@@ -59,27 +75,23 @@ type Order = {
   details: OrderItem[];
 };
 
-const filters = ["All", "Active", "Completed", "Cancelled / Rejected", "Refunded"] as const;
+const filters = ["Active", "All", "Completed", "Rejected", "Refunded"] as const;
 type Filter = (typeof filters)[number];
 
 const dateTime = (value?: string | null) =>
-  value ? new Date(value).toLocaleString() : "Not set";
-
-const estimatedTime = (order: Order) => {
-  if (order.DELIVERY_ET) return dateTime(order.DELIVERY_ET);
-  if (!order.CREATION_DATETIME) return "Not set";
-  const minutes = isPickupOrder(order)
-    ? order.business?.DEFAULT_PICKUP_PREP_MINUTES ?? 20
-    : order.business?.DEFAULT_DELIVERY_PREP_MINUTES ?? 45;
-  const eta = new Date(order.CREATION_DATETIME);
-  eta.setMinutes(eta.getMinutes() + minutes);
-  return `around ${eta.toLocaleString()}`;
-};
+  value
+    ? new Intl.DateTimeFormat("en-GB", {
+        day: "2-digit",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(new Date(value))
+    : "Not set";
 
 const isActiveOrder = (order: Order) =>
   isPickupOrder(order)
-    ? [ORDER_STATUS.preparing, ORDER_STATUS.readyForPickup].some((status) => status === order.ORDER_STATUS)
-    : [ORDER_STATUS.preparing, ORDER_STATUS.outForDelivery].some((status) => status === order.ORDER_STATUS);
+    ? order.ORDER_STATUS === ORDER_STATUS.preparing || order.ORDER_STATUS === ORDER_STATUS.readyForPickup
+    : order.ORDER_STATUS === ORDER_STATUS.preparing || order.ORDER_STATUS === ORDER_STATUS.outForDelivery;
 
 const isCompletedOrder = (order: Order) =>
   isPickupOrder(order)
@@ -90,23 +102,102 @@ const isRefundedOrder = (order: Order) =>
   order.PAYMENT_DONE === PAYMENT_DONE.refunded || order.ORDER_REFUND_AMOUNT > 0;
 
 const paymentLabel = (order: Order) =>
-  order.PAYMENT_DONE === PAYMENT_DONE.pending && ["stripe", "card"].includes((order.PAYMENT_MODE || "").toLowerCase())
+  order.PAYMENT_DONE === PAYMENT_DONE.pending &&
+  ["stripe", "card"].includes((order.PAYMENT_MODE || "").toLowerCase())
     ? "Payment processing"
     : getPaymentStatusLabel(order.PAYMENT_DONE);
 
 const matchesFilter = (order: Order, filter: Filter) => {
   if (filter === "Active") return isActiveOrder(order);
   if (filter === "Completed") return isCompletedOrder(order);
-  if (filter === "Cancelled / Rejected") return order.ORDER_STATUS === ORDER_STATUS.rejected;
+  if (filter === "Rejected") return order.ORDER_STATUS === ORDER_STATUS.rejected;
   if (filter === "Refunded") return isRefundedOrder(order);
   return true;
 };
 
-function Timeline({ order }: { order: Order }) {
-  const steps = getOrderProgressSteps(order);
+const emptyTitle: Record<Exclude<Filter, "All">, string> = {
+  Active: "No active orders",
+  Completed: "No completed orders",
+  Rejected: "No rejected orders",
+  Refunded: "No refunded orders",
+};
+
+const statusTone = (order: Order) => {
+  if (isRefundedOrder(order)) return "bg-blue-50 text-blue-700 border-blue-100";
+  if (order.ORDER_STATUS === ORDER_STATUS.rejected) return "bg-red-50 text-red-700 border-red-100";
+  if (isCompletedOrder(order)) return "bg-green-50 text-green-700 border-green-100";
+  return "bg-primary/10 text-primary border-primary/20";
+};
+
+function SkeletonCards() {
   return (
-    <div className="flex flex-col gap-3">
-      {steps.map((step) => {
+    <div className="space-y-3">
+      {Array.from({ length: 10 }).map((_, index) => (
+        <div key={index} className="rounded-lg border bg-white p-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-3">
+              <div className="h-5 w-36 animate-pulse rounded bg-gray-100" />
+              <div className="h-4 w-56 animate-pulse rounded bg-gray-100" />
+            </div>
+            <div className="h-9 w-28 animate-pulse rounded bg-gray-100" />
+          </div>
+          <div className="mt-5 grid gap-3 sm:grid-cols-4">
+            {Array.from({ length: 4 }).map((__, cell) => (
+              <div key={cell} className="h-14 animate-pulse rounded bg-gray-50" />
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MetricCard({
+  label,
+  value,
+  icon: Icon,
+}: {
+  label: string;
+  value: number;
+  icon: typeof Package;
+}) {
+  return (
+    <div className="rounded-lg border bg-white p-4">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm text-gray-500">{label}</p>
+        <span className="rounded-md bg-primary/10 p-2 text-primary">
+          <Icon className="h-4 w-4" />
+        </span>
+      </div>
+      <p className="mt-2 text-2xl font-semibold text-gray-900">{value}</p>
+    </div>
+  );
+}
+
+function DetailPill({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: typeof Package;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-lg bg-gray-50 p-3">
+      <div className="flex items-center gap-2 text-xs font-medium uppercase text-gray-500">
+        <Icon className="h-3.5 w-3.5" />
+        {label}
+      </div>
+      <p className="mt-1 text-sm font-semibold text-gray-900">{value}</p>
+    </div>
+  );
+}
+
+function Timeline({ order }: { order: Order }) {
+  return (
+    <div className="space-y-3">
+      {getOrderProgressSteps(order).map((step) => {
         const done = step.status === order.ORDER_STATUS || step.status < (order.ORDER_STATUS ?? 0);
         return (
           <div key={step.status} className="flex items-center gap-3">
@@ -125,16 +216,125 @@ function Timeline({ order }: { order: Order }) {
   );
 }
 
+function OrderCard({
+  order,
+  featured = false,
+  onSelect,
+}: {
+  order: Order;
+  featured?: boolean;
+  onSelect: () => void;
+}) {
+  const pickup = isPickupOrder(order);
+  return (
+    <article
+      className={`rounded-lg border bg-white p-5 shadow-sm ${
+        featured ? "border-primary/30 bg-primary/5" : "border-gray-200"
+      }`}
+    >
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          {featured && <p className="mb-1 text-sm font-semibold text-primary">Your active order</p>}
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-xl font-semibold text-gray-900">{getDisplayOrderNumber(order)}</h2>
+            <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${statusTone(order)}`}>
+              {isRefundedOrder(order) ? "Refunded" : getOrderStatusLabel(order)}
+            </span>
+          </div>
+          <p className="mt-1 text-sm text-gray-600">{order.business?.BUSINESS_NAME || "Restaurant"}</p>
+        </div>
+        <div className="flex flex-col gap-3 sm:flex-row lg:items-center">
+          <p className="text-lg font-semibold text-gray-900">{formatCHF(order.ORDER_FINAL_AMOUNT)}</p>
+          <button
+            type="button"
+            onClick={onSelect}
+            className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-dark"
+          >
+            View details
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <DetailPill icon={pickup ? ShoppingBag : Truck} label="Type" value={pickup ? "Pickup" : "Delivery"} />
+        <DetailPill icon={Clock} label="ETA" value={getDisplayEta(order)} />
+        <DetailPill icon={Wallet} label="Payment" value={paymentLabel(order)} />
+        <DetailPill icon={CalendarDays} label="Placed" value={dateTime(order.CREATION_DATETIME)} />
+      </div>
+    </article>
+  );
+}
+
+function OrdersTable({
+  orders,
+  onSelect,
+}: {
+  orders: Order[];
+  onSelect: (order: Order) => void;
+}) {
+  return (
+    <div className="overflow-hidden rounded-lg border bg-white shadow-sm">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[920px] text-sm">
+          <thead className="bg-gray-50 text-left text-xs font-semibold uppercase text-gray-500">
+            <tr>
+              <th className="px-4 py-3">Order</th>
+              <th className="px-4 py-3">Restaurant</th>
+              <th className="px-4 py-3">Type</th>
+              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3">ETA</th>
+              <th className="px-4 py-3">Payment</th>
+              <th className="px-4 py-3">Placed</th>
+              <th className="px-4 py-3 text-right">Amount</th>
+              <th className="px-4 py-3 text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {orders.map((order) => (
+              <tr key={order.BUSINESS_ORDER_ID} className="hover:bg-gray-50">
+                <td className="px-4 py-4 font-semibold text-gray-900">{getDisplayOrderNumber(order)}</td>
+                <td className="px-4 py-4 text-gray-700">{order.business?.BUSINESS_NAME || "Restaurant"}</td>
+                <td className="px-4 py-4 text-gray-700">{isPickupOrder(order) ? "Pickup" : "Delivery"}</td>
+                <td className="px-4 py-4">
+                  <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${statusTone(order)}`}>
+                    {isRefundedOrder(order) ? "Refunded" : getOrderStatusLabel(order)}
+                  </span>
+                </td>
+                <td className="px-4 py-4 text-gray-700">{getDisplayEta(order)}</td>
+                <td className="px-4 py-4 text-gray-700">{paymentLabel(order)}</td>
+                <td className="px-4 py-4 text-gray-700">{dateTime(order.CREATION_DATETIME)}</td>
+                <td className="px-4 py-4 text-right font-semibold text-gray-900">{formatCHF(order.ORDER_FINAL_AMOUNT)}</td>
+                <td className="px-4 py-4 text-right">
+                  <button
+                    type="button"
+                    onClick={() => onSelect(order)}
+                    className="inline-flex items-center justify-center rounded-md bg-primary px-3 py-2 text-xs font-semibold text-white hover:bg-primary-dark"
+                  >
+                    View details
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 function OrderModal({ order, onClose }: { order: Order; onClose: () => void }) {
-  const paidNotRefunded = order.PAYMENT_DONE === PAYMENT_DONE.paid && !isRefundedOrder(order);
+  const pickup = isPickupOrder(order);
   const rejected = order.ORDER_STATUS === ORDER_STATUS.rejected;
+  const paidNotRefunded = order.PAYMENT_DONE === PAYMENT_DONE.paid && !isRefundedOrder(order);
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 p-4 overflow-y-auto">
-      <div className="mx-auto max-w-4xl rounded-lg bg-white shadow-xl">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 p-4">
+      <div className="mx-auto max-w-5xl overflow-hidden rounded-lg bg-white shadow-xl">
         <div className="flex items-start justify-between border-b p-5">
           <div>
-            <h2 className="text-xl font-semibold">Order #{order.BUSINESS_ORDER_ID}</h2>
+            <p className="text-sm font-medium text-primary">{pickup ? "Pickup order" : "Delivery order"}</p>
+            <h2 className="mt-1 text-2xl font-semibold text-gray-900">{getDisplayOrderNumber(order)}</h2>
             <p className="text-sm text-gray-500">{order.business?.BUSINESS_NAME || "Restaurant"}</p>
           </div>
           <button onClick={onClose} className="rounded-md p-2 hover:bg-gray-100" aria-label="Close">
@@ -142,108 +342,89 @@ function OrderModal({ order, onClose }: { order: Order; onClose: () => void }) {
           </button>
         </div>
 
-        <div className="grid gap-6 p-5 lg:grid-cols-2">
-          <section className="space-y-3">
-            <h3 className="font-semibold">Status</h3>
-            <p className="text-sm text-gray-700">{isPickupOrder(order) ? "Pickup" : "Delivery"} order</p>
-            <Timeline order={order} />
+        <div className="grid gap-6 p-5 lg:grid-cols-[1.1fr_0.9fr]">
+          <section className="space-y-5">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <DetailPill icon={Clock} label="ETA" value={getDisplayEta(order)} />
+              <DetailPill icon={ReceiptText} label="Status" value={getOrderStatusLabel(order)} />
+              <DetailPill icon={Wallet} label="Payment" value={paymentLabel(order)} />
+            </div>
+
+            <div className="rounded-lg border bg-white p-4">
+              <h3 className="mb-4 font-semibold text-gray-900">Order timeline</h3>
+              <Timeline order={order} />
+            </div>
+
+            <div className="rounded-lg border bg-white p-4">
+              <h3 className="mb-3 font-semibold text-gray-900">Items</h3>
+              <div className="divide-y">
+                {order.details.map((item) => {
+                  const quantity = item.ORDER_QUANTITY || 1;
+                  const unit = item.PRODUCT_SELL_PRICE || item.product?.PRODUCT_PRICE || 0;
+                  return (
+                    <div key={item.BUSINESS_ORDER_DETAIL_ID} className="flex items-start justify-between gap-4 py-3 text-sm">
+                      <div>
+                        <p className="font-medium text-gray-900">{item.product?.TITLE || "Product"}</p>
+                        <p className="text-gray-500">Qty {quantity} x {formatCHF(unit)}</p>
+                      </div>
+                      <p className="font-semibold text-gray-900">{formatCHF(item.PRODUCT_PRICE || unit * quantity)}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </section>
 
-          <section className="space-y-3">
-            <h3 className="font-semibold">Payment details</h3>
-            <dl className="grid grid-cols-2 gap-2 text-sm">
-              <dt className="text-gray-500">Mode</dt><dd>{order.PAYMENT_MODE || "Not set"}</dd>
-              <dt className="text-gray-500">Status</dt><dd>{paymentLabel(order)}</dd>
-              <dt className="text-gray-500">Gross</dt><dd>{formatCHF(order.ORDER_GROSS_AMOUNT)}</dd>
-              <dt className="text-gray-500">Discount</dt><dd>{formatCHF(order.ORDER_DISCOUNT_AMOUNT)}</dd>
-              <dt className="text-gray-500">Delivery fee</dt>
-              <dd>
-                {!isPickupOrder(order) && order.SHIPPING_CHARGES === 0 ? (
-                  <span className="text-green-700">Free delivery</span>
+          <aside className="space-y-5">
+            <div className="rounded-lg border bg-white p-4">
+              <h3 className="mb-3 flex items-center gap-2 font-semibold text-gray-900">
+                <MapPin className="h-4 w-4 text-primary" />
+                {pickup ? "Pickup address" : "Delivery address"}
+              </h3>
+              <p className="text-sm leading-6 text-gray-700">
+                {pickup ? (
+                  <>
+                    {order.business?.ADDRESS_STREET}<br />
+                    {[order.business?.ADDRESS_ZIP, order.business?.ADDRESS_TOWN].filter(Boolean).join(" ")}<br />
+                    {order.business?.ADDRESS_COUNTRY || "CH"}
+                  </>
                 ) : (
-                  formatCHF(order.SHIPPING_CHARGES)
+                  <>
+                    {order.ADDRESS_STREET}<br />
+                    {[order.ADDRESS_ZIP, order.ADDRESS_TOWN].filter(Boolean).join(" ")}<br />
+                    {order.ADDRESS_COUNTRY_CODE || "CH"}
+                  </>
                 )}
-              </dd>
-              <dt className="text-gray-500">Tax</dt><dd>{formatCHF(order.ORDER_TAX_AMOUNT)}</dd>
-              <dt className="text-gray-500">Refund</dt><dd>{formatCHF(order.ORDER_REFUND_AMOUNT)}</dd>
+              </p>
+            </div>
+
+            <div className="rounded-lg border bg-white p-4">
+              <h3 className="mb-3 font-semibold text-gray-900">Payment summary</h3>
+              <dl className="space-y-2 text-sm">
+                <div className="flex justify-between"><dt className="text-gray-500">Gross</dt><dd>{formatCHF(order.ORDER_GROSS_AMOUNT)}</dd></div>
+                <div className="flex justify-between"><dt className="text-gray-500">Discount</dt><dd>{formatCHF(order.ORDER_DISCOUNT_AMOUNT)}</dd></div>
+                <div className="flex justify-between"><dt className="text-gray-500">Delivery fee</dt><dd>{formatCHF(order.SHIPPING_CHARGES)}</dd></div>
+                <div className="flex justify-between"><dt className="text-gray-500">Tax</dt><dd>{formatCHF(order.ORDER_TAX_AMOUNT)}</dd></div>
+                {order.ORDER_REFUND_AMOUNT > 0 && (
+                  <div className="flex justify-between text-blue-700"><dt>Refund</dt><dd>{formatCHF(order.ORDER_REFUND_AMOUNT)}</dd></div>
+                )}
+                <div className="flex justify-between border-t pt-2 font-semibold text-gray-900">
+                  <dt>Final total</dt><dd>{formatCHF(order.ORDER_FINAL_AMOUNT)}</dd>
+                </div>
+              </dl>
               {isRefundedOrder(order) && order.STRIPE_REFUND_STATUS && (
-                <><dt className="text-gray-500">Refund status</dt><dd>{order.STRIPE_REFUND_STATUS}</dd></>
+                <p className="mt-3 rounded-md bg-blue-50 p-3 text-sm text-blue-800">
+                  Refund status: {order.STRIPE_REFUND_STATUS}
+                  {order.STRIPE_REFUNDED_DATETIME ? ` on ${dateTime(order.STRIPE_REFUNDED_DATETIME)}` : ""}
+                </p>
               )}
-              {isRefundedOrder(order) && order.STRIPE_REFUNDED_DATETIME && (
-                <><dt className="text-gray-500">Refunded at</dt><dd>{dateTime(order.STRIPE_REFUNDED_DATETIME)}</dd></>
+              {rejected && paidNotRefunded && (
+                <p className="mt-3 rounded-md bg-yellow-50 p-3 text-sm text-yellow-800">Refund pending</p>
               )}
-              <dt className="font-medium">Final total</dt><dd className="font-medium">{formatCHF(order.ORDER_FINAL_AMOUNT)}</dd>
-            </dl>
-            {isRefundedOrder(order) && (
-              <p className="rounded-md bg-blue-50 p-3 text-sm text-blue-800">
-                Refunded: {formatCHF(order.ORDER_REFUND_AMOUNT)}
-                {order.STRIPE_REFUND_STATUS ? ` · ${order.STRIPE_REFUND_STATUS}` : ""}
-              </p>
-            )}
-            {!isPickupOrder(order) && order.SHIPPING_CHARGES === 0 && (
-              <p className="rounded-md bg-green-50 p-3 text-sm text-green-800">Free delivery applied.</p>
-            )}
-            {rejected && paidNotRefunded && (
-              <p className="rounded-md bg-yellow-50 p-3 text-sm text-yellow-800">Refund pending</p>
-            )}
-          </section>
-
-          <section className="space-y-2">
-            <h3 className="font-semibold">{isPickupOrder(order) ? "Pickup address" : "Delivery address"}</h3>
-            {isPickupOrder(order) ? (
-              <p className="text-sm text-gray-700">
-                {order.business?.ADDRESS_STREET}<br />
-                {[order.business?.ADDRESS_ZIP, order.business?.ADDRESS_TOWN].filter(Boolean).join(" ")}<br />
-                {order.business?.ADDRESS_COUNTRY || "CH"}
-              </p>
-            ) : (
-              <p className="text-sm text-gray-700">
-                {order.ADDRESS_STREET}<br />
-                {[order.ADDRESS_ZIP, order.ADDRESS_TOWN].filter(Boolean).join(" ")}<br />
-                {order.ADDRESS_COUNTRY_CODE || "CH"}
-              </p>
-            )}
-          </section>
-
-          <section className="space-y-2">
-            <h3 className="font-semibold">Estimated time</h3>
-            <p className="text-sm text-gray-700">
-              Estimated {isPickupOrder(order) ? "pickup" : "delivery"} time: {estimatedTime(order)}
-            </p>
-          </section>
-        </div>
-
-        <div className="overflow-x-auto border-t p-5">
-          <h3 className="mb-3 font-semibold">Items</h3>
-          <table className="w-full min-w-[640px] text-sm">
-            <thead className="text-left text-gray-500">
-              <tr>
-                <th className="py-2">Product</th>
-                <th>Qty</th>
-                <th>Unit price</th>
-                <th>Discount</th>
-                <th>Subtotal</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {order.details.map((item) => {
-                const quantity = item.ORDER_QUANTITY || 1;
-                const unit = item.PRODUCT_SELL_PRICE || item.product?.PRODUCT_PRICE || 0;
-                return (
-                  <tr key={item.BUSINESS_ORDER_DETAIL_ID}>
-                    <td className="py-3">{item.product?.TITLE || "Product"}</td>
-                    <td>{quantity}</td>
-                    <td>{formatCHF(unit)}</td>
-                    <td>{formatCHF(item.PRODUCT_DISCOUNT)}</td>
-                    <td>{formatCHF(item.PRODUCT_PRICE || unit * quantity)}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+            </div>
+          </aside>
         </div>
       </div>
-    
     </div>
   );
 }
@@ -255,9 +436,11 @@ export default function OrdersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const fetchOrders = async () => {
-    setIsLoading(true);
-    setError("");
+  const fetchOrders = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) {
+      setIsLoading(true);
+      setError("");
+    }
     try {
       const response = await fetch("/api/orders/history", { cache: "no-store" });
       if (!response.ok) {
@@ -265,140 +448,133 @@ export default function OrdersPage() {
         throw new Error(data.error || "Failed to fetch orders");
       }
       const data = await response.json();
-      setOrders(Array.from(new Map((data.orders || []).map((order: Order) => [order.BUSINESS_ORDER_ID, order])).values()) as Order[]);
+      setOrders(
+        Array.from(
+          new Map((data.orders || []).map((order: Order) => [order.BUSINESS_ORDER_ID, order])).values()
+        ) as Order[]
+      );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load orders");
+      if (!silent) setError(err instanceof Error ? err.message : "Failed to load orders");
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchOrders();
-  }, []);
+    const interval = window.setInterval(() => fetchOrders({ silent: true }), 30000);
+    return () => window.clearInterval(interval);
+  }, [fetchOrders]);
 
-  const visibleOrders = useMemo(
-    () => orders.filter((order) => matchesFilter(order, filter)),
-    [orders, filter]
+  const sortedOrders = useMemo(
+    () =>
+      [...orders].sort(
+        (a, b) =>
+          new Date(b.CREATION_DATETIME || 0).getTime() -
+          new Date(a.CREATION_DATETIME || 0).getTime()
+      ),
+    [orders]
   );
-  const activeOrder = orders.find(isActiveOrder);
-  const stats = [
-    ["Total orders", orders.length],
-    ["Active orders", orders.filter(isActiveOrder).length],
-    ["Completed orders", orders.filter(isCompletedOrder).length],
-    ["Refunded orders", orders.filter(isRefundedOrder).length],
+  const activeOrder = sortedOrders.find(isActiveOrder);
+  const visibleOrders = useMemo(
+    () => sortedOrders.filter((order) => matchesFilter(order, filter)),
+    [filter, sortedOrders]
+  );
+  const metrics = [
+    { label: "All orders", value: orders.length, icon: ReceiptText },
+    { label: "Active", value: orders.filter(isActiveOrder).length, icon: Clock },
+    { label: "Completed", value: orders.filter(isCompletedOrder).length, icon: Package },
+    { label: "Refunded", value: orders.filter(isRefundedOrder).length, icon: RefreshCcw },
   ];
+  const showFilteredEmpty = visibleOrders.length === 0 && !(filter === "Active" && activeOrder);
 
   return (
-    <div className="mx-auto min-h-screen px-4 lg:px-0 py-8 space-y-8">
-      <div>
-        <h1 className="sub-heading">My orders</h1>
-        <p className="text-gray-500">Track your recent orders and payments</p>
+    <div className="mx-auto min-h-screen px-4 py-8 lg:px-0">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="sub-heading">My orders</h1>
+          <p className="text-gray-500">Track active orders, payments, refunds, and order history.</p>
+        </div>
+        <Link
+          href="/business"
+          className="inline-flex items-center justify-center gap-2 rounded-md border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+        >
+          <ShoppingBag className="h-4 w-4" />
+          Explore Restaurants
+        </Link>
       </div>
 
       {isLoading ? (
-        <div className="flex justify-center py-12">
-          <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-primary" />
-        </div>
+        <SkeletonCards />
       ) : error ? (
-        <div className="rounded-md border border-red-200 bg-red-50 p-4 text-red-700">
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
           <div className="flex gap-3">
             <XCircle className="h-5 w-5" />
             <div>
               <p className="text-sm">{error}</p>
-              <button onClick={fetchOrders} className="mt-2 text-sm font-medium underline">Try again</button>
+              <button onClick={() => fetchOrders()} className="mt-2 text-sm font-medium underline">Try again</button>
             </div>
           </div>
         </div>
       ) : orders.length === 0 ? (
-        <div className="rounded-2xl border border-gray-200 bg-white px-6 py-16 text-center shadow-sm">
+        <div className="rounded-lg border border-gray-200 bg-white px-6 py-16 text-center shadow-sm">
           <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
             <Package className="h-10 w-10 text-primary" />
           </div>
           <h3 className="mt-6 text-2xl font-semibold text-gray-900">No orders yet</h3>
           <p className="mx-auto mt-2 max-w-md text-gray-500">
-            When you place an order, you’ll be able to track it here.
+            When you place an order, you will be able to track it here.
           </p>
-          <Link href="/" className="mt-6 inline-flex rounded-lg bg-primary px-5 py-3 text-sm font-medium text-white hover:bg-primary-dark">
+          <Link href="/business" className="mt-6 inline-flex rounded-md bg-primary px-5 py-3 text-sm font-medium text-white hover:bg-primary-dark">
             Explore Restaurants
           </Link>
         </div>
       ) : (
-        <>
+        <div className="space-y-6">
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            {stats.map(([label, value]) => (
-              <div key={label} className="rounded-lg border bg-white p-4">
-                <p className="text-sm text-gray-500">{label}</p>
-                <p className="mt-1 text-2xl font-semibold">{value}</p>
-              </div>
+            {metrics.map((metric) => (
+              <MetricCard key={metric.label} {...metric} />
             ))}
           </div>
 
           {activeOrder && (
-            <button
-              onClick={() => setSelectedOrder(activeOrder)}
-              className="w-full rounded-lg border border-primary/30 bg-primary/5 p-5 text-left hover:bg-primary/10"
-            >
-              <p className="text-sm font-medium text-primary">Recent active order</p>
-              <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="font-semibold">Order #{activeOrder.BUSINESS_ORDER_ID}</p>
-                  <p className="text-sm text-gray-600">{activeOrder.business?.BUSINESS_NAME || "Restaurant"} · {getOrderStatusLabel(activeOrder)}</p>
-                </div>
-                <p className="font-semibold">{formatCHF(activeOrder.ORDER_FINAL_AMOUNT)}</p>
-              </div>
-            </button>
+            <OrderCard order={activeOrder} featured onSelect={() => setSelectedOrder(activeOrder)} />
           )}
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex gap-2 overflow-x-auto pb-1">
             {filters.map((item) => (
               <button
                 key={item}
                 onClick={() => setFilter(item)}
-                className={`rounded-full px-3 py-1 text-sm ${filter === item ? "bg-primary text-white" : "bg-gray-100 text-gray-700"}`}
+                className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium ${
+                  filter === item ? "bg-primary text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
               >
                 {item}
               </button>
             ))}
           </div>
 
-          <div className="overflow-hidden rounded-lg border bg-white">
-            <div className="hidden grid-cols-8 gap-4 border-b bg-gray-50 px-4 py-3 text-sm font-medium text-gray-500 lg:grid">
-              <span>Order</span>
-              <span>Restaurant</span>
-              <span>Type</span>
-              <span>Status</span>
-              <span>Payment</span>
-              <span>Date</span>
-              <span>ETA</span>
-              <span className="text-right">Amount</span>
-            </div>
-            {visibleOrders.map((order) => (
-              <button
-                key={order.BUSINESS_ORDER_ID}
-                onClick={() => setSelectedOrder(order)}
-                className="grid w-full gap-2 border-b px-4 py-4 text-left hover:bg-gray-50 lg:grid-cols-8 lg:gap-4"
-              >
-                <span className="font-medium">#{order.BUSINESS_ORDER_ID}</span>
-                <span>{order.business?.BUSINESS_NAME || "Restaurant"}</span>
-                <span>{isPickupOrder(order) ? "Pickup" : "Delivery"}</span>
-                <span>{getOrderStatusLabel(order)}</span>
-                <span>{paymentLabel(order)}</span>
-                <span>{dateTime(order.CREATION_DATETIME)}</span>
-                <span>{order.DELIVERY_ET ? dateTime(order.DELIVERY_ET) : "Not set"}</span>
-                <span className="lg:text-right">
-                  {formatCHF(order.ORDER_FINAL_AMOUNT)}
-                  {order.ORDER_REFUND_AMOUNT > 0 && (
-                    <span className="block text-xs text-blue-700">Refund {formatCHF(order.ORDER_REFUND_AMOUNT)}</span>
-                  )}
-                  {isRefundedOrder(order) && order.STRIPE_REFUNDED_DATETIME && (
-                    <span className="block text-xs text-blue-700">{dateTime(order.STRIPE_REFUNDED_DATETIME)}</span>
-                  )}
-                </span>
-              </button>
-            ))}
-          </div>
-        </>
+          <section className="min-h-[600px]">
+            {showFilteredEmpty ? (
+              <div className="space-y-4">
+              <div className="rounded-lg border border-gray-200 bg-white px-6 min-h-[600px] flex flex-col items-center justify-center text-center shadow-sm">
+                <h3 className="text-xl font-semibold text-gray-900">
+                  {filter === "All" ? "No orders yet" : emptyTitle[filter as Exclude<Filter, "All">]}
+                </h3>
+                <p className="mx-auto mt-2 max-w-md text-gray-500">
+                  Try another filter or explore restaurants.
+                </p>
+                <Link href="/business" className="mt-5 inline-flex rounded-md bg-primary px-5 py-3 text-sm font-medium text-white hover:bg-primary-dark">
+                  Explore Restaurants
+                </Link>
+              </div>
+              </div>
+            ) : visibleOrders.length > 0 ? (
+              <OrdersTable orders={visibleOrders} onSelect={setSelectedOrder} />
+            ) : null}
+          </section>
+        </div>
       )}
 
       {selectedOrder && <OrderModal order={selectedOrder} onClose={() => setSelectedOrder(null)} />}

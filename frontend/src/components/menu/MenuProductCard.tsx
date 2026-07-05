@@ -8,6 +8,15 @@ import Button from "../core/Button";
 import ProductDetailsModal from "./ProductDetailsModal";
 import { toast } from "react-hot-toast";
 import { formatCHF } from "@/lib/order";
+import { generateSlug } from "@/lib/utils/genSlug";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface MenuProductCardProps {
   product: MenuProduct;
@@ -16,6 +25,8 @@ interface MenuProductCardProps {
 
 export default function MenuProductCard({ product }: MenuProductCardProps) {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showNewOrderDialog, setShowNewOrderDialog] = useState(false);
+  const [currentBusinessName, setCurrentBusinessName] = useState("another restaurant");
   const { items, addToCart } = useCartStore();
   const isInCart = items.some((item) => item.id === String(product.BUSINESS_PRODUCT_ID));
   const price = Number(product.PRODUCT_PRICE);
@@ -25,20 +36,35 @@ export default function MenuProductCard({ product }: MenuProductCardProps) {
   const outOfStock = tracksInventory && inventoryAvailable <= 0;
   const weight = Number(product.WEIGHT ?? 0);
 
-  const handleAddToCart = () => {
+  const cartProduct = () => ({
+    id: String(product.BUSINESS_PRODUCT_ID),
+    name: product.PRODUCT_NAME,
+    price,
+    description: product.PRODUCT_DESCRIPTION || '',
+    image: product.PIC,
+    businessId: String(product.BUSINESS_ID),
+    businessSlug: generateSlug(product.BUSINESS_NAME || "restaurant", product.BUSINESS_ID),
+    businessName: product.BUSINESS_NAME || "Restaurant",
+    trackInventory: tracksInventory,
+    inventoryAvailable,
+  });
+
+  const handleAddToCart = (replaceCart = false) => {
     if (outOfStock) return;
-    const result = addToCart({
-      id: String(product.BUSINESS_PRODUCT_ID),
-      name: product.PRODUCT_NAME,
-      price,
-      description: product.PRODUCT_DESCRIPTION || '',
-      image: product.PIC,
-      businessId: String(product.BUSINESS_ID),
-      trackInventory: tracksInventory,
-      inventoryAvailable,
-    });
+    const currentBusiness = items.find((item) => item.businessId)?.businessId;
+    if (!replaceCart && currentBusiness && String(currentBusiness) !== String(product.BUSINESS_ID)) {
+      setCurrentBusinessName(items.find((item) => item.businessName)?.businessName || "another restaurant");
+      setShowNewOrderDialog(true);
+      return;
+    }
+
+    const result = addToCart(cartProduct(), replaceCart);
     if (result.ok) {
+      setShowNewOrderDialog(false);
       toast.success("Added to cart");
+    } else if (result.reason === "mixed-business") {
+      setCurrentBusinessName(result.currentBusinessName || "another restaurant");
+      setShowNewOrderDialog(true);
     } else {
       toast.error(result.message || "Only 0 left in stock.");
     }
@@ -50,10 +76,37 @@ export default function MenuProductCard({ product }: MenuProductCardProps) {
         isOpen={showDetailsModal}
         onClose={() => setShowDetailsModal(false)}
         product={product}
-        onAddToCart={handleAddToCart}
+        onAddToCart={() => handleAddToCart()}
         isInCart={isInCart}
         outOfStock={outOfStock}
       />
+
+      <Dialog open={showNewOrderDialog} onOpenChange={setShowNewOrderDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Start a new order?</DialogTitle>
+            <DialogDescription>
+              Your cart has items from {currentBusinessName}. You can only order from one restaurant at a time.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:justify-between">
+            <button
+              type="button"
+              onClick={() => setShowNewOrderDialog(false)}
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-dark"
+            >
+              Keep current cart
+            </button>
+            <button
+              type="button"
+              onClick={() => handleAddToCart(true)}
+              className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Clear cart and add this item
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div 
         className="bg-white rounded-2xl border-2 border-primary shadow-md flex flex-col overflow-hidden transition hover:shadow-xl h-full cursor-pointer"

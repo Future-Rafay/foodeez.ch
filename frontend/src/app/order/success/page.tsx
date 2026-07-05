@@ -7,6 +7,8 @@ import { AlertTriangle, CheckCircle, Clock, MapPin } from "lucide-react";
 import { useCartStore } from "@/stores/cartStore";
 import {
   formatCHF,
+  getDisplayEta,
+  getDisplayOrderNumber,
   getOrderProgressSteps,
   getOrderStatusLabel,
   getPaymentStatusLabel,
@@ -17,6 +19,7 @@ import { PAYMENT_DONE } from "@/lib/order";
 
 type Order = {
   BUSINESS_ORDER_ID: number;
+  ORDER_NUMBER?: string | null;
   BUSINESS_ID?: number | null;
   CREATION_DATETIME?: string | null;
   DELIVERY_ET?: string | null;
@@ -52,21 +55,6 @@ type Order = {
     PRODUCT_PRICE: number;
     product?: { TITLE?: string | null; PRODUCT_PRICE?: number | null } | null;
   }>;
-};
-
-const dateTime = (value?: string | null) =>
-  value ? new Date(value).toLocaleString() : null;
-
-const defaultEta = (order: Order) => {
-  if (order.DELIVERY_ET) return dateTime(order.DELIVERY_ET);
-  if (!order.CREATION_DATETIME) return null;
-
-  const minutes = isPickupOrder(order)
-    ? order.business?.DEFAULT_PICKUP_PREP_MINUTES ?? 20
-    : order.business?.DEFAULT_DELIVERY_PREP_MINUTES ?? 45;
-  const eta = new Date(order.CREATION_DATETIME);
-  eta.setMinutes(eta.getMinutes() + minutes);
-  return eta.toLocaleString();
 };
 
 const paymentMessage = (order: Order) => {
@@ -156,7 +144,7 @@ function SuccessContent() {
   }
 
   const pickup = isPickupOrder(order);
-  const eta = defaultEta(order);
+  const eta = getDisplayEta(order);
   const restaurantHref = order.business?.BUSINESS_ID
     ? `/business/${generateSlug(order.business.BUSINESS_NAME || "restaurant", order.business.BUSINESS_ID)}/menu`
     : "/";
@@ -170,7 +158,7 @@ function SuccessContent() {
           <CheckCircle className="mx-auto mb-4 h-12 w-12 text-green-600" />
         )}
         <h1 className="main-heading mb-2">Order received</h1>
-        <p className="text-gray-600">Order #{order.BUSINESS_ORDER_ID}</p>
+        <p className="text-gray-600">{getDisplayOrderNumber(order)}</p>
         <div className="mt-4 flex flex-wrap justify-center gap-2 text-sm">
           <span className="rounded-full bg-primary/10 px-3 py-1 text-primary">{getOrderStatusLabel(order)}</span>
           <span className="rounded-full bg-gray-100 px-3 py-1">{paymentMessage(order)}</span>
@@ -204,11 +192,7 @@ function SuccessContent() {
               <Clock className="mt-1 h-5 w-5 text-primary" />
               <div className="text-sm text-gray-700">
                 <p className="font-medium">{pickup ? "Estimated pickup time" : "Estimated delivery time"}</p>
-                <p>
-                  {order.DELIVERY_ET
-                    ? eta
-                    : `around ${eta || "soon"}`}
-                </p>
+                <p>{eta}</p>
               </div>
             </div>
           </div>
