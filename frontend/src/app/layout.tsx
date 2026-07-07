@@ -12,6 +12,7 @@ const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
   display: 'swap',
+  preload: true,
 });
 
 const poppins = Poppins({
@@ -19,6 +20,7 @@ const poppins = Poppins({
   subsets: ["latin"],
   variable: "--font-poppins",
   display: 'swap',
+  preload: true,
 });
 
 const defaultMetadata: Metadata = {

@@ -64,7 +64,8 @@ const HeroSection = () => {
                     alt={banner.alt}
                     fill
                     className="object-cover"
-                    priority
+                    sizes="(min-width: 768px) 100vw, 0px"
+                    priority={banner.id === 1}
                   />
                 </div>
               </div>
@@ -77,12 +78,14 @@ const HeroSection = () => {
           <button
             className="bg-white/80 hover:bg-white text-primary p-2 rounded-full shadow-lg"
             onClick={() => scrollPrev(desktopApi)}
+            aria-label="Previous desktop banner slide"
           >
             <ChevronLeft />
           </button>
           <button
             className="bg-white/80 hover:bg-white text-primary p-2 rounded-full shadow-lg"
             onClick={() => scrollNext(desktopApi)}
+            aria-label="Next desktop banner slide"
           >
             <ChevronRight />
           </button>
@@ -92,9 +95,12 @@ const HeroSection = () => {
           {desktopBanners.map((_, index) => (
             <button
               key={index}
-              className="w-2 h-2 rounded-full bg-white/80 hover:bg-white transition-colors"
+              className="flex h-6 w-6 items-center justify-center rounded-full"
               onClick={() => scrollTo(desktopApi, index)}
-            />
+              aria-label={`Go to desktop banner slide ${index + 1}`}
+            >
+              <span className="h-2 w-2 rounded-full bg-white/80 hover:bg-white transition-colors" />
+            </button>
           ))}
         </div>
       </div>
@@ -112,7 +118,8 @@ const HeroSection = () => {
                     width={720}
                     height={400}
                     className="w-full h-[560px] object-contain"
-                    priority
+                    sizes="(max-width: 768px) 294px, 0px"
+                    priority={banner.id === 1}
                   />
                 </div>
               </div>
@@ -125,12 +132,14 @@ const HeroSection = () => {
           <button
             className="bg-white/80 hover:bg-white text-primary p-2 rounded-full shadow-lg"
             onClick={() => scrollPrev(mobileApi)}
+            aria-label="Previous mobile banner slide"
           >
             <ChevronLeft />
           </button>
           <button
             className="bg-white/80 hover:bg-white text-primary p-2 rounded-full shadow-lg"
             onClick={() => scrollNext(mobileApi)}
+            aria-label="Next mobile banner slide"
           >
             <ChevronRight />
           </button>
@@ -140,9 +149,12 @@ const HeroSection = () => {
           {mobileBanners.map((_, index) => (
             <button
               key={index}
-              className="w-2 h-2 rounded-full bg-white/80 hover:bg-white transition-colors"
+              className="flex h-6 w-6 items-center justify-center rounded-full"
               onClick={() => scrollTo(mobileApi, index)}
-            />
+              aria-label={`Go to mobile banner slide ${index + 1}`}
+            >
+              <span className="h-2 w-2 rounded-full bg-white/80 hover:bg-white transition-colors" />
+            </button>
           ))}
         </div>
       </div>

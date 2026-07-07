@@ -62,6 +62,7 @@ const FoodJourneyCard: React.FC<FoodJourneyCardProps> = ({ journey, currentUserI
             src={journey.VISITOR_PIC}
             alt={`Visitor ${journey.VISITOR_NAME}`}
             className="w-12 h-12 rounded-full object-cover border-2 border-gray-200"
+            sizes="48px"
           />
         ) : (
           <div className="h-12 w-12 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center border-2 border-gray-200">
@@ -71,9 +72,9 @@ const FoodJourneyCard: React.FC<FoodJourneyCardProps> = ({ journey, currentUserI
           </div>
         )}
         <div className="flex-1">
-          <h4 className="font-semibold text-primary text-base line-clamp-1">
+          <p className="font-semibold text-primary text-base line-clamp-1">
             {journey.VISITOR_NAME || "Anonymous"}
-          </h4>
+          </p>
 
           <p className="text-xs text-gray-500 line-clamp-1">
             {journey.RESTAURANT_NAME || "Unknown Restaurant"}
@@ -128,6 +129,7 @@ const FoodJourneyCard: React.FC<FoodJourneyCardProps> = ({ journey, currentUserI
               loading="lazy"
               width={64}
               height={64}
+              sizes="64px"
             />
           ))
         ) : (

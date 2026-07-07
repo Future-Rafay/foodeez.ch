@@ -107,3 +107,13 @@ The project is a Next.js 14 application with a clear separation of concerns.
 - Adding a product from a different restaurant returns a mixed-business result from `addToCart`; the menu card shows the `Start a new order?` confirmation before clearing the cart.
 - `/api/checkout` validates product ownership from the database before order creation and rejects mixed-business payloads with `You can only order from one restaurant at a time.`
 - My Orders lives at `frontend/src/app/(dashboard)/dashboard/orders/page.tsx`; it defaults to the `Active` filter, highlights the newest active order at the top, still shows active orders in the spreadsheet-style filtered table below, keeps the filtered content area at a stable minimum height to prevent tab-switch jumps, includes `View details` as the final table column, silently refreshes `/api/orders/history` every 30 seconds while the page is open, and sends `Explore Restaurants` to `/business`.
+
+## Homepage Performance, Accessibility, and Security Notes
+
+- The homepage route is `frontend/src/app/page.tsx`. Keep `AdsBar1`, `HeroSection`, and `Separator` eager because they are above the fold; keep lower homepage sections behind `next/dynamic({ ssr: false })` plus the local `LazyRender` viewport gate so heavy sections do not load on first paint.
+- `GoogleMapsProvider` and `frontend/src/components/home/MapSection.tsx` should only render inside the homepage `LazyMapSection`, which uses `IntersectionObserver` and a `300px` root margin. Do not move Google Maps script loading back into the initial homepage render.
+- Hero carousel controls in `frontend/src/components/home/HeroSection.tsx` need accessible names. Dot buttons should keep at least a 24x24 touch target while preserving the small visible dot.
+- Homepage card/list images should keep explicit `sizes` values. Current shared sizing fixes live in `HeroSection`, `BusinessCard`, `RecentBlogs`, `Banner`, `AdsBar1`, `AdsBar2`, `ScrollingBusinessBar`, testimonial review cards, and food journey cards.
+- `frontend/next.config.mjs` owns image formats, remote image hosts, production browser source maps, and security headers. The CSP must allow the app's current third-party needs: Google Maps, Stripe, Google fonts, WordPress/blog images, S3/media, and other configured image CDNs.
+- `frontend/package.json` includes the modern `browserslist` baseline used to avoid unnecessary legacy JavaScript transforms. Keep it aligned with the browsers the product actually supports.
+- Do not change global brand colors to satisfy contrast audits without explicit product approval. Prefer local accessibility treatments that preserve the Foodeez brand palette.

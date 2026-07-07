@@ -2,6 +2,9 @@
   "name": "foodeez-frontend",
   "version": "0.1.0",
   "private": true,
+  "browserslist": [
+    "defaults and supports es6-module"
+  ],
   "scripts": {
     "dev": "next dev",
     "postinstall": "prisma generate",

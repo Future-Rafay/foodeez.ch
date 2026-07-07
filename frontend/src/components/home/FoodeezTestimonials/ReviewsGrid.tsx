@@ -110,6 +110,7 @@ const ReviewsGrid: React.FC<ReviewsGridProps> = ({
             transition={{ duration: 0.3 }}
             onClick={() => scroll("left")}
             className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-primary shadow-lg rounded-full p-3 "
+            aria-label="Previous testimonial"
           >
             <ChevronLeft className="w-6 h-6 text-white" />
           </motion.button>
@@ -158,6 +159,7 @@ const ReviewsGrid: React.FC<ReviewsGridProps> = ({
             transition={{ duration: 0.3 }}
             onClick={() => scroll("right")}
             className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-primary shadow-lg rounded-full p-3 "
+            aria-label="Next testimonial"
           >
             <ChevronRight className="w-6 h-6 text-white" />
           </motion.button>

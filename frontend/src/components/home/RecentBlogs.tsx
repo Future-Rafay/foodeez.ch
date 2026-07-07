@@ -96,7 +96,8 @@ function BlogCard({ blog }: { blog: BlogPostSummary }) {
               src={blog.coverImageUrl}
               alt={blog.coverImageAlt || blog.title}
               fill
-              sizes="(min-width: 1280px) 33vw, (min-width: 768px) 50vw, 100vw"
+              sizes="(max-width: 640px) calc(100vw - 32px), (max-width: 1024px) calc(50vw - 24px), 336px"
+              quality={70}
               className="object-cover transition-transform duration-500 group-hover:scale-105"
             />
           ) : (

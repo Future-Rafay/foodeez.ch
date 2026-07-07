@@ -1,17 +1,18 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
-import { AnimatePresence } from "framer-motion";
-import DropdownMenu from "../core/DropDownMenu";
 import Image from "next/image";
 import { useSession, signOut } from "next-auth/react";
-import ProfileDropdown from "./ProfileDropdown";
-import MobileMenu from "../ui/MobileMenu";
 import CartIcon from "../cart/CartIcon";
 import CustomerNotifications from "./CustomerNotifications";
+
+const DropdownMenu = dynamic(() => import("../core/DropDownMenu"), { ssr: false });
+const ProfileDropdown = dynamic(() => import("./ProfileDropdown"), { ssr: false });
+const MobileMenu = dynamic(() => import("../ui/MobileMenu"), { ssr: false });
 
 export const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -138,18 +139,16 @@ export const Navbar = () => {
       </div>
 
       {/* Mobile Slide Menu */}
-      <AnimatePresence>
-        {isMenuOpen && (
-          <MobileMenu
-            isMenuOpen={isMenuOpen}
-            isAuthenticated={status === "authenticated"}
-            userName={session?.user?.name}
-            userImage={session?.user?.image || ""}
-            onSignOut={handleSignOut}
-            pathname={pathname}
-          />
-        )}
-      </AnimatePresence>
+      {isMenuOpen && (
+        <MobileMenu
+          isMenuOpen={isMenuOpen}
+          isAuthenticated={status === "authenticated"}
+          userName={session?.user?.name}
+          userImage={session?.user?.image || ""}
+          onSignOut={handleSignOut}
+          pathname={pathname}
+        />
+      )}
     </nav>
   );
 };

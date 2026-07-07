@@ -50,7 +50,7 @@ const AdsBar2: React.FC = () => {
                 alt={biz.BUSINESS_NAME || "Business"}
                 fill
                 className="object-contain border shadow-lg"
-                sizes="(max-width: 768px) 96px, 144px p-4"
+                sizes="(max-width: 1279px) 140px, 160px"
               />
             </div>
             <span className="text-xs sm:text-sm mt-4 text-center text-text-main font-medium max-w-[140px] truncate sm:line-clamp-2">

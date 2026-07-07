@@ -84,6 +84,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({
                 width={56}
                 height={56}
                 className="rounded-full object-cover h-14 w-14 border-2 border-gray-200"
+                sizes="56px"
               />
             ) : (
               <div className="h-14 w-14 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center border-2 border-gray-200">
@@ -93,9 +94,9 @@ const ReviewCard: React.FC<ReviewCardProps> = ({
               </div>
             )}
             <div className="flex-1">
-              <h4 className="font-semibold text-gray-800 text-lg line-clamp-2">
+              <p className="font-semibold text-gray-800 text-lg line-clamp-2">
                 {review.REVIEWER_NAME || "Anonymous"}
-              </h4>
+              </p>
               <p className="text-sm text-gray-500">
                 {formatDate(review.CREATION_DATETIME)}
               </p>

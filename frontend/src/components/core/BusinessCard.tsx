@@ -77,8 +77,8 @@ const BusinessCard: React.FC<BusinessCardProps> = ({ business }) => {
               height={1200}
               width={1200}
               className="object-cover transition-transform duration-500 group-hover:scale-105 aspect-video rounded-t-2xl"
-              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
-              priority
+              sizes="(max-width: 640px) calc(100vw - 32px), (max-width: 1024px) calc(50vw - 24px), 336px"
+              quality={70}
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gray-200">

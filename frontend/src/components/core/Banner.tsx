@@ -19,7 +19,7 @@ const Banner: React.FC<BannerProps> = ({ desktopSrc, mobileSrc, alt }) => {
           width={720}
           height={400}
           className="w-full h-auto object-contain"
-          priority
+          sizes="(max-width: 768px) 100vw, 0px"
         />
       </div>
 
@@ -31,7 +31,7 @@ const Banner: React.FC<BannerProps> = ({ desktopSrc, mobileSrc, alt }) => {
           width={1440}
           height={560}
           className="w-full h-auto object-contain"
-          priority
+          sizes="(min-width: 768px) 100vw, 0px"
         />
       </div>
     </div>

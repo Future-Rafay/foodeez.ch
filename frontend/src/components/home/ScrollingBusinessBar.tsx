@@ -52,7 +52,7 @@ const ScrollingBusinessBar: React.FC<ScrollingBusinessBarProps> = ({
                 alt={biz.BUSINESS_NAME || ""}
                 fill
                 className="object-contain"
-                sizes="(max-width: 768px) 70px, 100px object-contain p-1"
+                sizes="(max-width: 768px) 70px, 100px"
               />
             </div>
             <span className="text-xs sm:text-sm text-center mt-2 text-text-main max-w-[120px] truncate sm:line-clamp-2">

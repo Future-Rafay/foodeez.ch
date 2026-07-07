@@ -1,85 +1,134 @@
 "use client";
 
 import dynamic from 'next/dynamic';
-import { Suspense } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import AdsBar1 from '@/components/home/AdsBar1';
+import HeroSection from '@/components/home/HeroSection';
+import Separator from '@/components/ui/separator';
 
-// Lazy load heavy components
-const BusinessCTA = dynamic(() => import('@/components/home/CTAs/BusinessCTA'));
-const FaqSection = dynamic(() => import('@/components/home/FaqSection'));
-const HeroSection = dynamic(() => import('@/components/home/HeroSection'));
-const FeaturedBusiness = dynamic(() => import('@/components/home/FeaturedBusiness'));
-const TopRatedNearYou = dynamic(() => import('@/components/home/TopRatedNearYou'));
-const MapSection = dynamic(() => import('@/components/home/MapSection'));
-const GoogleMapsProvider = dynamic(() => import('@/components/providers/GoogleMapsProvider'));
-const AdsBar1 = dynamic(() => import('@/components/home/AdsBar1'));
-// const AdsBar2 = dynamic(() => import('@/components/home/AdsBar2'));
-const TestimonialsSection = dynamic(() => import('@/components/home/FoodeezTestimonials/TestimonialsSection'));
-const Separator = dynamic(() => import('@/components/ui/separator'));
-const CommunitySection = dynamic(() => import('@/components/home/CommunitySection'));
-const UpcomingEvents = dynamic(() => import('@/components/home/EventSection/UpcomingEvents'));
-const FoodJourney = dynamic(() => import('@/components/home/CTAs/FoodJourney'));
-const RecentBlogs = dynamic(() => import('@/components/home/RecentBlogs'));
+const BusinessCTA = dynamic(() => import('@/components/home/CTAs/BusinessCTA'), { ssr: false, loading: () => null });
+const FaqSection = dynamic(() => import('@/components/home/FaqSection'), { ssr: false, loading: () => null });
+const FeaturedBusiness = dynamic(() => import('@/components/home/FeaturedBusiness'), { ssr: false, loading: () => null });
+const TopRatedNearYou = dynamic(() => import('@/components/home/TopRatedNearYou'), { ssr: false, loading: () => null });
+const MapSection = dynamic(() => import('@/components/home/MapSection'), { ssr: false, loading: () => null });
+const GoogleMapsProvider = dynamic(() => import('@/components/providers/GoogleMapsProvider'), { ssr: false, loading: () => null });
+const TestimonialsSection = dynamic(() => import('@/components/home/FoodeezTestimonials/TestimonialsSection'), { ssr: false, loading: () => null });
+const CommunitySection = dynamic(() => import('@/components/home/CommunitySection'), { ssr: false, loading: () => null });
+const UpcomingEvents = dynamic(() => import('@/components/home/EventSection/UpcomingEvents'), { ssr: false, loading: () => null });
+const FoodJourney = dynamic(() => import('@/components/home/CTAs/FoodJourney'), { ssr: false, loading: () => null });
+const RecentBlogs = dynamic(() => import('@/components/home/RecentBlogs'), { ssr: false, loading: () => null });
 
-// Loading fallback
-const LoadingSpinner = () => (
-  <div className="flex items-center justify-center min-h-[200px]">
-    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-  </div>
-);
+function LazyMapSection() {
+  return (
+    <LazyRender minHeight={600} rootMargin="300px">
+      <GoogleMapsProvider>
+        <MapSection />
+      </GoogleMapsProvider>
+    </LazyRender>
+  );
+}
+
+function LazyRender({
+  children,
+  minHeight,
+  rootMargin = '0px',
+}: {
+  children: React.ReactNode;
+  minHeight: number;
+  rootMargin?: string;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [shouldLoad, setShouldLoad] = useState(false);
+
+  useEffect(() => {
+    if (shouldLoad || !ref.current) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setShouldLoad(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin }
+    );
+
+    observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, [rootMargin, shouldLoad]);
+
+  return (
+    <div ref={ref} style={{ minHeight: shouldLoad ? undefined : minHeight }}>
+      {shouldLoad ? children : null}
+    </div>
+  );
+}
 
 export default function Home() {
   return (
     <div className="">
-      <Suspense fallback={<LoadingSpinner />}>
+      {/* Hero Section */}
+      <AdsBar1 />
+      <HeroSection />
+      <AdsBar1 />
+      {/* <AdsBar2 /> */}
+      <Separator />
 
-        {/* Hero Section */}
-        <AdsBar1 />
-        <HeroSection />
-        <AdsBar1 />
-        {/* <AdsBar2 /> */}
-        <Separator />
-
-        {/* Top Rated Restaurants Near You */}
+      {/* Top Rated Restaurants Near You */}
+      <LazyRender minHeight={700}>
         <TopRatedNearYou />
+      </LazyRender>
 
-        {/* Featured Business */}
+      {/* Featured Business */}
+      <LazyRender minHeight={900}>
         <FeaturedBusiness />
-        <Separator />
+      </LazyRender>
+      <Separator />
 
-        {/* Business CTA */}
+      {/* Business CTA */}
+      <LazyRender minHeight={400}>
         <BusinessCTA />
-        <Separator />
+      </LazyRender>
+      <Separator />
 
-        {/* Food Journey CTA */}
+      {/* Food Journey CTA */}
+      <LazyRender minHeight={800}>
         <FoodJourney />
-        <Separator />
+      </LazyRender>
+      <Separator />
 
-        {/* Latest Blogs */}
+      {/* Latest Blogs */}
+      <LazyRender minHeight={500}>
         <RecentBlogs />
-        <Separator />
+      </LazyRender>
+      <Separator />
 
-        {/* Testimonials */}
+      {/* Testimonials */}
+      <LazyRender minHeight={700}>
         <TestimonialsSection />
-        <Separator />
+      </LazyRender>
+      <Separator />
 
-        {/* Upcoming Events */}
+      {/* Upcoming Events */}
+      <LazyRender minHeight={600}>
         <UpcomingEvents />
-        <Separator />
+      </LazyRender>
+      <Separator />
 
-        {/* Community Section */}
+      {/* Community Section */}
+      <LazyRender minHeight={500}>
         <CommunitySection />
-        <Separator />
+      </LazyRender>
+      <Separator />
 
-        {/* FAQ Section */}
+      {/* FAQ Section */}
+      <LazyRender minHeight={500}>
         <FaqSection />
-        <Separator className="mb-0" />
+      </LazyRender>
+      <Separator className="mb-0" />
 
-        {/* Map Section */}
-        <GoogleMapsProvider>
-          <MapSection />
-        </GoogleMapsProvider>
-
-      </Suspense>
+      {/* Map Section */}
+      <LazyMapSection />
     </div>
   );
 }
