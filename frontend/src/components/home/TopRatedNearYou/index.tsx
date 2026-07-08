@@ -118,7 +118,7 @@ export default function TopRatedNearYou({ className = "" }: TopRatedNearYouProps
         if (userLocation?.lat && userLocation?.lng) {
             fetchRestaurants({ lat: 0, lng: 0 });
         }
-    }, [fetchRestaurants, userLocation?.lat, userLocation?.lng]);
+    }, [fetchRestaurants]);
 
     useEffect(() => {
         if (navigator.geolocation) {
