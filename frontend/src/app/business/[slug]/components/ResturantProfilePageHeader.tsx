@@ -17,7 +17,7 @@ const ResturantProfilePageHeader = ({BUSINESS_NAME , CITY_NAME , HALAL,VEGAN, VE
             {CITY_NAME && (
               <>
                 {" "}
-                • <span className="text-secondary">{CITY_NAME}</span>
+                • <span className="text-secondary-dark">{CITY_NAME}</span>
               </>
             )}
           </h1>

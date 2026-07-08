@@ -23,10 +23,14 @@ export default function CartIcon() {
   }
 
   return (
-    <Link href="/cart" className="group transition-all duration-200 relative p-2 lg:p-3 rounded-full text-text-main hover:bg-primary hover:text-white">
+    <Link
+      href="/cart"
+      aria-label={`Open cart${totalItems > 0 ? ` with ${totalItems} item${totalItems === 1 ? "" : "s"}` : ""}`}
+      className="group transition-all duration-200 relative p-2 lg:p-3 rounded-full text-text-main hover:bg-primary-dark hover:text-white"
+    >
       <ShoppingCart className="h-6 w-6 text-text-main group-hover:text-white" />
       {totalItems > 0 && (
-        <span className="absolute top-0 right-0 flex h-5 w-5 items-center justify-center rounded-full bg-secondary text-white text-xs font-bold">
+        <span className="absolute top-0 right-0 flex h-5 w-5 items-center justify-center rounded-full bg-secondary-dark text-white text-xs font-bold">
           {totalItems}
         </span>
       )}

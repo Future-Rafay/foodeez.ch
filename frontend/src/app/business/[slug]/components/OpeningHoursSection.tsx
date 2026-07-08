@@ -46,7 +46,7 @@ const OpeningHours: React.FC<OpeningHoursProps> = ({ openingHours }) => {
               >
                 <span
                   className={`font-medium ${
-                    item.day === currentDay ? "text-primary" : "text-gray-700"
+                    item.day === currentDay ? "text-accent" : "text-gray-700"
                   }`}
                 >
                   {item.day}

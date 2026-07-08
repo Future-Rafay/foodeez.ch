@@ -1,92 +1,81 @@
-"use client";
-
-import { useParams } from "next/navigation";
+import { getDeliveryZonesDisplay, getFulfillmentOptions } from "@/lib/fulfillment";
+import { prisma } from "@/lib/prisma";
 import { generateSlug, parseSlug } from "@/lib/utils/genSlug";
-import BusinessImage from "./components/BusinessImage";
-import React, { useState, useEffect } from "react";
-import MapCard from "./components/MapSectionBusinesProfile";
-import GooglePhotoGallery from "./components/PhotoGallary";
-import GoogleReviews from "./components/GoogleReviews";
-import OpeningHours from "./components/OpeningHoursSection";
-import BusinessInfoSection from "./components/BusinessInfoSection";
-import BusinessProfilePageLoadingSkeleton from "./components/BusinessProfilePageLoadingSkeleton";
-import ResturantProfilePageHeader from "./components/ResturantProfilePageHeader";
-import FoodeezReviews from "./components/FoodeezReviews";
 import { getBusinessById } from "@/services/BusinessProfilePageService";
-import { business_detail_view_all } from "@prisma/client";
-import Separator from "@/components/ui/separator";
-import { BusinessGoogleData, BusinessGoogleDataResponse } from "@/types/google-business";
+import type { BusinessGoogleData } from "@/types/google-business";
+import BusinessDeferredSections from "./components/BusinessDeferredSections";
+import BusinessImage from "./components/BusinessImage";
+import BusinessInfoSection, { FulfillmentOptions } from "./components/BusinessInfoSection";
+import ResturantProfilePageHeader from "./components/ResturantProfilePageHeader";
 
-const BusinessDetailPage = () => {
-  const slug = useParams();
-  const parsedId = parseSlug(slug?.slug as unknown as string);
+async function getBusinessFulfillmentOptions(businessId: number): Promise<FulfillmentOptions | null> {
+  const settings = await prisma.business_settings.findUnique({ where: { BUSINESS_ID: businessId } });
 
-  const [business, setBusiness] = useState<business_detail_view_all | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [googleBusinessData, setGoogleBusinessData] = useState<BusinessGoogleData>();
-  const [googleDataLoading, setGoogleDataLoading] = useState(false);
+  return {
+    ...getFulfillmentOptions(settings),
+    deliveryZones: getDeliveryZonesDisplay(settings),
+  };
+}
 
-  const genSlug = generateSlug(
-    business?.BUSINESS_NAME || "business",
-    business?.BUSINESS_ID || 0
-  );
+async function getGoogleBusinessData(businessId: number): Promise<BusinessGoogleData | null> {
+  try {
+    const business = await prisma.business_detail_view_all.findFirst({
+      where: { BUSINESS_ID: businessId },
+      select: { BUSINESS_NAME: true, PLACE_ID: true },
+    });
+    if (!business?.PLACE_ID) return null;
 
-  useEffect(() => {
-    async function fetchBusiness() {
-      const data = await getBusinessById(Number(parsedId.id));
+    const [reviews, openingHours, photos] = await Promise.all([
+      prisma.business_google_review_view.findMany({
+        where: { BUSINESS_ID: businessId, PLACE_ID: business.PLACE_ID },
+      }),
+      prisma.business_opening_hours_view.findMany({
+        where: { BUSINESS_ID: businessId, PLACE_ID: business.PLACE_ID },
+      }),
+      prisma.business_google_images_view.findMany({
+        where: { BUSINESS_ID: businessId, PLACE_ID: business.PLACE_ID },
+      }),
+    ]);
 
-      setBusiness(data as business_detail_view_all);
-      setLoading(false);
-    }
-
-    fetchBusiness();
-  }, [parsedId.id]);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    if (!business?.BUSINESS_ID) return;
-
-    const fetchGoogleData = async () => {
-      setGoogleDataLoading(true);
-
-
-      try {
-        const response = await fetch(`/api/business-google-data/${business.BUSINESS_ID}`);
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch Google data: ${response.statusText}`);
-        }
-
-        const data: BusinessGoogleDataResponse = await response.json();
-        console.log(data.cached ? "Loaded Google data from cache" : "Fetched fresh Google data from API");
-
-        if (!data.success) {
-          throw new Error(data.error || 'Unknown error occurred');
-        }
-
-        if (isMounted) {
-          setGoogleBusinessData(data);
-        }
-      } catch (error) {
-        console.error("Error fetching Google place details:", error);
-      } finally {
-        if (isMounted) {
-          setGoogleDataLoading(false);
-        }
-      }
+    return {
+      name: business.BUSINESS_NAME || "",
+      rating: 0,
+      totalReviews: reviews.length,
+      reviews: reviews.map((review) => ({
+        author_name: review.AUTHOR || "",
+        rating: Number(review.RATING || 0),
+        text: review.REVIEW || "",
+        relative_time_description: review.RELATIVE_TIME || "",
+        profile_photo_url: review.PROFILE_PHOTO_URL || "",
+      })),
+      openingHours: openingHours.map((hours) => ({
+        day: hours.DAY || "",
+        hours: `${hours.OPEN_1 || ""} - ${hours.CLOSE_1 || ""}${
+          hours.OPEN_2 ? `, ${hours.OPEN_2} - ${hours.CLOSE_2}` : ""
+        }`,
+      })),
+      photos: photos.map((photo) => ({
+        photoUrl: photo.IMAGE_URL || "",
+        width: photo.WIDTH ?? 800,
+        height: photo.HEIGHT ?? 600,
+      })),
+      cached: true,
     };
-
-    fetchGoogleData();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [business?.BUSINESS_ID]);
-
-  if (loading) {
-    return <BusinessProfilePageLoadingSkeleton />;
+  } catch (error) {
+    console.error("Error fetching Google place details:", error);
+    return null;
   }
+}
+
+export default async function BusinessDetailPage({ params }: { params: { slug: string } }) {
+  const parsedId = parseSlug(params.slug);
+  const businessId = Number(parsedId.id);
+
+  const [business, fulfillmentOptions, googleBusinessData] = await Promise.all([
+    getBusinessById(businessId),
+    getBusinessFulfillmentOptions(businessId),
+    getGoogleBusinessData(businessId),
+  ]);
 
   if (!business) {
     return (
@@ -96,85 +85,27 @@ const BusinessDetailPage = () => {
     );
   }
 
+  const genSlug = generateSlug(business.BUSINESS_NAME || "business", business.BUSINESS_ID || 0);
+
   return (
-    <>
+    <div>
+      <ResturantProfilePageHeader
+        BUSINESS_NAME={business.BUSINESS_NAME || ""}
+        CITY_NAME={business.CITY_NAME || ""}
+        HALAL={business.HALAL}
+        VEGAN={business.VEGAN}
+        VEGETARIAN={business.VEGETARIAN}
+      />
 
-      <div className="">
-        <ResturantProfilePageHeader
-          BUSINESS_NAME={business.BUSINESS_NAME || ""}
-          CITY_NAME={business.CITY_NAME || ""}
-          HALAL={business.HALAL}
-          VEGAN={business.VEGAN}
-          VEGETARIAN={business.VEGETARIAN}
-        />
+      <BusinessImage
+        imageUrl={business.IMAGE_URL || ""}
+        businessName={business.BUSINESS_NAME || ""}
+        className="mb-6"
+      />
 
-        {/* Main Content */}
-        <div className="">
-          {/* Restaurant Profile Picture */}
-          <BusinessImage
-            imageUrl={business.IMAGE_URL || ""}
-            businessName={business.BUSINESS_NAME || ""}
-            className="mb-6"
-          />
+      <BusinessInfoSection business={business} genSlug={genSlug} fulfillmentOptions={fulfillmentOptions} />
 
-          {/* Info Section */}
-          <BusinessInfoSection business={business} genSlug={genSlug} />
-
-
-
-          {googleDataLoading ? (
-            <div className="flex justify-center items-center py-8">
-              <div className="text-text-main">Loading Google photos...</div>
-            </div>
-          ) : (
-
-
-            <GooglePhotoGallery
-              photos={googleBusinessData?.photos || []}
-              businessName={googleBusinessData?.name || business.BUSINESS_NAME || ''}
-            />
-
-          )}
-
-          {/* Opening Hours */}
-          {googleDataLoading ? (
-            <div className="flex justify-center items-center py-8">
-              <div className="text-gray-500">Loading opening hours...</div>
-            </div>
-          ) : (
-
-            <OpeningHours
-              openingHours={googleBusinessData?.openingHours || []}
-            />
-
-          )}
-
-          {/* Reviews */}
-          <div className="">
-            <FoodeezReviews genSlug={genSlug} business={business} />
-          </div>
-          <div className="">
-            {googleDataLoading ? (
-              <div className="flex justify-center items-center py-8">
-                <div className="text-gray-500">Loading Google reviews...</div>
-              </div>
-            ) : (
-              <GoogleReviews
-                reviews={googleBusinessData?.reviews || []}
-                GOOGLE_PROFILE={business.GOOGLE_PROFILE || ""}
-              />
-            )}
-          </div>
-
-          <Separator className="mb-0" />
-          <div className="relative">
-            <MapCard placeId={business.PLACE_ID || ''} />
-          </div>
-
-        </div>
-      </div>
-    </>
+      <BusinessDeferredSections business={business} genSlug={genSlug} googleBusinessData={googleBusinessData} />
+    </div>
   );
-};
-
-export default BusinessDetailPage;
+}

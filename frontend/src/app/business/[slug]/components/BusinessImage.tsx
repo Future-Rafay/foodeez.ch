@@ -25,7 +25,9 @@ const BusinessImage: React.FC<BusinessImageProps> = ({
           height={100}
           className="object-cover w-full h-[600px] aspect-video "
           sizes="(max-width: 768px) 100vw, 50vw"
+          quality={70}
           priority
+          fetchPriority="high"
         />
       ) : (
         <div className=" w-full h-[600px] aspect-video  flex items-center justify-center bg-gray-200">

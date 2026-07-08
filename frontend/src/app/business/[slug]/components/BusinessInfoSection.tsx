@@ -6,7 +6,6 @@ import Link from "next/link";
 import FoodTypeBadges from "@/components/core/FoodTypeBadges";
 import type { business_detail_view_all } from "@prisma/client";
 import Separator from "@/components/ui/separator";
-import { useEffect, useState } from "react";
 import { formatCHF } from "@/lib/orderStatus";
 
 type DeliveryZone = {
@@ -18,7 +17,7 @@ type DeliveryZone = {
   deliveryInformation?: string;
 };
 
-type FulfillmentOptions = {
+export type FulfillmentOptions = {
   deliveryEnabled: boolean;
   pickupEnabled: boolean;
   pickupInstructions?: string;
@@ -33,16 +32,7 @@ function StatusBadge({ enabled, label }: { enabled: boolean; label: string }) {
   );
 }
 
-function FulfillmentInfoBox({ businessId }: { businessId: number }) {
-  const [options, setOptions] = useState<FulfillmentOptions | null>(null);
-
-  useEffect(() => {
-    fetch(`/api/businesses/${businessId}/fulfillment-options`)
-      .then((response) => (response.ok ? response.json() : null))
-      .then(setOptions)
-      .catch(() => setOptions(null));
-  }, [businessId]);
-
+function FulfillmentInfoBox({ options }: { options: FulfillmentOptions | null }) {
   if (!options) return null;
 
   return (
@@ -68,7 +58,7 @@ function FulfillmentInfoBox({ businessId }: { businessId: number }) {
                   {/* <p className="font-medium text-gray-900">{zone.zoneName}</p> */}
                   <div className="mt-2 flex flex-wrap gap-2">
                     {zone.postalCodes.map((code) => (
-                      <span key={code} className="rounded-full bg-primary/10 px-2 py-1 text-xs text-primary">
+                      <span key={code} className="rounded-full bg-primary/10 px-2 py-1 text-xs font-semibold text-accent">
                         {code}
                       </span>
                     ))}
@@ -91,9 +81,10 @@ function FulfillmentInfoBox({ businessId }: { businessId: number }) {
   );
 }
 
-const BusinessInfoSection: React.FC<{ business: business_detail_view_all, genSlug: string }> = ({
+const BusinessInfoSection: React.FC<{ business: business_detail_view_all, genSlug: string, fulfillmentOptions: FulfillmentOptions | null }> = ({
   business,
   genSlug,
+  fulfillmentOptions,
 }) => {
 
   return (
@@ -185,7 +176,7 @@ const BusinessInfoSection: React.FC<{ business: business_detail_view_all, genSlu
           className="gap-2 [&>a]:text-primary"
         />
       </div>
-      <FulfillmentInfoBox businessId={business.BUSINESS_ID} />
+      <FulfillmentInfoBox options={fulfillmentOptions} />
     </div>
   );
 };

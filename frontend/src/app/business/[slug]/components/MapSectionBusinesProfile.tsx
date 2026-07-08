@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useCallback, useRef, useState } from "react";
 import { GoogleMap } from "@react-google-maps/api";
+import { Info } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import GoogleMapsProvider from "@/components/providers/GoogleMapsProvider";
-import { Info } from "lucide-react";
 
 interface MapCardProps {
   placeId: string;
@@ -16,15 +16,6 @@ export default function MapCard({ placeId }: MapCardProps) {
   const [error, setError] = useState<string | null>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
 
-  // ✅ Case: API key missing
-  useEffect(() => {
-    if (!apiKey) {
-      setError("Google Maps is not available some thing went wrong.");
-      console.error("Google Maps API key is missing. Please set NEXT_PUBLIC_GOOGLE_MAPS_API_KEY in your environment variables.");
-    }
-  }, [apiKey]);
-
-  // ✅ Load Place Details
   const handleLoad = useCallback(
     (map: google.maps.Map) => {
       mapRef.current = map;
@@ -38,17 +29,14 @@ export default function MapCard({ placeId }: MapCardProps) {
       try {
         const service = new google.maps.places.PlacesService(map);
         service.getDetails({ placeId }, (place, status) => {
-          if (
-            status === google.maps.places.PlacesServiceStatus.OK &&
-            place?.geometry?.location
-          ) {
+          if (status === google.maps.places.PlacesServiceStatus.OK && place?.geometry?.location) {
             setCenter({
               lat: place.geometry.location.lat(),
               lng: place.geometry.location.lng(),
             });
           } else {
             console.error("Google Maps Error:", status);
-            setError("We’re unable to load this map right now. Please try later.");
+            setError("We're unable to load this map right now. Please try later.");
           }
         });
       } catch (err) {
@@ -59,13 +47,20 @@ export default function MapCard({ placeId }: MapCardProps) {
     [placeId]
   );
 
+  if (!apiKey) {
+    return (
+      <Card className="overflow-hidden">
+        <MapFallback message="Google Maps is not available some thing went wrong." />
+      </Card>
+    );
+  }
+
   return (
     <Card className="overflow-hidden">
       {error ? (
         <MapFallback message={error} />
       ) : (
-       <div>
-         <GoogleMapsProvider>
+        <GoogleMapsProvider>
           <GoogleMap
             mapContainerStyle={{ height: "400px", width: "100%" }}
             center={center || { lat: 0, lng: 0 }}
@@ -76,53 +71,8 @@ export default function MapCard({ placeId }: MapCardProps) {
               streetViewControl: false,
               fullscreenControl: false,
             }}
-
-          >
-            <style>{`
-  /* Hide Google's ugly default error overlay */
-  .gm-err-container,
-  .gm-err-content {
-    display: none !important;
-  }
-
-  /* Inject our own friendly overlay on error */
-  .custom-map-error {
-    position: absolute;
-    inset: 0;
-    background: #ffffff; /* White background */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    text-align: center;
-    padding: 2rem;
-    z-index: 10;
-  }
-
-  .custom-map-error h3 {
-    font-size: 1rem;
-    font-weight: 600;
-    color: #333;
-    margin-top: 0.75rem;
-  }
-`}</style>
-
-
-            {/* 👇 Custom Error Overlay */}
-           
-              <div className="custom-map-error">
-
-                <Info className="w-12 h-12 text-primary" />
-                <h3>
-                  Map couldn’t load. Some thing went wrong.
-                </h3>
-              </div>
-           
-          </GoogleMap>
-
-
+          />
         </GoogleMapsProvider>
-       </div>
       )}
     </Card>
   );
@@ -136,9 +86,7 @@ function MapFallback({ message }: { message: string }) {
           <Info className="w-12 h-12 text-primary" />
         </div>
         <h3 className="text-lg font-semibold text-text-main">{message}</h3>
-
       </div>
     </div>
   );
 }
-
