@@ -1,6 +1,6 @@
 'use server';
 
-import { Prisma } from "@prisma/client";
+import { Prisma } from "@/lib/prisma";
 import { prisma } from "../lib/prisma"
 import { BusinessDetail, BusinessResult } from "@/types/business.types";
 
@@ -229,7 +229,7 @@ export async function getFoodeezReview() {
 
 
 /**
- * Get top rated restaurants near user's location, or fallback if none found
+ * Get top rated restaurants near the user's location.
  */
 export async function getTopRatedRestaurantsNearYou(
   latitude: number,
@@ -237,38 +237,27 @@ export async function getTopRatedRestaurantsNearYou(
   limit: number = 4,
   radius: number = 1
 ): Promise<BusinessDetail[]> {
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return [];
+  }
+
   try {
     const restaurants = await prisma.$queryRaw<BusinessDetail[]>`
-      SELECT * FROM (
-        SELECT 
-          b.*, 
-          ROUND((calculate_distance_km(${latitude}, ${longitude}, b.latitude, b.longitude)) * 1000, 2) AS distance_m,
-          calculate_distance_km(${latitude}, ${longitude}, b.latitude, b.longitude) AS distance_km
-        FROM business_detail_view_all b
-        WHERE 
-          calculate_distance_km(${latitude}, ${longitude}, b.latitude, b.longitude) <= ${radius}
-          AND b.APPROVED = 1
-          AND b.STATUS = 1
-          AND b.GOOGLE_RATING IS NOT NULL
-          AND b.GOOGLE_RATING != ''
-          AND b.GOOGLE_RATING != '0'
-
-        UNION
-
-        SELECT 
-          b.*, 
-          ROUND((calculate_distance_km(47.3769, 8.5417, b.latitude, b.longitude)) * 1000, 2) AS distance_m,
-          calculate_distance_km(47.3769, 8.5417, b.latitude, b.longitude) AS distance_km
-        FROM business_detail_view_all b
-        WHERE 
-          calculate_distance_km(47.3769, 8.5417, b.latitude, b.longitude) <= ${radius}
-          AND b.APPROVED = 1
-          AND b.STATUS = 1
-          AND b.GOOGLE_RATING IS NOT NULL
-          AND b.GOOGLE_RATING != ''
-          AND b.GOOGLE_RATING != '0'
-      ) AS combined_results
-      ORDER BY GOOGLE_RATING DESC, distance_km ASC
+      SELECT 
+        b.*, 
+        ROUND((calculate_distance_km(${latitude}, ${longitude}, b.LATITUDE, b.LONGITUDE)) * 1000, 2) AS distance_m,
+        calculate_distance_km(${latitude}, ${longitude}, b.LATITUDE, b.LONGITUDE) AS distance_km
+      FROM business_detail_view_all b
+      WHERE 
+        b.LATITUDE IS NOT NULL
+        AND b.LONGITUDE IS NOT NULL
+        AND calculate_distance_km(${latitude}, ${longitude}, b.LATITUDE, b.LONGITUDE) <= ${radius}
+        AND b.APPROVED = 1
+        AND b.STATUS = 1
+        AND b.GOOGLE_RATING IS NOT NULL
+        AND b.GOOGLE_RATING != ''
+        AND b.GOOGLE_RATING != '0'
+      ORDER BY CAST(b.GOOGLE_RATING AS DECIMAL(3, 1)) DESC, distance_km ASC
       LIMIT ${limit};
     `;
 
