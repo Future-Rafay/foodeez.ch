@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import { BusinessGoogleData } from '@/types/google-business';
-import { business_detail_view_all } from '@prisma/client';
+import type { business_detail_view_all } from '@/lib/prisma';
 
 // --- NEW --- //
 interface PageSEOProps {

@@ -1,8 +1,4 @@
-import { 
-  business_google_review_view, 
-  business_opening_hours_view, 
-  business_google_images_view 
-} from '@prisma/client';
+import type { business_google_review_view, business_opening_hours_view, business_google_images_view } from '@/lib/prisma';
 
 // Google API Response Types
 export interface GooglePhoto {

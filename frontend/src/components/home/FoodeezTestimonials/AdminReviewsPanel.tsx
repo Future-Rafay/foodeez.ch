@@ -8,7 +8,7 @@ import { Shield, Eye, EyeOff, CheckCircle, XCircle } from 'lucide-react';
 import { FoodeezReviewService } from '@/services/FoodeezReviewService';
 import ReviewsFilter from './ReviewsFilter';
 import { SortOption, FilterOption } from './ReviewsFilter';
-import { foodeez_review_view } from '@prisma/client';
+import type { foodeez_review_view } from '@/lib/prisma';
 
 interface AdminReviewsPanelProps {
   isVisible: boolean;

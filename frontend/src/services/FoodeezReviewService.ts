@@ -1,5 +1,5 @@
 import { CreateFoodeezReviewData, UpdateFoodeezReviewData } from '@/types/foodeez-review.types';
-import { foodeez_review_view } from '@prisma/client';
+import type { foodeez_review_view } from '@/lib/prisma';
 
 const API_BASE = '/api/foodeez-reviews';
 

@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Edit, Star, Trash } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { foodeez_review_view } from "@prisma/client";
+import type { foodeez_review_view } from "@/lib/prisma";
 
 interface ReviewCardProps {
   review: foodeez_review_view;

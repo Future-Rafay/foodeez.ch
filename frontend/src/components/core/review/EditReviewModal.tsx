@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { visitor_business_review_view } from '@prisma/client';
+import type { visitor_business_review_view } from '@/lib/prisma';
 import ReviewForm from './ReviewForm';
 import { X } from 'lucide-react';
 

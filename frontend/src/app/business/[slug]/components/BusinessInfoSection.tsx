@@ -4,7 +4,7 @@ import { SocialLinks } from "@/components/core/SocialLinks";
 import { MapPin, Phone, Globe } from "lucide-react";
 import Link from "next/link";
 import FoodTypeBadges from "@/components/core/FoodTypeBadges";
-import type { business_detail_view_all } from "@prisma/client";
+import type { business_detail_view_all } from "@/lib/prisma";
 import Separator from "@/components/ui/separator";
 import { formatCHF } from "@/lib/orderStatus";
 

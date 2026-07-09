@@ -4,7 +4,7 @@ import React, { useRef, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import ReviewCard from "./ReviewCard";
 import { useSession } from "next-auth/react";
-import { foodeez_review_view } from "@prisma/client";
+import type { foodeez_review_view } from "@/lib/prisma";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface ReviewsGridProps {

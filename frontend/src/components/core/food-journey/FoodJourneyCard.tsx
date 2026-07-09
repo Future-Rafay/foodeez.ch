@@ -1,5 +1,5 @@
 import { generateSlug } from "@/lib/utils/genSlug";
-import { visitor_food_journey_view } from "@prisma/client";
+import type { visitor_food_journey_view } from "@/lib/prisma";
 import Image from "next/image";
 import Link from "next/link";
 import React from "react";

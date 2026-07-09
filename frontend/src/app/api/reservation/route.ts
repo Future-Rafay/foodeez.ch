@@ -1,8 +1,6 @@
 import { sendEmail } from '@/services/EmailService';
 import { NextResponse } from 'next/server';
-import { PrismaClient, Prisma } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { Prisma, prisma } from '@/lib/prisma';
 
 export async function POST(request: Request) {
   console.log('Reservation API called - Starting process');
@@ -57,8 +55,9 @@ export async function POST(request: Request) {
       console.log('Database operation successful:', reservation);
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        console.error('Database operation failed:', error.message, error.code);
-        throw new Error(`Database operation failed: ${error.message} (Code: ${error.code})`);
+        const prismaError = error as Error & { code: string };
+        console.error('Database operation failed:', prismaError.message, prismaError.code);
+        throw new Error(`Database operation failed: ${prismaError.message} (Code: ${prismaError.code})`);
       }
       console.error('Database operation failed with unknown error:', error);
       throw new Error('Database operation failed with unknown error');
@@ -129,7 +128,5 @@ export async function POST(request: Request) {
       },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 } 

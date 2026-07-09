@@ -13,7 +13,7 @@ import BusinessProfilePageLoadingSkeleton from "./components/BusinessProfilePage
 import ResturantProfilePageHeader from "../../../business/[slug]/components/ResturantProfilePageHeader";
 import FoodeezReviews from "../../../business/[slug]/components/FoodeezReviews";
 import { getBusinessById } from "@/services/BusinessProfilePageService";
-import { business_detail_view_all } from "@prisma/client";
+import type { business_detail_view_all } from "@/lib/prisma";
 import Separator from "@/components/ui/separator";
 import { BusinessGoogleData, BusinessGoogleDataResponse } from "@/types/google-business";
 import SEO from "@/components/seo/SEO";

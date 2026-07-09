@@ -1,10 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import {
-  business_detail_view_all,
-  visitor_business_review_view,
-} from "@prisma/client";
+import type { business_detail_view_all, visitor_business_review_view } from "@/lib/prisma";
 import {
   getBusinessById,
   // getBusinessReviews,

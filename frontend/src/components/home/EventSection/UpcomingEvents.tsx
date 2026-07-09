@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { getUpcomingEvents } from "@/services/HomePageService";
-import { top_events_view } from "@prisma/client";
+import type { top_events_view } from "@/lib/prisma";
 import { Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 import EventCard from "./EventCard";

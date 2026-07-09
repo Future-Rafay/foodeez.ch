@@ -2,7 +2,7 @@ import Banner from "@/components/core/Banner";
 import Link from "next/link";
 import React, { useCallback, useEffect, useState } from "react";
 import FoodJourneyCard from "../../core/food-journey/FoodJourneyCard";
-import { visitor_food_journey_view } from "@prisma/client";
+import type { visitor_food_journey_view } from "@/lib/prisma";
 import { getFoodJourney } from "@/services/FoodJourneyService";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";

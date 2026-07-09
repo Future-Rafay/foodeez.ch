@@ -3,7 +3,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReviewForm from './ReviewForm';
-import { foodeez_review_view } from '@prisma/client';
+import type { foodeez_review_view } from '@/lib/prisma';
 
 interface EditReviewModalProps {
   review: foodeez_review_view | null;

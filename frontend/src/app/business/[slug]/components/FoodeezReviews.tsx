@@ -3,7 +3,7 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useRef, useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { business_detail_view_all, visitor_business_review_view } from "@prisma/client";
+import type { business_detail_view_all, visitor_business_review_view } from "@/lib/prisma";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import FoodeezReviewCard from "@/components/core/review/FoodeezReviewCard";

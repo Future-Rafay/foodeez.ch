@@ -8,7 +8,7 @@ import FoodJourneyForm from "@/components/core/food-journey/FoodJourneyForm";
 import FoodJourneyGrid from "@/components/core/food-journey/FoodJourneyGrid";
 import FoodJourneyPagination from "@/components/core/food-journey/FoodJourneyPagination";
 import FoodJourneyGridSkeleton from "@/components/core/food-journey/FoodJourneyGridSkeleton";
-import { visitor_food_journey_view } from "@prisma/client";
+import type { visitor_food_journey_view } from "@/lib/prisma";
 import Separator from "@/components/ui/separator";
 
 const initialForm = {

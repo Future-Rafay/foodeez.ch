@@ -6,7 +6,7 @@ import { useSession } from "next-auth/react";
 import { Button } from "@/components/core/Button";
 import { Plus, Award } from "lucide-react";
 import { FoodeezReviewService } from "@/services/FoodeezReviewService";
-import { foodeez_review_view } from "@prisma/client";
+import type { foodeez_review_view } from "@/lib/prisma";
 import ReviewsGrid from "./ReviewsGrid";
 import EditReviewModal from "./EditReviewModal";
 import DeleteConfirmModal from "./DeleteConfirmModal";

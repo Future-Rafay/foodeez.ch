@@ -2,7 +2,7 @@ import { Card } from "@/components/ui/card";
 import { Share2, PlayCircle, X, Heart } from "lucide-react";
 import Image from "next/image";
 import { useState, useEffect } from "react";
-import { visitor_business_review_view } from "@prisma/client";
+import type { visitor_business_review_view } from "@/lib/prisma";
 import { createPortal } from "react-dom";
 import { useSession } from "next-auth/react";
 import ReviewEditModal from "./ReviewEditModal";

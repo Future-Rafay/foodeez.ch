@@ -1,18 +1,17 @@
-// import { PrismaClient } from "@prisma/client"
-
-// const globalForPrisma = globalThis as unknown as {
-//   prisma: PrismaClient | undefined
-// }
-
-// const prisma = globalForPrisma.prisma ?? new PrismaClient()
-
-// if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
-
-// export default prisma
-// export { prisma }
-
-import { PrismaClient } from "../../prisma/generated/prisma/client";
+import { Prisma, PrismaClient } from "../../prisma/generated/prisma/client";
 import { PrismaMariaDb } from "@prisma/adapter-mariadb";
+
+export { Prisma };
+export type {
+  business_detail_view_all,
+  business_google_images_view,
+  business_google_review_view,
+  business_opening_hours_view,
+  foodeez_review_view,
+  top_events_view,
+  visitor_business_review_view,
+  visitor_food_journey_view,
+} from "../../prisma/generated/prisma/client";
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;

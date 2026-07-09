@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
-import type { business_detail_view_all } from "@prisma/client";
+import type { business_detail_view_all } from "@/lib/prisma";
 import Separator from "@/components/ui/separator";
 import type { BusinessGoogleData } from "@/types/google-business";
 

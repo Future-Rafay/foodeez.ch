@@ -1,6 +1,6 @@
 // types/business.types.ts
 
-import { Prisma } from "@prisma/client";
+import type { Prisma } from "@/lib/prisma";
 
 export interface BusinessDetail {
   BUSINESS_ID: number;
