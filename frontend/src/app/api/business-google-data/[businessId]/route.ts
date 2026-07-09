@@ -279,8 +279,8 @@ async function getCachedBusinessData(
 
     const photos: GooglePhoto[] = cachedPhotos.map(p => ({
       photoUrl: p.IMAGE_URL || '',
-      width: p.WIDTH ?? 800,
-      height: p.HEIGHT ?? 600
+      width: Number(p.WIDTH ?? 800) || 800,
+      height: Number(p.HEIGHT ?? 600) || 600
     }));
 
     return {

@@ -64,6 +64,7 @@ type Order = {
   ORDER_REJECTION_REASON?: string | null;
   ORDER_REJECTION_NOTE?: string | null;
   business?: {
+    BUSINESS_ID?: number | null;
     BUSINESS_NAME?: string | null;
     ADDRESS_STREET?: string | null;
     ADDRESS_ZIP?: string | null;
@@ -294,7 +295,11 @@ function OrdersTable({
             {orders.map((order) => (
               <tr key={order.BUSINESS_ORDER_ID} className="hover:bg-gray-50">
                 <td className="px-4 py-4 font-semibold text-gray-900">{getDisplayOrderNumber(order)}</td>
-                <td className="px-4 py-4 text-gray-700">{order.business?.BUSINESS_NAME || "Restaurant"}</td>
+                <td className="px-4 py-4 text-gray-700">
+                  <Link href={`/business/${order.business?.BUSINESS_NAME}-${order.business?.BUSINESS_ID}`} className="text-blue-500 hover:underline">
+                    {order.business?.BUSINESS_NAME || "Restaurant"}
+                  </Link>
+                </td>
                 <td className="px-4 py-4 text-gray-700">{isPickupOrder(order) ? "Pickup" : "Delivery"}</td>
                 <td className="px-4 py-4">
                   <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${statusTone(order)}`}>
