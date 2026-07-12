@@ -3,10 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { generateSlug, parseSlug } from "@/lib/utils/genSlug";
 import { getBusinessById } from "@/services/BusinessProfilePageService";
 import type { BusinessGoogleData } from "@/types/google-business";
-import BusinessDeferredSections from "./components/BusinessDeferredSections";
-import BusinessImage from "./components/BusinessImage";
-import BusinessInfoSection, { FulfillmentOptions } from "./components/BusinessInfoSection";
-import ResturantProfilePageHeader from "./components/ResturantProfilePageHeader";
+import BusinessDeferredSections from "@/components/BusinessSlug/BusinessDeferredSections";
+import BusinessImage from "@/components/BusinessSlug/BusinessImage";
+import BusinessInfoSection, { FulfillmentOptions } from "@/components/BusinessSlug/BusinessInfoSection";
+import ResturantProfilePageHeader from "@/components/BusinessSlug/ResturantProfilePageHeader";
 
 async function getBusinessFulfillmentOptions(businessId: number): Promise<FulfillmentOptions | null> {
   const settings = await prisma.business_settings.findUnique({ where: { BUSINESS_ID: businessId } });

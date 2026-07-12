@@ -1,4 +1,5 @@
 "use client";
+
 import { Card } from "@/components/ui/card";
 import { Star, ChevronLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
@@ -11,6 +12,7 @@ interface GoogleReviewsProps {
 }
 
 export default function GoogleReviews({ reviews }: GoogleReviewsProps) {
+  // Move hooks above early return
   const scrollRef = useRef<HTMLDivElement>(null);
   const [showLeftButton, setShowLeftButton] = useState(false);
   const [showRightButton, setShowRightButton] = useState(true);
@@ -38,18 +40,13 @@ export default function GoogleReviews({ reviews }: GoogleReviewsProps) {
     }
   };
 
-  if (!reviews || reviews.length === 0) {
-    return (
-      <div className="p-4  mb-6">
-        <p className="text-gray-600">No reviews available.</p>
-      </div>
-    );
-  }
+    // 🔒 If no reviews, hide entire component
+    if (!reviews || reviews.length === 0) return null;
 
   return (
-    <div className="relative w-full mb-8">
+    <div className="relative w-full py-8 px-2 sm:px-4 lg:px-0">
+      <h2 className="sub-heading mb-4">Google Reviews</h2>
       <div className="relative group">
-        {/* Left button */}
         {showLeftButton && (
           <button
             onClick={() => scroll("left")}
@@ -60,21 +57,19 @@ export default function GoogleReviews({ reviews }: GoogleReviewsProps) {
           </button>
         )}
 
-        {/* Review Cards Carousel */}
         <div
-        id="no-scrollbar"
+          id="no-scrollbar"
           ref={scrollRef}
-          className="flex overflow-x-auto scroll-smooth px-6 space-x-4 py-2 scrollbar-hide"
+          className="flex overflow-x-auto scroll-smooth space-x-4 py-2 scrollbar-hide"
           onScroll={checkScrollPosition}
         >
           {reviews.map((review, idx) => (
             <motion.div
               key={idx}
               whileHover={{ scale: 1.02 }}
-              className="flex-shrink-0"
+              className="flex-shrink-0 min-w-[250px] w-full sm:w-[350px]"
             >
-              <Card className="w-[350px] h-[340px] rounded-2xl border border-gray-200 bg-white p-5 shadow-md hover:shadow-lg transition-all flex flex-col">
-                {/* Top: Avatar + Name */}
+              <Card className="h-[340px] rounded-2xl border-2 border-gray-200 bg-white p-5 shadow-md hover:shadow-lg transition-all flex flex-col">
                 <div className="flex items-center gap-4 mb-3">
                   {review.profile_photo_url ? (
                     <Image
@@ -100,8 +95,6 @@ export default function GoogleReviews({ reviews }: GoogleReviewsProps) {
                     </p>
                   </div>
                 </div>
-
-                {/* Stars */}
                 <div className="flex items-center gap-1 mb-2">
                   {[...Array(5)].map((_, i) => (
                     <Star
@@ -117,9 +110,10 @@ export default function GoogleReviews({ reviews }: GoogleReviewsProps) {
                     {review.rating.toFixed(1)}
                   </span>
                 </div>
-
-                {/* Text (scrollable vertically if too long) */}
-                <div id="no-scrollbar" className="flex-grow overflow-y-auto pr-1 hide-scrollbar">
+                <div
+                  id="no-scrollbar"
+                  className="flex-grow overflow-y-auto pr-1 hide-scrollbar"
+                >
                   <p className="text-gray-700 leading-relaxed text-sm">
                     {review.text}
                   </p>
@@ -129,8 +123,7 @@ export default function GoogleReviews({ reviews }: GoogleReviewsProps) {
           ))}
         </div>
 
-        {/* Right button */}
-        {showRightButton && (
+        {showRightButton && reviews.length > 0 && (
           <button
             onClick={() => scroll("right")}
             className="absolute right-0 top-1/2 z-10 -translate-y-1/2 bg-white shadow-md rounded-full p-2 hover:bg-gray-100 transition"

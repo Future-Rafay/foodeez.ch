@@ -71,6 +71,14 @@ The project is a Next.js 14 application with a clear separation of concerns.
 -   **Zustand**: Used for state management where global state is required.
 -   **Framer Motion**: Utilized for animations and interactive UI elements.
 
+## Frontend Modal and Dialog Rules
+
+- Every new frontend modal, dialog box, confirmation, or popup must render through `frontend/src/components/core/ModalPortal.tsx`. Do not introduce a separate portal implementation or render modal overlays inside page/card layout containers.
+- Follow the existing `ProductDetailsModal` and `MenuProductCard` patterns: use a fixed full-screen `z-50` overlay, responsive horizontal padding, a bounded responsive panel, and internal scrolling when content can exceed the viewport.
+- New modals must include `role="dialog"`, `aria-modal="true"`, labelled title/description IDs, an accessible close button, Escape-key closing, and overlay-click closing unless dismissing would risk losing user data.
+- Keep modal styling consistent with existing Foodeez forms and cards. Reuse current buttons, spacing, border radius, colors, and typography instead of creating a new visual pattern.
+- Keep return, reject, delete, clear-cart, and other dangerous actions away from the routine primary action so users cannot trigger them accidentally. The safe/cancel action should remain visually prominent and easy to reach.
+
 ## Customer Menu Notes
 
 - The customer menu route is `frontend/src/app/business/[slug]/menu/page.tsx`.
@@ -114,6 +122,8 @@ The project is a Next.js 14 application with a clear separation of concerns.
 
 - The owner business-profile map is `frontend/src/app/(business-owner)/manage-business/[slug]/components/MapSectionBusinesProfile.tsx`; missing API keys, place IDs, Places errors, and initialization errors must render an in-card fallback instead of leaving a broken map surface.
 - Foodeez reviews are currently hidden on `frontend/src/app/(business-owner)/manage-business/[slug]/page.tsx`; do not re-enable them without confirming the intended owner-profile review experience.
+- Shared business-profile presentation components live in `frontend/src/components/BusinessSlug/`; both `/business/[slug]` and `/manage-business/[slug]` should reuse them instead of maintaining duplicate copies.
+- The manage-business claim card is mounted between Google reviews and the map through its local `BusinessDeferredSections`. Its dialog lives in `ClaimBusinessSection.tsx`, submits the official email and business identity to `/api/claim-business`, and sends the request to `ADMIN_EMAIL` through the existing email service.
 
 ## Homepage Performance, Accessibility, and Security Notes
 
