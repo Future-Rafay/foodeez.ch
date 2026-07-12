@@ -6,7 +6,7 @@ import { useSession } from "next-auth/react";
 import { useCartStore } from "@/stores/cartStore";
 import { getStripe } from "@/lib/stripe";
 import { formatCHF, ORDER_TYPE } from "@/lib/order";
-import type { DeliveryQuote } from "@/lib/fulfillment";
+import type { DeliveryQuote, DeliveryZoneDisplay } from "@/lib/fulfillment";
 import LoginRequiredModal from "@/components/core/LoginRequiredModal";
 
 type OrderType = "delivery" | "pickup";
@@ -32,6 +32,7 @@ export type CheckoutSummaryState = {
   discount: number;
   zoneName?: string;
   freeDeliveryApplied: boolean;
+  deliveryZones: DeliveryZoneDisplay[];
 };
 
 type FulfillmentOptions = {
@@ -47,6 +48,7 @@ type FulfillmentOptions = {
     town?: string | null;
     country?: string | null;
   } | null;
+  deliveryZones?: DeliveryZoneDisplay[];
 };
 
 const emptyQuote: DeliveryQuote = {
@@ -120,7 +122,7 @@ export default function CheckoutForm({
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Could not load ordering options."))
       .finally(() => setOptionsLoading(false));
-  }, [businessId]);
+  }, [businessId, totalPrice]);
 
   useEffect(() => {
     setPaymentMethod(orderType === ORDER_TYPE.pickup ? "pay_at_pickup" : "card");
@@ -177,8 +179,9 @@ export default function CheckoutForm({
       discount: 0,
       zoneName: quote.zoneName,
       freeDeliveryApplied: quote.freeDeliveryApplied,
+      deliveryZones: options?.deliveryZones ?? [],
     });
-  }, [isDelivery, onSummaryChange, orderType, paymentMethod, quote.available, quote.freeDeliveryApplied, quote.zoneName, shippingCharge]);
+  }, [isDelivery, onSummaryChange, options?.deliveryZones, orderType, paymentMethod, quote.available, quote.freeDeliveryApplied, quote.zoneName, shippingCharge]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

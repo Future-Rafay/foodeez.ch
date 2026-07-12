@@ -172,7 +172,7 @@ const ManageBusinessDetailPage = () => {
 
           {/* Reviews */}
           <div className="">
-            <FoodeezReviews genSlug={genSlug} business={business} />
+            {/* <FoodeezReviews genSlug={genSlug} business={business} /> */}
           </div>
           <div className="">
             {googleDataLoading ? (

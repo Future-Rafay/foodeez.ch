@@ -42,7 +42,7 @@ function OrderSummary({ items, totalItems, checkoutSummary, showPayment = false 
                 alt={item.name}
                 width={50}
                 height={50}
-                className="mr-2 h-12 w-12 rounded-md object-cover"
+                className="mr-2 h-12 w-12 rounded-md border border-primary object-cover"
               />
               <span className="truncate text-sm">{item.name} x {item.quantity}</span>
             </div>
@@ -107,8 +107,41 @@ function OrderSummary({ items, totalItems, checkoutSummary, showPayment = false 
   );
 }
 
+function FreeDeliveryReminder({ summary, totalPrice, menuHref }: { summary: CheckoutSummaryState | null; totalPrice: number; menuHref: string }) {
+  const zone = summary?.deliveryZones.find((item) => item.zoneName === summary.zoneName);
+  if (!zone || zone.freeDeliveryAbove <= 0) return null;
+  const amountRemaining = Math.max(0, zone.freeDeliveryAbove - totalPrice);
+
+  return (
+    <div className="rounded-lg border border-primary/30 bg-gradient-to-br from-primary/10 to-white p-4 shadow-sm">
+      <h2 className="text-lg font-bold text-gray-900">You’re close to free delivery!</h2>
+      <p className="mt-1 text-sm text-gray-600">
+        {amountRemaining > 0
+          ? `Add just ${formatCHF(amountRemaining)} more and spend it on food instead of delivery.`
+          : "Great choice—your cart already qualifies for free delivery in an eligible zone."}
+      </p>
+      <div className="mt-3 rounded-md bg-white p-3 text-sm">
+        <p className="font-medium text-gray-900">{zone.zoneName}</p>
+        <p className="text-gray-600">
+          Your ZIP is eligible · Delivery {formatCHF(zone.deliveryPrice)} · Free above {formatCHF(zone.freeDeliveryAbove)}
+        </p>
+        {amountRemaining > 0 && (
+          <p className="mt-1 font-medium text-green-700">Add {formatCHF(amountRemaining)} more for free delivery.</p>
+        )}
+        {zone.deliveryInformation && <p className="mt-1 text-gray-500">{zone.deliveryInformation}</p>}
+      </div>
+      <Link
+        href={menuHref}
+        className="mt-4 block w-full rounded-md bg-primary px-4 py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-primary-dark"
+      >
+        Add more items from the menu
+      </Link>
+    </div>
+  );
+}
+
 export default function CartPage() {
-  const { items, totalItems, updateQuantity, removeFromCart, clearCart } = useCartStore();
+  const { items, business, totalItems, totalPrice, updateQuantity, removeFromCart, clearCart } = useCartStore();
   const { status } = useSession();
   const [isClient, setIsClient] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
@@ -220,8 +253,13 @@ export default function CartPage() {
             <CheckoutForm onSummaryChange={setCheckoutSummary} />
           </div>
 
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-md p-6 sticky top-24">
+          <div className="space-y-4 lg:col-span-1 lg:sticky lg:top-40 lg:self-start">
+            <FreeDeliveryReminder
+              summary={checkoutSummary}
+              totalPrice={totalPrice}
+              menuHref={business?.businessSlug ? `/business/${business.businessSlug}/menu` : "/business"}
+            />
+            <div className="bg-white rounded-lg shadow-md p-6">
               <h2 className="sub-heading border-b border-primary pb-4 mb-4">Order Summary</h2>
               <OrderSummary items={items} totalItems={totalItems} checkoutSummary={checkoutSummary} showPayment />
             </div>

@@ -129,11 +129,12 @@ export const formatEtaTimeOnly = (value?: string | Date | null) => {
   if (!value) return "Not set";
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return "Not set";
+  const rounded = new Date(Math.ceil(date.getTime() / 900_000) * 900_000);
   return new Intl.DateTimeFormat("en-GB", {
     hour: "2-digit",
     minute: "2-digit",
-    hour12: false,
-  }).format(date);
+    hourCycle: "h23",
+  }).format(rounded);
 };
 
 export const getDisplayEta = (order: OrderLike) => {

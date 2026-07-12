@@ -2,21 +2,15 @@
 
 import Image from "next/image";
 import { MenuProduct } from "@/types/product";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useCartStore } from "@/stores/cartStore";
 import Button from "../core/Button";
 import ProductDetailsModal from "./ProductDetailsModal";
 import { toast } from "react-hot-toast";
 import { formatCHF } from "@/lib/order";
 import { generateSlug } from "@/lib/utils/genSlug";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import ModalPortal from "../core/ModalPortal";
+import { X } from "lucide-react";
 
 interface MenuProductCardProps {
   product: MenuProduct;
@@ -70,6 +64,15 @@ export default function MenuProductCard({ product }: MenuProductCardProps) {
     }
   };
 
+  useEffect(() => {
+    if (!showNewOrderDialog) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setShowNewOrderDialog(false);
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [showNewOrderDialog]);
+
   return (
     <>
       <ProductDetailsModal
@@ -81,32 +84,52 @@ export default function MenuProductCard({ product }: MenuProductCardProps) {
         outOfStock={outOfStock}
       />
 
-      <Dialog open={showNewOrderDialog} onOpenChange={setShowNewOrderDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Start a new order?</DialogTitle>
-            <DialogDescription>
+      {showNewOrderDialog && (
+        <ModalPortal>
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+            onClick={() => setShowNewOrderDialog(false)}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="new-order-title"
+              aria-describedby="new-order-description"
+              className="relative w-full max-w-lg rounded-xl bg-white p-6 shadow-xl"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={() => setShowNewOrderDialog(false)}
+                className="absolute right-4 top-4 rounded-full p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              <h2 id="new-order-title" className="pr-8 text-lg font-semibold text-gray-900">Start a new order?</h2>
+              <p id="new-order-description" className="mt-2 text-sm text-gray-600">
               Your cart has items from {currentBusinessName}. You can only order from one restaurant at a time.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2 sm:justify-between">
-            <button
-              type="button"
-              onClick={() => setShowNewOrderDialog(false)}
-              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-dark"
-            >
-              Keep current cart
-            </button>
-            <button
-              type="button"
-              onClick={() => handleAddToCart(true)}
-              className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              Clear cart and add this item
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              </p>
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-between">
+                <button
+                  type="button"
+                  onClick={() => setShowNewOrderDialog(false)}
+                  className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-dark"
+                >
+                  Keep current cart
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAddToCart(true)}
+                  className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  Clear cart and add this item
+                </button>
+              </div>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
 
       <div 
         className="bg-white rounded-2xl border-2 border-primary shadow-md flex flex-col overflow-hidden transition hover:shadow-xl h-full cursor-pointer"

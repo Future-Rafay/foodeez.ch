@@ -83,6 +83,7 @@ The project is a Next.js 14 application with a clear separation of concerns.
 - Cart quantity changes and add-to-cart are guarded in `frontend/src/stores/cartStore.ts`; backend stock validation and reservation live in `frontend/src/lib/inventory.ts` and are called by both `/api/checkout` and `/api/order/verify`.
 - Tracked inventory checkout must reserve stock inside the same transaction that creates the order/details: decrement `business_product.INVENTORY_AVAILABLE` and increment `INVENTORY_COMMITED` only when `INVENTORY_AVAILABLE >= quantity`; otherwise return `Only X left in stock for PRODUCT_TITLE.` Untracked products do not apply stock limits.
 - Cart and checkout surfaces should show item-level stock warnings from stored cart availability and disable checkout until the quantity is reduced; backend validation remains the source of truth because stock can change after add-to-cart.
+- The mixed-restaurant `Start a new order?` confirmation in `frontend/src/components/menu/MenuProductCard.tsx` uses `frontend/src/components/core/ModalPortal.tsx`; keep the safe `Keep current cart` action prominent and the cart-clearing action visually separate.
 
 ## Stripe Payment Notes
 
@@ -102,11 +103,17 @@ The project is a Next.js 14 application with a clear separation of concerns.
 
 - Customer-facing order numbers must use `getDisplayOrderNumber(order)` from `frontend/src/lib/order.ts`: prefer `ORDER_NUMBER` such as `FDZ.000001`, and only fall back to formatted `BUSINESS_ORDER_ID`.
 - Customer checkout order creation in `frontend/src/app/api/checkout/route.ts` must populate `business_order.ORDER_NUMBER` with `generateOrderNumberFromId(orderId)` so new web orders display the DB order number column.
-- Customer ETA displays must use `getDisplayEta(order)` / `formatEtaTimeOnly()` from `frontend/src/lib/order.ts` and show time only, for example `20:20`; when `DELIVERY_ET` is missing, compute from `CREATION_DATETIME` plus the business default prep minutes.
+- Customer ETA displays must use `getDisplayEta(order)` / `formatEtaTimeOnly()` from `frontend/src/lib/order.ts`, use 24-hour time, and round upward to the next quarter-hour, for example `04:23` becomes `04:30` and `05:49` becomes `06:00`; when `DELIVERY_ET` is missing, compute from `CREATION_DATETIME` plus the business default prep minutes before rounding.
 - The customer cart store is `frontend/src/stores/cartStore.ts`; it persists `business` metadata and cart items with `businessId`, `businessSlug`, and `businessName`.
 - Adding a product from a different restaurant returns a mixed-business result from `addToCart`; the menu card shows the `Start a new order?` confirmation before clearing the cart.
 - `/api/checkout` validates product ownership from the database before order creation and rejects mixed-business payloads with `You can only order from one restaurant at a time.`
+- Checkout passes delivery-zone data through `CheckoutSummaryState`; the free-delivery reminder stays above the Order Summary, remains sticky with it on large screens, and must stay hidden until the entered ZIP resolves to a zone. Show only the matched zone, its free-delivery threshold, the remaining amount, and a link back to the current restaurant menu.
 - My Orders lives at `frontend/src/app/(dashboard)/dashboard/orders/page.tsx`; it defaults to the `Active` filter, highlights the newest active order at the top, still shows active orders in the spreadsheet-style filtered table below, keeps the filtered content area at a stable minimum height to prevent tab-switch jumps, includes `View details` as the final table column, silently refreshes `/api/orders/history` every 30 seconds while the page is open, and sends `Explore Restaurants` to `/business`.
+
+## Business Profile Notes
+
+- The owner business-profile map is `frontend/src/app/(business-owner)/manage-business/[slug]/components/MapSectionBusinesProfile.tsx`; missing API keys, place IDs, Places errors, and initialization errors must render an in-card fallback instead of leaving a broken map surface.
+- Foodeez reviews are currently hidden on `frontend/src/app/(business-owner)/manage-business/[slug]/page.tsx`; do not re-enable them without confirming the intended owner-profile review experience.
 
 ## Homepage Performance, Accessibility, and Security Notes
 

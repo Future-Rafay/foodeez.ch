@@ -296,7 +296,7 @@ function OrdersTable({
               <tr key={order.BUSINESS_ORDER_ID} className="hover:bg-gray-50">
                 <td className="px-4 py-4 font-semibold text-gray-900">{getDisplayOrderNumber(order)}</td>
                 <td className="px-4 py-4 text-gray-700">
-                  <Link href={`/business/${order.business?.BUSINESS_NAME}-${order.business?.BUSINESS_ID}`} className="text-blue-500 hover:underline">
+                  <Link href={`/business/${order.business?.BUSINESS_NAME}-${order.business?.BUSINESS_ID}`} target="_blank" className="text-primary hover:underline">
                     {order.business?.BUSINESS_NAME || "Restaurant"}
                   </Link>
                 </td>

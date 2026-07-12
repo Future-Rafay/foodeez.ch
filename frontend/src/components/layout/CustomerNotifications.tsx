@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Bell, Check, Package } from "lucide-react";
-import { getDisplayOrderNumber, getOrderStatusLabel, getPaymentStatusLabel, PAYMENT_DONE } from "@/lib/order";
+import { formatEtaTimeOnly, getDisplayOrderNumber, getOrderStatusLabel, getPaymentStatusLabel, PAYMENT_DONE } from "@/lib/order";
 
 type OrderNotification = {
   BUSINESS_ORDER_ID: number;
@@ -23,6 +23,7 @@ type NotificationItem = {
   title: string;
   body: string;
   time: string | null;
+  isEta: boolean;
 };
 
 type CustomerNotificationsProps = {
@@ -32,11 +33,12 @@ type CustomerNotificationsProps = {
 
 const formatTime = (value: string | null) => {
   if (!value) return "";
-  return new Intl.DateTimeFormat("en-US", {
+  return new Intl.DateTimeFormat("en-GB", {
     month: "short",
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    hourCycle: "h23",
   }).format(new Date(value));
 };
 
@@ -56,6 +58,7 @@ const toNotifications = (orders: OrderNotification[]): NotificationItem[] =>
       title: `${getDisplayOrderNumber(order)} is ${status.toLowerCase()}`,
       body: `${business}${payment}`,
       time: order.DELIVERY_ET || order.CREATION_DATETIME || null,
+      isEta: !!order.DELIVERY_ET,
     };
   });
 
@@ -179,7 +182,7 @@ export default function CustomerNotifications({
                       </span>
                       <span className="block truncate text-xs text-gray-500">{item.body}</span>
                       <span className="mt-1 block text-xs text-gray-400">
-                        {formatTime(item.time)}
+                        {item.isEta ? `ETA ${formatEtaTimeOnly(item.time)}` : formatTime(item.time)}
                       </span>
                     </span>
                     {unread && <span className="mt-2 h-2 w-2 rounded-full bg-primary" />}
