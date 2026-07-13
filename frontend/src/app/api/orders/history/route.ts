@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getCustomerOrders, getVisitorByEmail } from "@/lib/order-data";
+import { getCustomerNotifications, syncCustomerNotifications } from "@/lib/customer-notifications";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -15,10 +16,13 @@ export async function GET() {
   }
 
   const orders = await getCustomerOrders(Number(user.VISITORS_ACCOUNT_ID), user.EMAIL_ADDRESS || session.user.email);
+  await syncCustomerNotifications(Number(user.VISITORS_ACCOUNT_ID), orders);
+  const notifications = await getCustomerNotifications(Number(user.VISITORS_ACCOUNT_ID));
 
   return NextResponse.json({
     success: true,
     orders,
+    notifications,
     user: {
       email: user.EMAIL_ADDRESS,
       visitorId: Number(user.VISITORS_ACCOUNT_ID),

@@ -1,29 +1,18 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Bell, Check, Package } from "lucide-react";
-import { formatEtaTimeOnly, getDisplayOrderNumber, getOrderStatusLabel, getPaymentStatusLabel, PAYMENT_DONE } from "@/lib/order";
+import { ChangedField, ChangedOrders, PENDING_ORDER_CHANGES_KEY } from "@/lib/order-changes";
 
-type OrderNotification = {
-  BUSINESS_ORDER_ID: number;
-  ORDER_NUMBER?: string | null;
-  CREATION_DATETIME?: string | null;
-  DELIVERY_ET?: string | null;
-  ORDER_STATUS?: number | null;
-  ORDER_TYPE?: string | null;
-  PAYMENT_DONE?: number | null;
-  STRIPE_REFUND_STATUS?: string | null;
-  business?: { BUSINESS_NAME?: string | null } | null;
-};
-
-type NotificationItem = {
-  id: string;
+type CustomerNotification = {
+  id: number;
   orderId: number;
   title: string;
   body: string;
-  time: string | null;
-  isEta: boolean;
+  isRead: boolean;
+  createdAt: string | null;
+  metadata?: { changedField?: ChangedField };
 };
 
 type CustomerNotificationsProps = {
@@ -42,57 +31,63 @@ const formatTime = (value: string | null) => {
   }).format(new Date(value));
 };
 
-const toNotifications = (orders: OrderNotification[]): NotificationItem[] =>
-  orders.slice(0, 8).map((order) => {
-    const status = getOrderStatusLabel(order);
-    const business = order.business?.BUSINESS_NAME || "Restaurant";
-    const payment =
-      order.PAYMENT_DONE === PAYMENT_DONE.refunded ||
-      order.PAYMENT_DONE === PAYMENT_DONE.failed
-        ? ` ${getPaymentStatusLabel(order.PAYMENT_DONE).toLowerCase()}.`
-        : "";
-
-    return {
-      id: `${order.BUSINESS_ORDER_ID}:${order.ORDER_STATUS ?? "x"}:${order.PAYMENT_DONE ?? "x"}:${order.DELIVERY_ET ?? ""}`,
-      orderId: order.BUSINESS_ORDER_ID,
-      title: `${getDisplayOrderNumber(order)} is ${status.toLowerCase()}`,
-      body: `${business}${payment}`,
-      time: order.DELIVERY_ET || order.CREATION_DATETIME || null,
-      isEta: !!order.DELIVERY_ET,
-    };
-  });
-
 export default function CustomerNotifications({
   userEmail,
   className = "",
 }: CustomerNotificationsProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [orders, setOrders] = useState<OrderNotification[]>([]);
-  const [readIds, setReadIds] = useState<string[]>([]);
+  const [notifications, setNotifications] = useState<CustomerNotification[]>([]);
   const panelRef = useRef<HTMLDivElement>(null);
-  const storageKey = `foodeez:customer-notifications:${userEmail || "guest"}`;
+  const knownIds = useRef<Set<number> | null>(null);
+
+  const rememberHighlights = useCallback((items: CustomerNotification[]) => {
+    const nextChanges: ChangedOrders = {};
+    items.forEach((item) => {
+      const field = item.metadata?.changedField;
+      if (field) nextChanges[item.orderId] = Array.from(new Set([...(nextChanges[item.orderId] || []), field]));
+    });
+    if (!Object.keys(nextChanges).length) return;
+    let pending: ChangedOrders = {};
+    try { pending = JSON.parse(window.localStorage.getItem(PENDING_ORDER_CHANGES_KEY) || "{}"); } catch {}
+    Object.entries(nextChanges).forEach(([orderId, fields]) => {
+      pending[Number(orderId)] = Array.from(new Set([...(pending[Number(orderId)] || []), ...fields]));
+    });
+    window.localStorage.setItem(PENDING_ORDER_CHANGES_KEY, JSON.stringify(pending));
+    window.dispatchEvent(new CustomEvent("foodeez:order-changes", { detail: nextChanges }));
+  }, []);
+
+  const updateNotifications = useCallback((next: CustomerNotification[]) => {
+    const fresh = knownIds.current
+      ? next.filter((item) => !item.isRead && !knownIds.current?.has(item.id))
+      : next.filter((item) => !item.isRead);
+    rememberHighlights(fresh);
+    knownIds.current = new Set(next.map((item) => item.id));
+    setNotifications(next);
+  }, [rememberHighlights]);
 
   useEffect(() => {
     if (!userEmail) return;
-
-    const stored = window.localStorage.getItem(storageKey);
-    try {
-      setReadIds(stored ? JSON.parse(stored) : []);
-    } catch {
-      setReadIds([]);
-    }
 
     const load = async () => {
       const response = await fetch("/api/orders/history", { cache: "no-store" });
       if (!response.ok) return;
       const data = await response.json();
-      setOrders(Array.isArray(data.orders) ? data.orders : []);
+      updateNotifications(Array.isArray(data.notifications) ? data.notifications : []);
     };
 
     load();
-    const interval = window.setInterval(load, 60000);
+    const interval = window.setInterval(load, 30000);
     return () => window.clearInterval(interval);
-  }, [storageKey, userEmail]);
+  }, [updateNotifications, userEmail]);
+
+  useEffect(() => {
+    const update = (event: Event) => {
+      const next = (event as CustomEvent<CustomerNotification[]>).detail;
+      if (Array.isArray(next)) updateNotifications(next);
+    };
+    window.addEventListener("foodeez:customer-notifications-updated", update);
+    return () => window.removeEventListener("foodeez:customer-notifications-updated", update);
+  }, [updateNotifications]);
 
   useEffect(() => {
     const close = (event: MouseEvent) => {
@@ -102,20 +97,22 @@ export default function CustomerNotifications({
     return () => document.removeEventListener("mousedown", close);
   }, []);
 
-  const notifications = useMemo(() => toNotifications(orders), [orders]);
-  const unreadCount = notifications.filter((item) => !readIds.includes(item.id)).length;
+  const unreadCount = notifications.filter((item) => !item.isRead).length;
 
   const markAllRead = () => {
-    const ids = notifications.map((item) => item.id);
-    setReadIds(ids);
-    window.localStorage.setItem(storageKey, JSON.stringify(ids));
+    setNotifications((current) => current.map((item) => ({ ...item, isRead: true })));
+    void fetch("/api/customer-notifications", {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ all: true }),
+    });
   };
 
-  const markRead = (id: string) => {
-    if (readIds.includes(id)) return;
-    const ids = [...readIds, id];
-    setReadIds(ids);
-    window.localStorage.setItem(storageKey, JSON.stringify(ids));
+  const markRead = (item: CustomerNotification) => {
+    rememberHighlights([item]);
+    if (item.isRead) return;
+    setNotifications((current) => current.map((row) => row.id === item.id ? { ...row, isRead: true } : row));
+    void fetch("/api/customer-notifications", {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notificationId: item.id }),
+    });
   };
 
   if (!userEmail) return null;
@@ -163,12 +160,12 @@ export default function CustomerNotifications({
               </div>
             ) : (
               notifications.map((item) => {
-                const unread = !readIds.includes(item.id);
+                const unread = !item.isRead;
                 return (
                   <Link
                     key={item.id}
                     href="/dashboard/orders"
-                    onClick={() => markRead(item.id)}
+                    onClick={() => markRead(item)}
                     className={`flex gap-3 border-b border-gray-100 px-4 py-3 transition-colors last:border-0 ${
                       unread ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-gray-50"
                     }`}
@@ -182,7 +179,7 @@ export default function CustomerNotifications({
                       </span>
                       <span className="block truncate text-xs text-gray-500">{item.body}</span>
                       <span className="mt-1 block text-xs text-gray-400">
-                        {item.isEta ? `ETA ${formatEtaTimeOnly(item.time)}` : formatTime(item.time)}
+                        {formatTime(item.createdAt)}
                       </span>
                     </span>
                     {unread && <span className="mt-2 h-2 w-2 rounded-full bg-primary" />}

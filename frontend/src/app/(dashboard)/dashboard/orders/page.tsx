@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   CalendarDays,
@@ -27,6 +27,12 @@ import {
   PAYMENT_DONE,
   isPickupOrder,
 } from "@/lib/orderStatus";
+import {
+  ChangedField,
+  ChangedOrders,
+  findOrderChanges,
+  PENDING_ORDER_CHANGES_KEY,
+} from "@/lib/order-changes";
 
 type OrderItem = {
   BUSINESS_ORDER_DETAIL_ID: number;
@@ -78,6 +84,8 @@ type Order = {
 
 const filters = ["Active", "All", "Completed", "Rejected", "Refunded"] as const;
 type Filter = (typeof filters)[number];
+const changedClass = (changed: boolean) =>
+  changed ? "bg-primary/10 ring-2 ring-primary/30" : "";
 
 const dateTime = (value?: string | null) =>
   value
@@ -179,13 +187,15 @@ function DetailPill({
   icon: Icon,
   label,
   value,
+  changed = false,
 }: {
   icon: typeof Package;
   label: string;
   value: string;
+  changed?: boolean;
 }) {
   return (
-    <div className="rounded-lg bg-gray-50 p-3">
+    <div className={`rounded-lg bg-gray-50 p-3 transition-colors duration-1000 ${changedClass(changed)}`}>
       <div className="flex items-center gap-2 text-xs font-medium uppercase text-gray-500">
         <Icon className="h-3.5 w-3.5" />
         {label}
@@ -195,7 +205,7 @@ function DetailPill({
   );
 }
 
-function Timeline({ order }: { order: Order }) {
+function Timeline({ order, rejectionChanged = false }: { order: Order; rejectionChanged?: boolean }) {
   return (
     <div className="space-y-3">
       {getOrderProgressSteps(order).map((step) => {
@@ -208,7 +218,7 @@ function Timeline({ order }: { order: Order }) {
         );
       })}
       {order.ORDER_STATUS === ORDER_STATUS.rejected && (
-        <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+        <div className={`rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800 transition-colors duration-1000 ${changedClass(rejectionChanged)}`}>
           <p className="font-medium">{order.ORDER_REJECTION_REASON || "Rejected"}</p>
           {order.ORDER_REJECTION_NOTE && <p>{order.ORDER_REJECTION_NOTE}</p>}
         </div>
@@ -221,10 +231,12 @@ function OrderCard({
   order,
   featured = false,
   onSelect,
+  changed = [],
 }: {
   order: Order;
   featured?: boolean;
   onSelect: () => void;
+  changed?: ChangedField[];
 }) {
   const pickup = isPickupOrder(order);
   return (
@@ -238,7 +250,7 @@ function OrderCard({
           {featured && <p className="mb-1 text-sm font-semibold text-primary">Your active order</p>}
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-xl font-semibold text-gray-900">{getDisplayOrderNumber(order)}</h2>
-            <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${statusTone(order)}`}>
+            <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold transition-shadow duration-1000 ${statusTone(order)} ${changedClass(changed.includes("status"))}`}>
               {isRefundedOrder(order) ? "Refunded" : getOrderStatusLabel(order)}
             </span>
           </div>
@@ -259,8 +271,8 @@ function OrderCard({
 
       <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <DetailPill icon={pickup ? ShoppingBag : Truck} label="Type" value={pickup ? "Pickup" : "Delivery"} />
-        <DetailPill icon={Clock} label="ETA" value={getDisplayEta(order)} />
-        <DetailPill icon={Wallet} label="Payment" value={paymentLabel(order)} />
+        <DetailPill icon={Clock} label="ETA" value={getDisplayEta(order)} changed={changed.includes("eta")} />
+        <DetailPill icon={Wallet} label="Payment" value={paymentLabel(order)} changed={changed.includes("payment")} />
         <DetailPill icon={CalendarDays} label="Placed" value={dateTime(order.CREATION_DATETIME)} />
       </div>
     </article>
@@ -270,9 +282,11 @@ function OrderCard({
 function OrdersTable({
   orders,
   onSelect,
+  changedOrders,
 }: {
   orders: Order[];
   onSelect: (order: Order) => void;
+  changedOrders: ChangedOrders;
 }) {
   return (
     <div className="overflow-hidden rounded-lg border bg-white shadow-sm">
@@ -292,7 +306,9 @@ function OrdersTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {orders.map((order) => (
+            {orders.map((order) => {
+              const changed = changedOrders[order.BUSINESS_ORDER_ID] || [];
+              return (
               <tr key={order.BUSINESS_ORDER_ID} className="hover:bg-gray-50">
                 <td className="px-4 py-4 font-semibold text-gray-900">{getDisplayOrderNumber(order)}</td>
                 <td className="px-4 py-4 text-gray-700">
@@ -302,12 +318,12 @@ function OrdersTable({
                 </td>
                 <td className="px-4 py-4 text-gray-700">{isPickupOrder(order) ? "Pickup" : "Delivery"}</td>
                 <td className="px-4 py-4">
-                  <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${statusTone(order)}`}>
+                  <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold transition-shadow duration-1000 ${statusTone(order)} ${changedClass(changed.includes("status"))}`}>
                     {isRefundedOrder(order) ? "Refunded" : getOrderStatusLabel(order)}
                   </span>
                 </td>
-                <td className="px-4 py-4 text-gray-700">{getDisplayEta(order)}</td>
-                <td className="px-4 py-4 text-gray-700">{paymentLabel(order)}</td>
+                <td className={`px-4 py-4 text-gray-700 transition-colors duration-1000 ${changedClass(changed.includes("eta"))}`}>{getDisplayEta(order)}</td>
+                <td className={`px-4 py-4 text-gray-700 transition-colors duration-1000 ${changedClass(changed.includes("payment"))}`}>{paymentLabel(order)}</td>
                 <td className="px-4 py-4 text-gray-700">{dateTime(order.CREATION_DATETIME)}</td>
                 <td className="px-4 py-4 text-right font-semibold text-gray-900">{formatCHF(order.ORDER_FINAL_AMOUNT)}</td>
                 <td className="px-4 py-4 text-right">
@@ -320,7 +336,8 @@ function OrdersTable({
                   </button>
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -328,7 +345,7 @@ function OrdersTable({
   );
 }
 
-function OrderModal({ order, onClose }: { order: Order; onClose: () => void }) {
+function OrderModal({ order, onClose, changed = [] }: { order: Order; onClose: () => void; changed?: ChangedField[] }) {
   const pickup = isPickupOrder(order);
   const rejected = order.ORDER_STATUS === ORDER_STATUS.rejected;
   const paidNotRefunded = order.PAYMENT_DONE === PAYMENT_DONE.paid && !isRefundedOrder(order);
@@ -350,14 +367,14 @@ function OrderModal({ order, onClose }: { order: Order; onClose: () => void }) {
         <div className="grid gap-6 p-5 lg:grid-cols-[1.1fr_0.9fr]">
           <section className="space-y-5">
             <div className="grid gap-3 sm:grid-cols-3">
-              <DetailPill icon={Clock} label="ETA" value={getDisplayEta(order)} />
-              <DetailPill icon={ReceiptText} label="Status" value={getOrderStatusLabel(order)} />
-              <DetailPill icon={Wallet} label="Payment" value={paymentLabel(order)} />
+              <DetailPill icon={Clock} label="ETA" value={getDisplayEta(order)} changed={changed.includes("eta")} />
+              <DetailPill icon={ReceiptText} label="Status" value={getOrderStatusLabel(order)} changed={changed.includes("status")} />
+              <DetailPill icon={Wallet} label="Payment" value={paymentLabel(order)} changed={changed.includes("payment")} />
             </div>
 
             <div className="rounded-lg border bg-white p-4">
               <h3 className="mb-4 font-semibold text-gray-900">Order timeline</h3>
-              <Timeline order={order} />
+              <Timeline order={order} rejectionChanged={changed.includes("rejection")} />
             </div>
 
             <div className="rounded-lg border bg-white p-4">
@@ -440,6 +457,25 @@ export default function OrdersPage() {
   const [filter, setFilter] = useState<Filter>("Active");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [changedOrders, setChangedOrders] = useState<ChangedOrders>({});
+  const previousOrders = useRef<Order[] | null>(null);
+  const highlightTimer = useRef<number>();
+
+  const showChanges = useCallback((changes: ChangedOrders) => {
+    if (!Object.keys(changes).length) return;
+    setChangedOrders(changes);
+    window.clearTimeout(highlightTimer.current);
+    highlightTimer.current = window.setTimeout(() => setChangedOrders({}), 6000);
+  }, []);
+
+  const showPendingChanges = useCallback(() => {
+    if (document.hidden) return;
+    try {
+      const stored = window.localStorage.getItem(PENDING_ORDER_CHANGES_KEY);
+      if (stored) showChanges(JSON.parse(stored));
+    } catch {}
+    window.localStorage.removeItem(PENDING_ORDER_CHANGES_KEY);
+  }, [showChanges]);
 
   const fetchOrders = useCallback(async ({ silent = false } = {}) => {
     if (!silent) {
@@ -453,23 +489,46 @@ export default function OrdersPage() {
         throw new Error(data.error || "Failed to fetch orders");
       }
       const data = await response.json();
-      setOrders(
-        Array.from(
+      const nextOrders = Array.from(
           new Map((data.orders || []).map((order: Order) => [order.BUSINESS_ORDER_ID, order])).values()
-        ) as Order[]
+        ) as Order[];
+      if (previousOrders.current) {
+        const changes = findOrderChanges(previousOrders.current, nextOrders);
+        if (!document.hidden) showChanges(changes);
+      }
+      previousOrders.current = nextOrders;
+      setOrders(nextOrders);
+      setSelectedOrder((selected) =>
+        selected ? nextOrders.find((order) => order.BUSINESS_ORDER_ID === selected.BUSINESS_ORDER_ID) || null : null
       );
+      window.dispatchEvent(new CustomEvent("foodeez:orders-updated", { detail: nextOrders }));
+      window.dispatchEvent(new CustomEvent("foodeez:customer-notifications-updated", { detail: data.notifications || [] }));
     } catch (err) {
       if (!silent) setError(err instanceof Error ? err.message : "Failed to load orders");
     } finally {
       if (!silent) setIsLoading(false);
     }
-  }, []);
+  }, [showChanges]);
 
   useEffect(() => {
+    showPendingChanges();
     fetchOrders();
     const interval = window.setInterval(() => fetchOrders({ silent: true }), 30000);
-    return () => window.clearInterval(interval);
-  }, [fetchOrders]);
+    const showIncomingChanges = (event: Event) => {
+      if (!document.hidden) {
+        showChanges((event as CustomEvent<ChangedOrders>).detail || {});
+        window.localStorage.removeItem(PENDING_ORDER_CHANGES_KEY);
+      }
+    };
+    document.addEventListener("visibilitychange", showPendingChanges);
+    window.addEventListener("foodeez:order-changes", showIncomingChanges);
+    return () => {
+      window.clearInterval(interval);
+      window.clearTimeout(highlightTimer.current);
+      document.removeEventListener("visibilitychange", showPendingChanges);
+      window.removeEventListener("foodeez:order-changes", showIncomingChanges);
+    };
+  }, [fetchOrders, showChanges, showPendingChanges]);
 
   const sortedOrders = useMemo(
     () =>
@@ -501,7 +560,7 @@ export default function OrdersPage() {
           <p className="text-gray-500">Track active orders, payments, refunds, and order history.</p>
         </div>
         <Link
-          href="/business"
+          href="/"
           className="inline-flex items-center justify-center gap-2 rounded-md border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
         >
           <ShoppingBag className="h-4 w-4" />
@@ -530,7 +589,7 @@ export default function OrdersPage() {
           <p className="mx-auto mt-2 max-w-md text-gray-500">
             When you place an order, you will be able to track it here.
           </p>
-          <Link href="/business" className="mt-6 inline-flex rounded-md bg-primary px-5 py-3 text-sm font-medium text-white hover:bg-primary-dark">
+          <Link href="/" className="mt-6 inline-flex rounded-md bg-primary px-5 py-3 text-sm font-medium text-white hover:bg-primary-dark">
             Explore Restaurants
           </Link>
         </div>
@@ -543,7 +602,7 @@ export default function OrdersPage() {
           </div>
 
           {activeOrder && (
-            <OrderCard order={activeOrder} featured onSelect={() => setSelectedOrder(activeOrder)} />
+            <OrderCard order={activeOrder} featured changed={changedOrders[activeOrder.BUSINESS_ORDER_ID]} onSelect={() => setSelectedOrder(activeOrder)} />
           )}
 
           <div className="flex gap-2 overflow-x-auto pb-1">
@@ -576,13 +635,13 @@ export default function OrdersPage() {
               </div>
               </div>
             ) : visibleOrders.length > 0 ? (
-              <OrdersTable orders={visibleOrders} onSelect={setSelectedOrder} />
+              <OrdersTable orders={visibleOrders} changedOrders={changedOrders} onSelect={setSelectedOrder} />
             ) : null}
           </section>
         </div>
       )}
 
-      {selectedOrder && <OrderModal order={selectedOrder} onClose={() => setSelectedOrder(null)} />}
+      {selectedOrder && <OrderModal order={selectedOrder} changed={changedOrders[selectedOrder.BUSINESS_ORDER_ID]} onClose={() => setSelectedOrder(null)} />}
     </div>
   );
 }

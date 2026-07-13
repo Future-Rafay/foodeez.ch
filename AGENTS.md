@@ -104,7 +104,7 @@ The project is a Next.js 14 application with a clear separation of concerns.
 
 - Customer-facing notifications belong in this `foodeez.ch` frontend repo, not `admin.foodeez.ch`.
 - The navbar notification bell is `frontend/src/components/layout/CustomerNotifications.tsx` and is mounted by `frontend/src/components/layout/Navbar.tsx`.
-- Notifications are derived from the signed-in visitor's `/api/orders/history` response and use localStorage only for per-customer read state; admin/business notifications remain separate.
+- Customer notifications use `customer_order_notification`, keyed by `VISITORS_ACCOUNT_ID` and `BUSINESS_ORDER_ID`; multiple immutable rows per order form the customer tracking timeline. `/api/orders/history` synchronizes customer-visible order changes and returns the timeline, while `/api/customer-notifications` persists visitor-scoped read state. Admin/business notifications remain separate.
 - Keep notification labels based on shared order helpers in `frontend/src/lib/order.ts` so delivery, pickup, payment, and refund wording stays aligned with My Orders.
 
 ## Customer Order Display and Cart Notes
@@ -117,6 +117,7 @@ The project is a Next.js 14 application with a clear separation of concerns.
 - `/api/checkout` validates product ownership from the database before order creation and rejects mixed-business payloads with `You can only order from one restaurant at a time.`
 - Checkout passes delivery-zone data through `CheckoutSummaryState`; the free-delivery reminder stays above the Order Summary, remains sticky with it on large screens, and must stay hidden until the entered ZIP resolves to a zone. Show only the matched zone, its free-delivery threshold, the remaining amount, and a link back to the current restaurant menu.
 - My Orders lives at `frontend/src/app/(dashboard)/dashboard/orders/page.tsx`; it defaults to the `Active` filter, highlights the newest active order at the top, still shows active orders in the spreadsheet-style filtered table below, keeps the filtered content area at a stable minimum height to prevent tab-switch jumps, includes `View details` as the final table column, silently refreshes `/api/orders/history` every 30 seconds while the page is open, and sends `Explore Restaurants` to `/business`.
+- The customer notification bell polls the authenticated history response every 30 seconds and renders durable customer notification rows, including multiple events for one order. Pending fields are stored locally only for six-second My Orders highlights when the page is visible; read/unread state stays in the customer notification table.
 
 ## Business Profile Notes
 
