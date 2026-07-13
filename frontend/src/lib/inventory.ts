@@ -7,13 +7,13 @@ type InventoryItem = {
 
 type InventoryDb = Pick<typeof prisma, "business_product">;
 
-export async function validateCartInventory(items: InventoryItem[]) {
+export async function validateCartInventory(items: InventoryItem[], db: InventoryDb = prisma) {
   const productIds = Array.from(new Set(items.map((item) => Number(item.id))));
   if (!productIds.length || productIds.some((id) => !Number.isInteger(id))) {
     throw new Error("Invalid cart item");
   }
 
-  const products = await prisma.business_product.findMany({
+  const products = await db.business_product.findMany({
     where: { BUSINESS_PRODUCT_ID: { in: productIds }, STATUS: 1 },
     select: {
       BUSINESS_PRODUCT_ID: true,
@@ -45,7 +45,7 @@ export async function validateCartInventory(items: InventoryItem[]) {
 }
 
 export async function reserveCartInventory(db: InventoryDb, items: InventoryItem[]) {
-  const products = await validateCartInventory(items);
+  const products = await validateCartInventory(items, db);
   const productById = new Map(
     products.map((product) => [product.BUSINESS_PRODUCT_ID, product])
   );

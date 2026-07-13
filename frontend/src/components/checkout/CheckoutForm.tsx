@@ -224,6 +224,8 @@ export default function CheckoutForm({
         if (result?.error) throw result.error;
         return;
       }
+      // page scroll to top
+      window.scrollTo({ top: 0, behavior: "smooth" });
 
       clearCart();
       router.push(data.redirectUrl || "/dashboard/orders");
