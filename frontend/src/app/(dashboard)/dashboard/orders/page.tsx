@@ -513,19 +513,25 @@ export default function OrdersPage() {
   useEffect(() => {
     showPendingChanges();
     fetchOrders();
-    const interval = window.setInterval(() => fetchOrders({ silent: true }), 30000);
+    const interval = window.setInterval(() => {
+      if (!document.hidden) void fetchOrders({ silent: true });
+    }, 30000);
     const showIncomingChanges = (event: Event) => {
       if (!document.hidden) {
         showChanges((event as CustomEvent<ChangedOrders>).detail || {});
         window.localStorage.removeItem(PENDING_ORDER_CHANGES_KEY);
       }
     };
-    document.addEventListener("visibilitychange", showPendingChanges);
+    const onVisibilityChange = () => {
+      showPendingChanges();
+      if (!document.hidden) void fetchOrders({ silent: true });
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
     window.addEventListener("foodeez:order-changes", showIncomingChanges);
     return () => {
       window.clearInterval(interval);
       window.clearTimeout(highlightTimer.current);
-      document.removeEventListener("visibilitychange", showPendingChanges);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
       window.removeEventListener("foodeez:order-changes", showIncomingChanges);
     };
   }, [fetchOrders, showChanges, showPendingChanges]);

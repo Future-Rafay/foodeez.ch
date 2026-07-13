@@ -21,6 +21,7 @@ const getInitials = (name?: string) => {
 };
 
 const FoodJourneyCard: React.FC<FoodJourneyCardProps> = ({ journey, currentUserId, onDelete, onEdit }) => {
+  const [avatarFailed, setAvatarFailed] = React.useState(false);
   const slug = generateSlug(
     journey.TITLE || "food-journey",
     journey.VISITOR_FOOD_JOURNEY_ID
@@ -55,7 +56,7 @@ const FoodJourneyCard: React.FC<FoodJourneyCardProps> = ({ journey, currentUserI
     >
       {/* Visitor Info */}
       <div className="flex items-center gap-3 mb-4">
-        {journey.VISITOR_PIC ? (
+        {journey.VISITOR_PIC && !avatarFailed ? (
           <Image
             width={48}
             height={48}
@@ -63,6 +64,7 @@ const FoodJourneyCard: React.FC<FoodJourneyCardProps> = ({ journey, currentUserI
             alt={`Visitor ${journey.VISITOR_NAME}`}
             className="w-12 h-12 rounded-full object-cover border-2 border-gray-200"
             sizes="48px"
+            onError={() => setAvatarFailed(true)}
           />
         ) : (
           <div className="h-12 w-12 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center border-2 border-gray-200">

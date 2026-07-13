@@ -93,6 +93,13 @@ The project is a Next.js 14 application with a clear separation of concerns.
 - Cart and checkout surfaces should show item-level stock warnings from stored cart availability and disable checkout until the quantity is reduced; backend validation remains the source of truth because stock can change after add-to-cart.
 - The mixed-restaurant `Start a new order?` confirmation in `frontend/src/components/menu/MenuProductCard.tsx` uses `frontend/src/components/core/ModalPortal.tsx`; keep the safe `Keep current cart` action prominent and the cart-clearing action visually separate.
 
+## Production Runtime Notes
+
+- `frontend/src/lib/prisma.ts` uses one MariaDB connection per serverless instance and caches the Prisma singleton in every environment; do not increase the pool without production evidence.
+- Customer NextAuth configuration lives only in `frontend/src/lib/auth.ts`; the route imports it and routine JWT session reads must not query the database.
+- Manual production query indexes live in `docs/sql/add_production_query_indexes.sql`. Apply them manually, then run `prisma db pull` and `prisma generate`; do not use `prisma migrate` for this file.
+- `EMAIL_FROM` must use a verified Resend domain in production. Newsletter storage is the source of subscription success; welcome-email failure is logged separately.
+
 ## Stripe Payment Notes
 
 - Manual SQL for Stripe order fields lives at `docs/sql/add_stripe_order_payment_fields.sql`; run it in MySQL Workbench, then run `npx prisma db pull` and `npx prisma generate` from `frontend`. Do not use `prisma migrate` for this change.

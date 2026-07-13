@@ -7,6 +7,7 @@ import BusinessDeferredSections from "@/components/BusinessSlug/BusinessDeferred
 import BusinessImage from "@/components/BusinessSlug/BusinessImage";
 import BusinessInfoSection, { FulfillmentOptions } from "@/components/BusinessSlug/BusinessInfoSection";
 import ResturantProfilePageHeader from "@/components/BusinessSlug/ResturantProfilePageHeader";
+import { unstable_cache } from "next/cache";
 
 async function getBusinessFulfillmentOptions(businessId: number): Promise<FulfillmentOptions | null> {
   const settings = await prisma.business_settings.findUnique({ where: { BUSINESS_ID: businessId } });
@@ -67,6 +68,12 @@ async function getGoogleBusinessData(businessId: number): Promise<BusinessGoogle
   }
 }
 
+const getCachedGoogleBusinessData = unstable_cache(
+  getGoogleBusinessData,
+  ["business-google-data"],
+  { revalidate: 300 }
+);
+
 export default async function BusinessDetailPage({ params }: { params: { slug: string } }) {
   const parsedId = parseSlug(params.slug);
   const businessId = Number(parsedId.id);
@@ -74,7 +81,7 @@ export default async function BusinessDetailPage({ params }: { params: { slug: s
   const [business, fulfillmentOptions, googleBusinessData] = await Promise.all([
     getBusinessById(businessId),
     getBusinessFulfillmentOptions(businessId),
-    getGoogleBusinessData(businessId),
+    getCachedGoogleBusinessData(businessId),
   ]);
 
   if (!business) {

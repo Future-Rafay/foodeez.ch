@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Bell, Check, Package } from "lucide-react";
 import { ChangedField, ChangedOrders, PENDING_ORDER_CHANGES_KEY } from "@/lib/order-changes";
+import { usePathname } from "next/navigation";
 
 type CustomerNotification = {
   id: number;
@@ -35,6 +36,7 @@ export default function CustomerNotifications({
   userEmail,
   className = "",
 }: CustomerNotificationsProps) {
+  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<CustomerNotification[]>([]);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -67,8 +69,10 @@ export default function CustomerNotifications({
 
   useEffect(() => {
     if (!userEmail) return;
+    if (pathname === "/dashboard/orders") return;
 
     const load = async () => {
+      if (document.hidden) return;
       const response = await fetch("/api/orders/history", { cache: "no-store" });
       if (!response.ok) return;
       const data = await response.json();
@@ -77,8 +81,15 @@ export default function CustomerNotifications({
 
     load();
     const interval = window.setInterval(load, 30000);
-    return () => window.clearInterval(interval);
-  }, [updateNotifications, userEmail]);
+    const onVisibilityChange = () => {
+      if (!document.hidden) void load();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [pathname, updateNotifications, userEmail]);
 
   useEffect(() => {
     const update = (event: Event) => {

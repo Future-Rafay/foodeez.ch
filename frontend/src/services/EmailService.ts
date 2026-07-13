@@ -69,7 +69,7 @@ export const sendEmail = async (
     const html = await render(emailComponent);
 
     const { data: emailData, error } = await resend.emails.send({
-      from: 'Foodeez <onboarding@resend.dev>',
+      from: process.env.EMAIL_FROM || 'Foodeez <info@foodeez.ch>',
       to,
       subject,
       html,

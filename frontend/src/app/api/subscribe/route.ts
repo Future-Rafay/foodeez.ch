@@ -38,8 +38,12 @@ export async function POST(request: Request) {
       },
     });
 
-    // Send welcome email
-    await sendEmail(email, 'newsletter', { email });
+    // The subscription is already saved; email delivery must not turn it into a false failure.
+    try {
+      await sendEmail(email, 'newsletter', { email });
+    } catch (error) {
+      console.error('Newsletter welcome email failed:', error);
+    }
 
     return NextResponse.json(
       {

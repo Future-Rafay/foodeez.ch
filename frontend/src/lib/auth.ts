@@ -100,24 +100,25 @@ export const authOptions: NextAuthOptions = {
 
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = token.sub!;
-        
-        // Fetch the latest user data from the database
-        const user = await prisma.visitors_account.findUnique({
-          where: { EMAIL_ADDRESS: session.user.email! }
-        });
-
-        if (user) {
-          session.user.name = `${user.FIRST_NAME} ${user.LAST_NAME}`;
-          session.user.image = user.PIC;
-        }
+        session.user.id = String(token.id || token.sub || "");
+        session.user.name = token.name;
+        session.user.email = token.email;
+        session.user.image = token.picture;
       }
       return session;
     },
 
-    async jwt({ token, user, account }) {
+    async jwt({ token, user, account, trigger, session }) {
       if (user) {
         token.id = user.id;
+        token.name = user.name;
+        token.email = user.email;
+        token.picture = user.image;
+      }
+
+      if (trigger === "update" && session?.user) {
+        token.name = session.user.name;
+        token.picture = session.user.image;
       }
 
       if (account?.provider === 'google') {
@@ -127,6 +128,7 @@ export const authOptions: NextAuthOptions = {
         });
 
         if (dbUser) {
+          token.id = String(dbUser.VISITORS_ACCOUNT_ID);
           token.name = `${dbUser.FIRST_NAME} ${dbUser.LAST_NAME}`;
           token.picture = dbUser.PIC;
         }
