@@ -86,6 +86,8 @@ function BlogCard({ blog }: { blog: BlogPostSummary }) {
   return (
     <Link
       href={`/blog/${blog.slug}`}
+      target="_blank"
+      rel="noopener noreferrer"
       key={blog.id}
       className="group rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-4"
     >

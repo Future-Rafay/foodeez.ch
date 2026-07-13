@@ -82,6 +82,8 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
                 <Link
                   href={`/blog/${blog.slug}`}
                   key={blog.id}
+                      target="_blank"
+      rel="noopener noreferrer"
                   className="group rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-4"
                 >
                   <article className="flex h-full flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition duration-300 group-hover:-translate-y-1 group-hover:border-primary/30 group-hover:shadow-xl">
