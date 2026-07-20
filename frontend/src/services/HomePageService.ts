@@ -1,7 +1,6 @@
 'use server';
 
-import { Prisma } from "@/lib/prisma";
-import { prisma } from "../lib/prisma"
+import { Prisma, prisma } from "@/lib/prisma";
 import { BusinessDetail, BusinessResult } from "@/types/business.types";
 
 export async function getCities() {
@@ -36,7 +35,6 @@ export async function getBusinessesByLocation({
   try {
     const trimmedCity = city?.trim();
     const trimmedZip = zipCode?.trim();
-
     let whereClause: Prisma.business_detail_view_allWhereInput | undefined;
 
     if (trimmedZip) {
