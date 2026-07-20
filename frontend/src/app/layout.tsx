@@ -60,9 +60,9 @@ const defaultMetadata: Metadata = {
     },
   },
   icons: {
-    icon: '/images/Logo/LogoFoodeezMain.svg',
-    apple: '/images/Logo/LogoFoodeezMain.svg',
-    shortcut: '/images/Logo/LogoFoodeezMain.svg',
+    icon: '/Logo/LogoFoodeezMain.svg',
+    apple: '/Logo/LogoFoodeezMain.svg',
+    shortcut: '/Logo/LogoFoodeezMain.svg',
   },
 };
 
