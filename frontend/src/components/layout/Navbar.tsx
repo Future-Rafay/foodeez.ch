@@ -52,20 +52,20 @@ export const Navbar = () => {
   return (
     <nav
       className={`z-50 sticky top-0 transition-all duration-300 bg-white/80 backdrop-blur-lg border-b border-gray-100 ${isScrolled ? "shadow-lg" : ""}`}
-      aria-label="Main Navigation"
+      aria-label="Main navigation"
 
       // className={`z-50 h-auto sticky top-0 transition-all duration-300 bg-background
       //   ${isScrolled ? "shadow-md" : ""}`}
     >
-      <div className=" px-0 lg:px-4 flex items-center justify-between">
+      <div className="flex items-center justify-between px-2 sm:px-4">
         {/* Logo */}
-        <Link href="/">
+        <Link href="/" aria-label="Foodeez home" className="shrink-0">
           <Image
             src="/Logo/LogoFoodeezMain.svg"
             alt="Foodeez Logo"
             height={144}
             width={144}
-            className="md:w-36 md:h-36 p-4 md:p-0"
+            className="h-28 w-28 md:p-0 lg:h-36 lg:w-36"
             priority
           />
         </Link>
@@ -126,8 +126,10 @@ export const Navbar = () => {
           <button
             type="button"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="p-2 text-text-muted hover:text-primary focus:outline-none"
-            aria-label="Toggle Menu"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-text-muted hover:bg-primary/5 hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            aria-label={isMenuOpen ? "Close menu" : "Open menu"}
+            aria-expanded={isMenuOpen}
+            aria-controls="mobile-navigation"
           >
             {isMenuOpen ? (
               <X className="w-8 h-8" />

@@ -271,15 +271,15 @@ export default function CartPage() {
 
   // Render the cart view
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-6 sm:py-8">
       <h1 className="sub-heading">Your Shopping Cart</h1>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        <div className="md:col-span-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:gap-8">
+        <div className="lg:col-span-2">
           <div className="bg-white rounded-lg shadow-md">
             {items.map((item) => (
               <div
                 key={item.id}
-                className="flex items-center p-4 border-b last:border-b-0 cursor-pointer hover:bg-gray-50"
+                className="grid grid-cols-[5rem_minmax(0,1fr)] items-center border-b p-4 last:border-b-0 hover:bg-gray-50 sm:grid-cols-[5rem_minmax(0,1fr)_auto]"
               >
                 <Image
                   src={item.image || '/placeholder.png'}
@@ -289,10 +289,10 @@ export default function CartPage() {
                   height={80}
                   className="rounded-md object-cover w-20 h-20"
                 />
-                <div className="ml-4 flex-grow"
+                <div className="ml-4 min-w-0"
                 onClick={() => handleProductClick(item)}
                 >
-                  <h2 className="font-semibold text-lg">{item.name}</h2>
+                  <h2 className="break-words text-base font-semibold sm:text-lg">{item.name}</h2>
                   <p className="text-primary font-bold">CHF {item.price.toFixed(2)}</p>
                   {item.trackInventory && item.quantity > (item.inventoryAvailable ?? 0) && (
                     <p className="mt-1 text-sm text-red-700">
@@ -300,10 +300,10 @@ export default function CartPage() {
                     </p>
                   )}
                 </div>
-                <div className="flex flex-col lg:flex-row items-end lg:items-center gap-4">
+                <div className="col-span-2 mt-3 flex flex-row-reverse items-center justify-between gap-4 sm:col-span-1 sm:mt-0 sm:justify-start">
                   <button
                     onClick={() => removeFromCart(item.id)}
-                    className="text-red-500 hover:text-red-700 p-2 rounded-full hover:bg-red-50"
+                    className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full p-2 text-red-600 hover:bg-red-50 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
                     aria-label="Remove item"
                   >
                     <Trash2 size={20} />
@@ -311,7 +311,7 @@ export default function CartPage() {
                   <div className="flex items-center bg-primary/10 border rounded-md">
                     <button
                       onClick={() => handleQuantityChange(item, Math.max(1, item.quantity - 1))}
-                      className="p-2 hover:bg-gray-100 rounded-l-md"
+                      className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-l-md p-2 hover:bg-gray-100"
                       aria-label="Decrease quantity"
                     >
                       <Minus size={16} />
@@ -319,7 +319,7 @@ export default function CartPage() {
                     <span className="px-4 py-1 font-semibold">{item.quantity}</span>
                     <button
                       onClick={() => handleQuantityChange(item, item.quantity + 1)}
-                      className="p-2 hover:bg-gray-100 rounded-r-md"
+                      className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-r-md p-2 hover:bg-gray-100"
                       aria-label="Increase quantity"
                     >
                       <Plus size={16} />
@@ -329,7 +329,7 @@ export default function CartPage() {
               </div>
             ))}
           </div>
-          <div className="flex justify-between items-center mt-4">
+          <div className="mt-6 flex items-center justify-between gap-4 border-t pt-4">
             <button
               onClick={() => router.back()}
               className="bg-primary text-white px-3 py-2 rounded-md shadow hover:bg-primary-dark flex items-center transition-all"
@@ -339,7 +339,7 @@ export default function CartPage() {
 
             <button
               onClick={clearCart}
-              className="bg-red-500 text-white text-sm px-3 py-2 rounded-md shadow hover:bg-red-600 transition-all"
+              className="min-h-11 rounded-md border border-red-200 bg-white px-3 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600"
             >
               Clear Cart
             </button>
@@ -347,8 +347,8 @@ export default function CartPage() {
 
         </div>
 
-        <div className="md:col-span-1">
-          <div className="bg-white rounded-lg shadow-md p-6 sticky top-24">
+        <div className="lg:col-span-1">
+          <div className="rounded-lg bg-white p-5 shadow-md sm:p-6 lg:sticky lg:top-24">
             <h2 className="sub-heading border-b border-primary pb-4 mb-4">Order Summary</h2>
             <OrderSummary items={items} totalItems={totalItems} />
 

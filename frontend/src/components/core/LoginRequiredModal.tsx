@@ -4,15 +4,17 @@ import React, { ReactNode, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Lock } from 'lucide-react';
+import ModalPortal from './ModalPortal';
 
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   children: ReactNode;
+  title: string;
 }
 
 // Internal Modal Component
-const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children }) => {
+const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title }) => {
   useEffect(() => {
     if (!isOpen) return;
     const handleEsc = (e: KeyboardEvent) => {
@@ -25,10 +27,11 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 px-2 sm:px-0 animate-fadeIn">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-auto relative transition-all duration-300 scale-100 sm:scale-100 animate-modalPop">
+    <ModalPortal>
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-3 animate-fadeIn sm:p-6" onMouseDown={(event) => event.currentTarget === event.target && onClose()}>
+      <div className="relative mx-auto max-h-[calc(100dvh-1.5rem)] w-full max-w-lg overflow-y-auto rounded-2xl bg-white shadow-2xl transition-all duration-300 animate-modalPop sm:max-h-[calc(100dvh-3rem)]" role="dialog" aria-modal="true" aria-label={title}>
         <button
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-3xl font-bold focus:outline-none"
+          className="absolute right-3 top-3 inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-3xl font-bold text-gray-500 hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           onClick={onClose}
           aria-label="Close modal"
         >
@@ -50,6 +53,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children }) => {
         }
       `}</style>
     </div>
+    </ModalPortal>
   );
 };
 
@@ -81,7 +85,7 @@ const LoginRequiredModal: React.FC<LoginRequiredModalProps> = ({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose}>
+    <Modal isOpen={isOpen} onClose={onClose} title={title}>
       <div className="text-center p-4 lg:p-6">
         {/* Logo */}
         <div className="mb-6">

@@ -1,6 +1,9 @@
+"use client";
+
 import Image from 'next/image';
 import { PlayCircle, X } from 'lucide-react';
-import { createPortal } from 'react-dom';
+import { useEffect } from 'react';
+import ModalPortal from '../ModalPortal';
 
 interface ReviewGalleryProps {
   images: string[];
@@ -13,6 +16,15 @@ interface ReviewGalleryProps {
 }
 
 export default function ReviewGallery({ images, hasVideo, galleryIndex, setGalleryIndex, showGallery, setShowGallery, videoUrl }: ReviewGalleryProps) {
+  useEffect(() => {
+    if (!showGallery) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setShowGallery(false);
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [setShowGallery, showGallery]);
+
   return (
     <>
       <div className="mt-6 flex flex-wrap gap-2">
@@ -59,11 +71,12 @@ export default function ReviewGallery({ images, hasVideo, galleryIndex, setGalle
           </button>
         )}
       </div>
-      {showGallery && typeof window !== 'undefined' && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-          <div className="relative bg-white shadow-lg max-w-lg w-full p-5 flex flex-col items-center rounded-xl border-2 border-primary/30">
+      {showGallery && (
+        <ModalPortal>
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/70 p-3 backdrop-blur-sm sm:p-6" onMouseDown={(event) => event.currentTarget === event.target && setShowGallery(false)}>
+          <div className="relative flex max-h-[calc(100dvh-1.5rem)] w-full max-w-lg flex-col items-center overflow-y-auto rounded-xl border-2 border-primary/30 bg-white p-5 shadow-lg sm:max-h-[calc(100dvh-3rem)]" role="dialog" aria-modal="true" aria-label="Review media gallery">
             <button
-              className="absolute top-0 right-0 text-text-main hover:text-primary"
+              className="absolute right-2 top-2 inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-text-main hover:bg-gray-100 hover:text-primary"
               onClick={() => setShowGallery(false)}
               aria-label="Close gallery"
             >
@@ -86,7 +99,7 @@ export default function ReviewGallery({ images, hasVideo, galleryIndex, setGalle
                 poster={images[0]}
               />
             )}
-            <div className="flex gap-2 mt-4">
+            <div className="mt-4 flex max-w-full gap-2 overflow-x-auto pb-1">
               {images.map((img, idx) => (
                 <button
                   key={img}
@@ -116,8 +129,8 @@ export default function ReviewGallery({ images, hasVideo, galleryIndex, setGalle
               )}
             </div>
           </div>
-        </div>,
-        document.body
+        </div>
+        </ModalPortal>
       )}
     </>
   );

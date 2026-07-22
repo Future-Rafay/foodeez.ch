@@ -55,10 +55,10 @@ export default function Footer() {
 
   return (
     <>
-      <footer className="bg-primary text-white pt-16 pb-8">
+      <footer className="bg-primary pb-8 pt-12 text-white sm:pt-16">
         <div className="container-custom">
           {/* Top Section - Help banner */}
-          <div className=" border-2 border-white text-white rounded-xl p-8 mb-12 flex flex-col md:flex-row md:items-center justify-between">
+          <div className="mb-10 flex flex-col justify-between gap-5 rounded-xl border-2 border-white p-5 text-white sm:p-8 md:flex-row md:items-center">
             <div>
               <h3 className="text-2xl font-bold mb-2">
                 Help millions to find the right Place & Food to enjoy
@@ -68,7 +68,7 @@ export default function Footer() {
             <button
               onClick={() => setShowLoginModal(true)}
 
-              className="mt-4 md:mt-0 inline-flex items-center px-6 py-3 bg-white text-primary font-medium rounded-full hover:bg-gray-100 transition-colors"
+              className="inline-flex min-h-11 items-center justify-center rounded-full bg-white px-6 py-3 font-medium text-primary transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-primary"
             >
               Share your experience
             </button>
@@ -173,7 +173,7 @@ export default function Footer() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="Your email address"
-                    className="w-full px-4 py-3 text-primary border border-gray-400 rounded-lg text-text focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    className="w-full rounded-lg border border-gray-400 px-4 py-3 text-base text-primary focus:border-transparent focus:outline-none focus:ring-2 focus:ring-white"
                     required
                     disabled={isLoading}
                   />

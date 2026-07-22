@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import ModalPortal from "@/components/core/ModalPortal";
 import {
   CalendarDays,
   ChevronRight,
@@ -289,7 +290,18 @@ function OrdersTable({
   changedOrders: ChangedOrders;
 }) {
   return (
-    <div className="overflow-hidden rounded-lg border bg-white shadow-sm">
+    <>
+      <div className="space-y-3 md:hidden">
+        {orders.map((order) => (
+          <OrderCard
+            key={order.BUSINESS_ORDER_ID}
+            order={order}
+            changed={changedOrders[order.BUSINESS_ORDER_ID] || []}
+            onSelect={() => onSelect(order)}
+          />
+        ))}
+      </div>
+      <div className="hidden overflow-hidden rounded-lg border bg-white shadow-sm md:block">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[920px] text-sm">
           <thead className="bg-gray-50 text-left text-xs font-semibold uppercase text-gray-500">
@@ -342,6 +354,7 @@ function OrdersTable({
         </table>
       </div>
     </div>
+    </>
   );
 }
 
@@ -350,14 +363,23 @@ function OrderModal({ order, onClose, changed = [] }: { order: Order; onClose: (
   const rejected = order.ORDER_STATUS === ORDER_STATUS.rejected;
   const paidNotRefunded = order.PAYMENT_DONE === PAYMENT_DONE.paid && !isRefundedOrder(order);
 
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 p-4">
-      <div className="mx-auto max-w-5xl overflow-hidden rounded-lg bg-white shadow-xl">
+    <ModalPortal>
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-3 sm:p-6" onMouseDown={(event) => event.currentTarget === event.target && onClose()}>
+      <div className="my-auto max-h-[calc(100dvh-1.5rem)] w-full max-w-5xl overflow-y-auto rounded-lg bg-white shadow-xl sm:max-h-[calc(100dvh-3rem)]" role="dialog" aria-modal="true" aria-labelledby="order-details-title" aria-describedby="order-details-description">
         <div className="flex items-start justify-between border-b p-5">
           <div>
             <p className="text-sm font-medium text-primary">{pickup ? "Pickup order" : "Delivery order"}</p>
-            <h2 className="mt-1 text-2xl font-semibold text-gray-900">{getDisplayOrderNumber(order)}</h2>
-            <p className="text-sm text-gray-500">{order.business?.BUSINESS_NAME || "Restaurant"}</p>
+            <h2 id="order-details-title" className="mt-1 text-xl font-semibold text-gray-900 sm:text-2xl">{getDisplayOrderNumber(order)}</h2>
+            <p id="order-details-description" className="text-sm text-gray-500">{order.business?.BUSINESS_NAME || "Restaurant"}</p>
           </div>
           <button onClick={onClose} className="rounded-md p-2 hover:bg-gray-100" aria-label="Close">
             <X className="h-5 w-5" />
@@ -448,6 +470,7 @@ function OrderModal({ order, onClose, changed = [] }: { order: Order; onClose: (
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 }
 
@@ -566,7 +589,7 @@ export default function OrdersPage() {
           <p className="text-gray-500">Track active orders, payments, refunds, and order history.</p>
         </div>
         <Link
-          href="/"
+          href="/business"
           className="inline-flex items-center justify-center gap-2 rounded-md border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
         >
           <ShoppingBag className="h-4 w-4" />
@@ -595,7 +618,7 @@ export default function OrdersPage() {
           <p className="mx-auto mt-2 max-w-md text-gray-500">
             When you place an order, you will be able to track it here.
           </p>
-          <Link href="/" className="mt-6 inline-flex rounded-md bg-primary px-5 py-3 text-sm font-medium text-white hover:bg-primary-dark">
+          <Link href="/business" className="mt-6 inline-flex rounded-md bg-primary px-5 py-3 text-sm font-medium text-white hover:bg-primary-dark">
             Explore Restaurants
           </Link>
         </div>

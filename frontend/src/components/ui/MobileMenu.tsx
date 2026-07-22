@@ -36,7 +36,7 @@ const NavLink: React.FC<NavLinkProps> = ({
     <Link
       href={href}
       className={`
-        block px-2 py-2 rounded-lg transition-colors duration-200
+        flex min-h-11 items-center rounded-lg px-3 py-2 transition-colors duration-200
         text-base font-medium
         ${isActive ? "bg-primary/10 text-primary" : "text-gray-700 hover:bg-gray-100"}
         ${className}
@@ -107,7 +107,7 @@ const ProfileMenuItem: React.FC<ProfileMenuItemProps> = ({
   );
 
   const baseClasses = `
-    flex items-center px-4 py-2 rounded-lg text-sm transition-colors duration-200
+    flex min-h-11 items-center rounded-lg px-4 py-2 text-sm transition-colors duration-200
     ${isDanger ? "text-red-600 hover:bg-red-100" : "text-gray-700 hover:bg-gray-100"}
   `;
 
@@ -177,16 +177,17 @@ export default function MobileMenu({
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }} // Exit animation
           transition={{ duration: 0.2 }}
-          className="lg:hidden bg-white border-y border-gray-200 shadow-md absolute w-full z-40 top-full" // Added shadow, fixed positioning
+          id="mobile-navigation"
+          className="absolute top-full z-40 max-h-[calc(100dvh-5rem)] w-full overflow-y-auto border-y border-gray-200 bg-white shadow-md lg:hidden"
         >
-          <div className="px-2 py-4 space-y-4">
+          <div className="space-y-4 px-3 py-4 sm:px-4">
             {" "}
             {/* Increased general spacing */}
             {/* Be Foodeez Partner Dropdown */}
             <div>
               <button
                 onClick={togglePartnerMenu}
-                className="w-full flex justify-between items-center px-2 py-2 rounded-lg text-base font-medium text-gray-700 hover:bg-gray-100 transition-colors duration-200"
+                className="flex min-h-11 w-full items-center justify-between rounded-lg px-3 py-2 text-base font-medium text-gray-700 transition-colors duration-200 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 aria-expanded={isPartnerOpen} // Accessibility
               >
                 Be Foodeez Partner
@@ -288,13 +289,15 @@ export default function MobileMenu({
                     onClick={handleNavLinkClick}
                     pathname={pathname}
                   />
-                  <ProfileMenuItem
-                    icon={<LogOut />}
-                    label="Logout"
-                    onClick={onSignOut}
-                    isDanger
-                    pathname={pathname} // Pass pathname for active link styling
-                  />
+                  <div className="mt-3 border-t border-red-100 pt-3">
+                    <ProfileMenuItem
+                      icon={<LogOut />}
+                      label="Logout"
+                      onClick={onSignOut}
+                      isDanger
+                      pathname={pathname}
+                    />
+                  </div>
                 </div>
               </div>
             )}

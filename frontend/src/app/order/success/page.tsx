@@ -68,7 +68,7 @@ const paymentMessage = (order: Order) => {
 
 function Timeline({ order }: { order: Order }) {
   return (
-    <div className="grid gap-3 sm:grid-cols-3">
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {getOrderProgressSteps(order).map((step) => (
         <div key={step.status} className="rounded-lg border bg-white p-3">
           <span className={`mb-2 block h-2 w-2 rounded-full ${step.status <= (order.ORDER_STATUS ?? 0) ? "bg-primary" : "bg-gray-300"}`} />
@@ -150,7 +150,7 @@ function SuccessContent() {
     : "/";
 
   return (
-    <div className=" px-4 py-10 sm:px-6 lg:px-8">
+    <div className="px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
       <div className="mb-8 rounded-xl border bg-white p-6 text-center shadow-sm">
         {order.PAYMENT_DONE === PAYMENT_DONE.failed ? (
           <AlertTriangle className="mx-auto mb-4 h-12 w-12 text-red-600" />
@@ -223,27 +223,27 @@ function SuccessContent() {
         <Timeline order={order} />
       </section>
 
-      <section className="mt-6 overflow-x-auto rounded-xl border bg-white p-5 shadow-sm">
+      <section className="mt-6 rounded-xl border bg-white p-5 shadow-sm">
         <h2 className="mb-4 text-lg font-semibold">Items</h2>
-        <table className="w-full min-w-[560px] text-sm">
-          <thead className="text-left text-gray-500">
+        <table className="w-full text-sm">
+          <thead className="hidden text-left text-gray-500 sm:table-header-group">
             <tr>
-             <th className="py-2">Product</th>
+              <th className="py-2">Product</th>
               <th>Quantity</th>
               <th>Unit price</th>
-              <th>Subtotal</th>
+              <th className="text-right">Subtotal</th>
             </tr>
           </thead>
-          <tbody className="divide-y">
+          <tbody className="divide-y divide-gray-100">
             {order.details.map((item) => {
               const quantity = item.ORDER_QUANTITY || 1;
               const unit = item.PRODUCT_SELL_PRICE || item.product?.PRODUCT_PRICE || 0;
               return (
-                <tr key={item.BUSINESS_ORDER_DETAIL_ID}>
-                  <td className="py-3">{item.product?.TITLE || "Product"}</td>
-                  <td>{quantity}</td>
-                  <td>{formatCHF(unit)}</td>
-                  <td>{formatCHF(item.PRODUCT_PRICE || unit * quantity)}</td>
+                <tr key={item.BUSINESS_ORDER_DETAIL_ID} className="grid grid-cols-2 gap-2 py-3 sm:table-row">
+                  <td className="col-span-2 font-medium sm:table-cell sm:py-3">{item.product?.TITLE || "Product"}</td>
+                  <td className="flex justify-between sm:table-cell"><span className="text-gray-500 sm:hidden">Quantity</span>{quantity}</td>
+                  <td className="flex justify-between sm:table-cell"><span className="text-gray-500 sm:hidden">Unit price</span>{formatCHF(unit)}</td>
+                  <td className="col-span-2 flex justify-between font-semibold sm:table-cell sm:text-right"><span className="text-gray-500 sm:hidden">Subtotal</span>{formatCHF(item.PRODUCT_PRICE || unit * quantity)}</td>
                 </tr>
               );
             })}

@@ -11,7 +11,7 @@ interface FoodJourneyGridProps {
 const FoodJourneyGrid: React.FC<FoodJourneyGridProps> = ({ stories, currentUserId, onDelete, onEdit }) => {
   return (
     <div>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+      <div className="mb-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {stories.map((j) => (
           <FoodJourneyCard key={j.VISITOR_FOOD_JOURNEY_ID} journey={j} currentUserId={currentUserId} onDelete={onDelete} onEdit={onEdit} />
         ))}

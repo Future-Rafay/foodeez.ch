@@ -10,6 +10,11 @@
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-inter), Arial, Helvetica, sans-serif;
   }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
 }
 
 @layer components {
