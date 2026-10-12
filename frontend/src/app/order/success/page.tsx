@@ -83,6 +83,7 @@ function SuccessContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("session_id");
   const orderIdParam = searchParams.get("orderId");
+  const guestToken = searchParams.get("guestToken");
   const { clearCart } = useCartStore();
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [error, setError] = useState("");
@@ -95,16 +96,23 @@ function SuccessContent() {
     try {
       let orderId = Number(orderIdParam);
 
-      if (!orderId && sessionId) {
+      if (sessionId) {
         const verifyResponse = await fetch(`/api/order/verify?session_id=${sessionId}`, { cache: "no-store" });
         const verifyData = await verifyResponse.json().catch(() => ({}));
         if (!verifyResponse.ok) throw new Error(verifyData.error || "Failed to verify order");
-        orderId = Number(verifyData.orderId);
+        const verifiedOrderId = Number(verifyData.orderId);
+        if (orderId && orderId !== verifiedOrderId) {
+          throw new Error("The payment session does not match this order.");
+        }
+        orderId = verifiedOrderId;
       }
 
       if (!orderId) throw new Error("Order could not be found. Please check My Orders.");
 
-      const response = await fetch(`/api/orders/${orderId}`, { cache: "no-store" });
+      const guestQuery = guestToken
+        ? `?guestToken=${encodeURIComponent(guestToken)}`
+        : "";
+      const response = await fetch(`/api/orders/${orderId}${guestQuery}`, { cache: "no-store" });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Order could not be found.");
 
@@ -115,7 +123,7 @@ function SuccessContent() {
       setError(err instanceof Error ? err.message : "Order could not be loaded.");
       setStatus("error");
     }
-  }, [clearCart, orderIdParam, sessionId]);
+  }, [clearCart, guestToken, orderIdParam, sessionId]);
 
   useEffect(() => {
     loadOrder();
@@ -136,8 +144,8 @@ function SuccessContent() {
         <AlertTriangle className="mx-auto mb-4 h-12 w-12 text-red-600" />
         <h1 className="mb-2 text-2xl font-bold">Order not found</h1>
         <p className="mb-6 text-gray-600">{error}</p>
-        <Link href="/dashboard/orders" className="inline-flex rounded-md bg-primary px-5 py-3 font-medium text-white hover:bg-primary-dark">
-          View my orders
+        <Link href={guestToken ? "/" : "/dashboard/orders"} className="inline-flex rounded-md bg-primary px-5 py-3 font-medium text-white hover:bg-primary-dark">
+          {guestToken ? "Return home" : "View my orders"}
         </Link>
       </div>
     );
@@ -240,7 +248,7 @@ function SuccessContent() {
               const unit = item.PRODUCT_SELL_PRICE || item.product?.PRODUCT_PRICE || 0;
               return (
                 <tr key={item.BUSINESS_ORDER_DETAIL_ID} className="grid grid-cols-2 gap-2 py-3 sm:table-row">
-                  <td className="col-span-2 font-medium sm:table-cell sm:py-3">{item.product?.TITLE || "Product"}</td>
+                  <td className="col-span-2 font-medium sm:table-cell sm:py-3">{item.product?.TITLE || "Custom item"}</td>
                   <td className="flex justify-between sm:table-cell"><span className="text-gray-500 sm:hidden">Quantity</span>{quantity}</td>
                   <td className="flex justify-between sm:table-cell"><span className="text-gray-500 sm:hidden">Unit price</span>{formatCHF(unit)}</td>
                   <td className="col-span-2 flex justify-between font-semibold sm:table-cell sm:text-right"><span className="text-gray-500 sm:hidden">Subtotal</span>{formatCHF(item.PRODUCT_PRICE || unit * quantity)}</td>
@@ -252,9 +260,11 @@ function SuccessContent() {
       </section>
 
       <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
-        <Link href="/dashboard/orders" className="inline-flex justify-center rounded-md bg-primary px-5 py-3 font-medium text-white hover:bg-primary-dark">
-          View my orders
-        </Link>
+        {!guestToken && (
+          <Link href="/dashboard/orders" className="inline-flex justify-center rounded-md bg-primary px-5 py-3 font-medium text-white hover:bg-primary-dark">
+            View my orders
+          </Link>
+        )}
         <Link href={restaurantHref} className="inline-flex justify-center rounded-md border border-gray-300 bg-white px-5 py-3 font-medium text-gray-700 hover:bg-gray-50">
           Continue browsing
         </Link>

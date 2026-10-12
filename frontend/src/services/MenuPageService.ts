@@ -102,6 +102,7 @@ type MenuCardSchedule = {
   REPEAT_WEEKLY: number | null;
   ACTIVE_DAYS_JSON: string | null;
   IS_UNLIMITED: number | null;
+  SALES_CHANNEL: string | null;
 };
 
 async function activeMenuCards(businessId: number) {
@@ -114,7 +115,8 @@ async function activeMenuCards(businessId: number) {
       STATUS,
       REPEAT_WEEKLY,
       ACTIVE_DAYS_JSON,
-      IS_UNLIMITED
+      IS_UNLIMITED,
+      SALES_CHANNEL
     FROM business_food_menu_card
     WHERE BUSINESS_ID = ${businessId}
     ORDER BY TITLE ASC
@@ -124,7 +126,10 @@ async function activeMenuCards(businessId: number) {
     .toLocaleDateString("en-US", { weekday: "long" })
     .toLowerCase();
 
-  return cards.filter((card) => isActiveToday(card, today, weekday));
+  return cards.filter(
+    (card) =>
+      card.SALES_CHANNEL !== "pos" && isActiveToday(card, today, weekday)
+  );
 }
 
 function isActiveToday(card: MenuCardSchedule, today: Date, weekday: string) {

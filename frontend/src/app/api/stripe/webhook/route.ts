@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 import { PAYMENT_DONE } from "@/lib/order";
+import { releaseExpiredStripeOrderInventory } from "@/lib/inventory";
 
 export const runtime = "nodejs";
 
@@ -14,8 +15,12 @@ const intentId = (value: string | Stripe.PaymentIntent | null) =>
   typeof value === "string" ? value : value?.id ?? null;
 
 async function markBySession(session: Stripe.Checkout.Session) {
+  if (session.payment_status !== "paid") return;
   await prisma.business_order.updateMany({
     where: {
+      PAYMENT_MODE: "stripe",
+      PAYMENT_DONE: { in: [PAYMENT_DONE.pending, PAYMENT_DONE.failed, PAYMENT_DONE.paid] },
+      INVENTORY_RELEASED_DATETIME: null,
       OR: [
         { STRIPE_CHECKOUT_SESSION_ID: session.id },
         { BUSINESS_ORDER_ID: Number(session.metadata?.orderId || 0) },
@@ -32,6 +37,13 @@ async function markBySession(session: Stripe.Checkout.Session) {
 async function markByPaymentIntent(paymentIntent: Stripe.PaymentIntent, paymentDone: number) {
   await prisma.business_order.updateMany({
     where: {
+      PAYMENT_MODE: "stripe",
+      PAYMENT_DONE: paymentDone === PAYMENT_DONE.paid
+        ? { in: [PAYMENT_DONE.pending, PAYMENT_DONE.failed, PAYMENT_DONE.paid] }
+        : PAYMENT_DONE.pending,
+      ...(paymentDone === PAYMENT_DONE.paid
+        ? { INVENTORY_RELEASED_DATETIME: null }
+        : {}),
       OR: [
         { STRIPE_PAYMENT_INTENT_ID: paymentIntent.id },
         { BUSINESS_ORDER_ID: Number(paymentIntent.metadata?.orderId || 0) },
@@ -43,6 +55,24 @@ async function markByPaymentIntent(paymentIntent: Stripe.PaymentIntent, paymentD
       STRIPE_PAYMENT_INTENT_ID: paymentIntent.id,
     },
   });
+}
+
+async function releaseBySession(session: Stripe.Checkout.Session) {
+  const metadataOrderId = Number(session.metadata?.orderId || 0);
+  const order = Number.isInteger(metadataOrderId) && metadataOrderId > 0
+    ? await prisma.business_order.findUnique({
+        where: { BUSINESS_ORDER_ID: metadataOrderId },
+        select: { BUSINESS_ORDER_ID: true },
+      })
+    : await prisma.business_order.findFirst({
+        where: { STRIPE_CHECKOUT_SESSION_ID: session.id },
+        select: { BUSINESS_ORDER_ID: true },
+      });
+  if (!order) return;
+
+  await prisma.$transaction((tx) =>
+    releaseExpiredStripeOrderInventory(tx, order.BUSINESS_ORDER_ID)
+  );
 }
 
 export async function POST(req: NextRequest) {
@@ -65,6 +95,8 @@ export async function POST(req: NextRequest) {
 
   if (event.type === "checkout.session.completed") {
     await markBySession(event.data.object as Stripe.Checkout.Session);
+  } else if (event.type === "checkout.session.expired") {
+    await releaseBySession(event.data.object as Stripe.Checkout.Session);
   } else if (event.type === "payment_intent.succeeded") {
     await markByPaymentIntent(event.data.object as Stripe.PaymentIntent, PAYMENT_DONE.paid);
   } else if (event.type === "payment_intent.payment_failed") {

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { PAYMENT_DONE } from "@/lib/order";
 
 type InventoryItem = {
   id: string | number;
@@ -6,6 +7,10 @@ type InventoryItem = {
 };
 
 type InventoryDb = Pick<typeof prisma, "business_product">;
+type OrderInventoryDb = Pick<
+  typeof prisma,
+  "business_order" | "business_order_detail" | "business_product"
+>;
 
 export async function validateCartInventory(items: InventoryItem[], db: InventoryDb = prisma) {
   const productIds = Array.from(new Set(items.map((item) => Number(item.id))));
@@ -19,6 +24,8 @@ export async function validateCartInventory(items: InventoryItem[], db: Inventor
       BUSINESS_PRODUCT_ID: true,
       BUSINESS_ID: true,
       TITLE: true,
+      PIC: true,
+      PRODUCT_PRICE: true,
       TRACK_INVENTORY: true,
       INVENTORY_AVAILABLE: true,
     },
@@ -35,7 +42,9 @@ export async function validateCartInventory(items: InventoryItem[], db: Inventor
     const quantity = Number(item.quantity ?? 0);
     const available = Number(product?.INVENTORY_AVAILABLE ?? 0);
 
-    if (!product || quantity <= 0) throw new Error("Invalid cart item");
+    if (!product || !Number.isInteger(quantity) || quantity <= 0 || quantity > 999) {
+      throw new Error("Invalid cart item");
+    }
     if (Number(product.TRACK_INVENTORY ?? 0) === 1 && quantity > available) {
       throw new Error(`Only ${available} left in stock for ${product.TITLE}.`);
     }
@@ -77,4 +86,57 @@ export async function reserveCartInventory(db: InventoryDb, items: InventoryItem
       );
     }
   }
+}
+
+export async function releaseExpiredStripeOrderInventory(
+  db: OrderInventoryDb,
+  orderId: number
+) {
+  const claimed = await db.business_order.updateMany({
+    where: {
+      BUSINESS_ORDER_ID: orderId,
+      PAYMENT_MODE: "stripe",
+      PAYMENT_DONE: { in: [PAYMENT_DONE.pending, PAYMENT_DONE.failed] },
+      INVENTORY_RELEASED_DATETIME: null,
+    },
+    data: {
+      PAYMENT_DONE: PAYMENT_DONE.failed,
+      INVENTORY_RELEASED_DATETIME: new Date(),
+    },
+  });
+  if (claimed.count !== 1) return false;
+
+  const details = await db.business_order_detail.findMany({
+    where: { BUSINESS_ORDER_ID: orderId },
+    select: { BUSINESS_PRODUCT_ID: true, ORDER_QUANTITY: true },
+  });
+
+  for (const detail of details) {
+    const productId = detail.BUSINESS_PRODUCT_ID;
+    const quantity = Number(detail.ORDER_QUANTITY ?? 0);
+    if (!productId || quantity <= 0) continue;
+
+    const product = await db.business_product.findFirst({
+      where: { BUSINESS_PRODUCT_ID: productId, TRACK_INVENTORY: 1 },
+      select: { BUSINESS_PRODUCT_ID: true },
+    });
+    if (!product) continue;
+
+    const released = await db.business_product.updateMany({
+      where: {
+        BUSINESS_PRODUCT_ID: productId,
+        TRACK_INVENTORY: 1,
+        INVENTORY_COMMITED: { gte: quantity },
+      },
+      data: {
+        INVENTORY_AVAILABLE: { increment: quantity },
+        INVENTORY_COMMITED: { decrement: quantity },
+      },
+    });
+    if (released.count !== 1) {
+      throw new Error(`Reserved inventory is inconsistent for product ${productId}.`);
+    }
+  }
+
+  return true;
 }

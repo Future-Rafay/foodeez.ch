@@ -9,7 +9,7 @@ export async function GET(
   const businessId = Number(params.businessId);
   if (!businessId) return NextResponse.json({ error: "Invalid business ID" }, { status: 400 });
 
-  const [settings, business] = await Promise.all([
+  const [settings, business, cashSettings] = await Promise.all([
     prisma.business_settings.findUnique({ where: { BUSINESS_ID: businessId } }),
     prisma.business.findUnique({
       where: { BUSINESS_ID: businessId },
@@ -21,10 +21,24 @@ export async function GET(
         ADDRESS_COUNTRY: true,
       },
     }),
+    prisma.$queryRaw<
+      Array<{
+        CASH_ON_DELIVERY_ENABLED: number | null;
+        CASH_ON_PICKUP_ENABLED: number | null;
+      }>
+    >`
+      SELECT CASH_ON_DELIVERY_ENABLED, CASH_ON_PICKUP_ENABLED
+      FROM business_settings
+      WHERE BUSINESS_ID = ${businessId}
+      LIMIT 1
+    `,
   ]);
 
   return NextResponse.json({
     ...getFulfillmentOptions(settings),
+    cashOnDeliveryEnabled:
+      cashSettings[0]?.CASH_ON_DELIVERY_ENABLED === 1,
+    cashOnPickupEnabled: cashSettings[0]?.CASH_ON_PICKUP_ENABLED === 1,
     deliveryZones: getDeliveryZonesDisplay(settings),
     restaurantAddress: business
       ? {

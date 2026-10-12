@@ -7,10 +7,13 @@ import { useCartStore } from "@/stores/cartStore";
 import { getStripe } from "@/lib/stripe";
 import { formatCHF, ORDER_TYPE } from "@/lib/order";
 import type { DeliveryQuote, DeliveryZoneDisplay } from "@/lib/fulfillment";
-import LoginRequiredModal from "@/components/core/LoginRequiredModal";
+import {
+  getAvailablePaymentMethods,
+  paymentMethodLabel,
+  type PaymentMethod,
+} from "@/lib/payment-options";
 
 type OrderType = "delivery" | "pickup";
-type PaymentMethod = "card" | "cash_on_delivery" | "pay_at_pickup";
 
 type CheckoutFormData = {
   firstName: string;
@@ -49,6 +52,8 @@ type FulfillmentOptions = {
     country?: string | null;
   } | null;
   deliveryZones?: DeliveryZoneDisplay[];
+  cashOnDeliveryEnabled: boolean;
+  cashOnPickupEnabled: boolean;
 };
 
 const emptyQuote: DeliveryQuote = {
@@ -63,7 +68,7 @@ export default function CheckoutForm({
   onSummaryChange?: (summary: CheckoutSummaryState) => void;
 }) {
   const router = useRouter();
-  const { data: session, status } = useSession();
+  const { data: session } = useSession();
   const { items, totalPrice, clearCart } = useCartStore();
   const businessIds = useMemo(
     () => Array.from(new Set(items.map((item) => item.businessId).filter(Boolean))),
@@ -82,7 +87,7 @@ export default function CheckoutForm({
   const [orderType, setOrderType] = useState<OrderType | "">("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card");
   const [quote, setQuote] = useState<DeliveryQuote>(emptyQuote);
-  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [checkoutRequestId, setCheckoutRequestId] = useState("");
   const [formData, setFormData] = useState<CheckoutFormData>({
     firstName: "",
     lastName: "",
@@ -105,28 +110,53 @@ export default function CheckoutForm({
   }, [session]);
 
   useEffect(() => {
+    setCheckoutRequestId(crypto.randomUUID());
+  }, [items]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setOptions(null);
+    setOrderType("");
     if (!businessId) {
       setOptionsLoading(false);
       return;
     }
 
     setOptionsLoading(true);
-    fetch(`/api/businesses/${businessId}/fulfillment-options`)
+    fetch(`/api/businesses/${businessId}/fulfillment-options`, { signal: controller.signal })
       .then((res) => {
         if (!res.ok) throw new Error("Could not load ordering options.");
         return res.json();
       })
       .then((data: FulfillmentOptions) => {
+        if (controller.signal.aborted) return;
         setOptions(data);
         setOrderType(data.deliveryEnabled ? ORDER_TYPE.delivery : data.pickupEnabled ? ORDER_TYPE.pickup : "");
       })
-      .catch((err) => setError(err instanceof Error ? err.message : "Could not load ordering options."))
-      .finally(() => setOptionsLoading(false));
-  }, [businessId, totalPrice]);
+      .catch((err) => {
+        if (!controller.signal.aborted) {
+          setError(err instanceof Error ? err.message : "Could not load ordering options.");
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setOptionsLoading(false);
+      });
+    return () => controller.abort();
+  }, [businessId]);
+
+  const availablePaymentMethods = useMemo(
+    () =>
+      orderType && options
+        ? getAvailablePaymentMethods(orderType, options)
+        : (["card"] as PaymentMethod[]),
+    [options, orderType]
+  );
 
   useEffect(() => {
-    setPaymentMethod(orderType === ORDER_TYPE.pickup ? "pay_at_pickup" : "card");
-  }, [orderType]);
+    if (!availablePaymentMethods.includes(paymentMethod)) {
+      setPaymentMethod("card");
+    }
+  }, [availablePaymentMethods, paymentMethod]);
 
   useEffect(() => {
     if (orderType !== ORDER_TYPE.delivery || !businessId || !formData.zip.trim()) {
@@ -135,6 +165,7 @@ export default function CheckoutForm({
     }
 
     const controller = new AbortController();
+    setQuote(emptyQuote);
     setQuoteLoading(true);
     fetch(`/api/businesses/${businessId}/delivery-quote`, {
       method: "POST",
@@ -143,13 +174,17 @@ export default function CheckoutForm({
       signal: controller.signal,
     })
       .then((res) => res.json())
-      .then((data: DeliveryQuote) => setQuote(data))
+      .then((data: DeliveryQuote) => {
+        if (!controller.signal.aborted) setQuote(data);
+      })
       .catch((err) => {
         if (err.name !== "AbortError") {
           setQuote({ ...emptyQuote, reason: "Could not check delivery for this postal code." });
         }
       })
-      .finally(() => setQuoteLoading(false));
+      .finally(() => {
+        if (!controller.signal.aborted) setQuoteLoading(false);
+      });
 
     return () => controller.abort();
   }, [businessId, formData.zip, orderType, totalPrice]);
@@ -187,11 +222,6 @@ export default function CheckoutForm({
     e.preventDefault();
     setError("");
 
-    if (status !== "authenticated") {
-      setShowLoginModal(true);
-      return;
-    }
-
     if (stockIssue) {
       setError(`Only ${stockIssue.inventoryAvailable ?? 0} left in stock for ${stockIssue.name}.`);
       return;
@@ -208,6 +238,7 @@ export default function CheckoutForm({
           businessId,
           orderType,
           paymentMethod,
+          checkoutRequestId: checkoutRequestId || crypto.randomUUID(),
           shippingCharges: shippingCharge,
           customerInfo: {
             ...formData,
@@ -215,7 +246,13 @@ export default function CheckoutForm({
         }),
       });
 
-      if (!response.ok) throw new Error(await response.text());
+      if (!response.ok) {
+        const message = await response.text();
+        if (response.status === 409 && message.includes("checkout expired")) {
+          setCheckoutRequestId(crypto.randomUUID());
+        }
+        throw new Error(message);
+      }
 
       const data = await response.json();
       if (data.sessionId) {
@@ -237,7 +274,6 @@ export default function CheckoutForm({
   };
 
   return (
-    <>
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="bg-white p-6 rounded-lg shadow-md space-y-4">
         <h2 className="text-xl font-semibold">How would you like your order?</h2>
@@ -374,16 +410,7 @@ export default function CheckoutForm({
 
       <div className="bg-white p-6 rounded-lg shadow-md space-y-3">
         <h2 className="text-xl font-semibold">Payment</h2>
-        {(isDelivery
-          ? [
-              ["card", "Card"],
-              ["cash_on_delivery", "Cash on delivery"],
-            ]
-          : [
-              ["pay_at_pickup", "Pay at pickup"],
-              ["card", "Card"],
-            ]
-        ).map(([value, label]) => (
+        {availablePaymentMethods.map((value) => (
           <label key={value} className="flex items-center gap-3 text-sm">
             <input
               type="radio"
@@ -393,12 +420,12 @@ export default function CheckoutForm({
               onChange={() => setPaymentMethod(value as PaymentMethod)}
               className="h-4 w-4 text-primary focus:ring-primary"
             />
-            {label}
+            {paymentMethodLabel(value)}
           </label>
         ))}
       </div>
 
-      {error && <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md p-3">{error}</p>}
+      {error && <p role="alert" className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md p-3">{error}</p>}
       {stockIssue && (
         <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md p-3">
           Only {stockIssue.inventoryAvailable ?? 0} left in stock for {stockIssue.name}.
@@ -415,13 +442,5 @@ export default function CheckoutForm({
         </button>
       </div>
     </form>
-    <LoginRequiredModal
-      isOpen={showLoginModal}
-      onClose={() => setShowLoginModal(false)}
-      title="Log in to continue"
-      message="Please log in to place your order."
-      callbackUrl="/cart?checkout=1"
-    />
-    </>
   );
 }

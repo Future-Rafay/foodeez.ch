@@ -4,10 +4,11 @@ import ContactEmail from '@/emails/ContactEmail';
 import ReservationEmail from '@/emails/ReservationEmail';
 import NewsletterEmail from '@/emails/NewsletterEmail';
 import PasswordResetEmail from '@/emails/PasswordResetEmail';
+import GuestOrderConfirmationEmail, { type GuestOrderConfirmationData } from '@/emails/GuestOrderConfirmationEmail';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-type EmailTemplateType = 'contact' | 'reservation' | 'newsletter' | 'passwordReset';
+type EmailTemplateType = 'contact' | 'reservation' | 'newsletter' | 'passwordReset' | 'guestOrderConfirmation';
 
 interface ContactFormData {
   name: string;
@@ -39,7 +40,7 @@ interface PasswordResetData {
 export const sendEmail = async (
   to: string,
   template: EmailTemplateType,
-  data: ContactFormData | ReservationFormData | NewsletterData | PasswordResetData
+  data: ContactFormData | ReservationFormData | NewsletterData | PasswordResetData | GuestOrderConfirmationData
 ) => {
   try {
     let emailComponent;
@@ -61,6 +62,10 @@ export const sendEmail = async (
       case 'passwordReset':
         emailComponent = PasswordResetEmail(data as PasswordResetData);
         subject = 'Reset Your Password';
+        break;
+      case 'guestOrderConfirmation':
+        emailComponent = GuestOrderConfirmationEmail(data as GuestOrderConfirmationData);
+        subject = `Your Foodeez order ${(data as GuestOrderConfirmationData).orderNumber}`;
         break;
       default:
         throw new Error('Invalid email template type');

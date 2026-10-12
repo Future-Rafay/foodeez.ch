@@ -105,7 +105,28 @@ The project is a Next.js 14 application with a clear separation of concerns.
 - Manual SQL for Stripe order fields lives at `docs/sql/add_stripe_order_payment_fields.sql`; run it in MySQL Workbench, then run `npx prisma db pull` and `npx prisma generate` from `frontend`. Do not use `prisma migrate` for this change.
 - Stripe checkout is created in `frontend/src/app/api/checkout/route.ts`; card orders are inserted once with `PAYMENT_MODE = "stripe"` and `PAYMENT_DONE = 0`, then updated with `STRIPE_CHECKOUT_SESSION_ID` and any available `STRIPE_PAYMENT_INTENT_ID`.
 - Stripe webhook handling lives at `frontend/src/app/api/stripe/webhook/route.ts` and verifies signatures with `STRIPE_WEBHOOK_SECRET`; it handles `checkout.session.completed`, `payment_intent.succeeded`, and `payment_intent.payment_failed` without creating duplicate orders.
+- Stripe Checkout expiration is also handled by the webhook and `/api/order/verify`. Failed session creation and expired sessions claim `business_order.INVENTORY_RELEASED_DATETIME` and release reserved stock exactly once; paid updates must not revive an order whose inventory was released.
 - Payment state uses `PAYMENT_DONE`: `0` pending/unpaid, `1` paid, `2` refunded, `3` failed. Refund display fields are `ORDER_REFUND_AMOUNT`, `STRIPE_REFUND_STATUS`, and `STRIPE_REFUNDED_DATETIME`.
+
+## Checkout Payment and Guest Order Notes
+
+- Delivery is opt-in: absent or null `business_settings.DELIVERY_ENABLED` is off for public options and checkout quotes. The shared column default is `0` in both Prisma schemas and is changed by the admin repository's manual SQL migration; existing `1` values remain enabled.
+
+- Public fulfillment options expose restaurant-level Cash on Delivery and Cash on Pickup flags. Card is always available; COD is delivery-only and stored as `cash_on_delivery`, while Cash on Pickup is pickup-only and stored as `pay_at_pickup`.
+- `/api/checkout` must enforce enabled payment methods, product prices, fulfillment, delivery fees, inventory, and totals from the database. The checkout request id prevents duplicate orders and reservations on retries.
+- New checkout requests must also confirm each product appears in the currently active online menu through `getBusinessMenuWithProducts`; an active product on a POS-only menu is not orderable by submitting its ID directly. Retries of an already-created card order use its persisted detail rows.
+- Keep the checkout request id after uncertain server or network failures so retrying can recover the same order. Stripe callback and verification updates must not downgrade paid or refunded orders. If Stripe session creation has an uncertain outcome, retain the reservation for retry/reconciliation rather than releasing stock while a payable session might exist.
+- New guest checkout attempts are limited by hashed IP and normalized-email fixed windows stored in `checkout_rate_limit`; retries of an existing checkout request do not consume another attempt.
+- Checkout, guest email, and Stripe redirect URLs must use the configured `NEXT_PUBLIC_APP_URL` or `NEXTAUTH_URL` through `frontend/src/lib/public-app-url.ts`; never trust the incoming `Origin` header for public links.
+- Guest orders use `VISITOR_ID = 0` and are never included in visitor-zero history or notification queries. Registered checkout continues to resolve the signed-in visitor account.
+- Guest access is limited to one order through the HMAC-SHA256 token in `frontend/src/lib/guest-order.ts`, bound to order id, normalized guest email, and creation time. Do not replace it with sequential-id-plus-email lookup or expose guest history.
+- A supplied guest token is evaluated before signed-in account access so a guest tracking link remains usable in a browser that is signed into another account. Stripe success URLs must always call `/api/order/verify`, even when they also contain an order id.
+- The guest success route is noindex and sends its token only to the guest order endpoint. Guest confirmation email failure must remain non-transactional and must not invalidate or duplicate the order.
+- The guest success layout uses `referrer: "no-referrer"`; preserve it so token-bearing tracking URLs are not sent through the `Referer` header.
+
+## Menu Channel Notes
+
+- Customer menus must filter out `SALES_CHANNEL = 'pos'`; only `online` and `both` active menu cards render on the website. The shared schema/migration is maintained from the admin repository and this repository's Prisma schema must remain identical for the shared fields.
 
 ## Customer Notification Notes
 
@@ -118,6 +139,7 @@ The project is a Next.js 14 application with a clear separation of concerns.
 
 - Customer-facing order numbers must use `getDisplayOrderNumber(order)` from `frontend/src/lib/order.ts`: prefer `ORDER_NUMBER` such as `FDZ.000001`, and only fall back to formatted `BUSINESS_ORDER_ID`.
 - Customer checkout order creation in `frontend/src/app/api/checkout/route.ts` must populate `business_order.ORDER_NUMBER` with `generateOrderNumberFromId(orderId)` so new web orders display the DB order number column.
+- `business_order.BUSINESS_ORDER_ID` and `business_order_detail.BUSINESS_ORDER_DETAIL_ID` are database auto-increment keys. Order creation must omit both IDs, then derive `ORDER_NUMBER` from the returned order ID; never use `MAX(id) + 1`.
 - Customer ETA displays must use `getDisplayEta(order)` / `formatEtaTimeOnly()` from `frontend/src/lib/order.ts`, use 24-hour time, and round upward to the next quarter-hour, for example `04:23` becomes `04:30` and `05:49` becomes `06:00`; when `DELIVERY_ET` is missing, compute from `CREATION_DATETIME` plus the business default prep minutes before rounding.
 - The customer cart store is `frontend/src/stores/cartStore.ts`; it persists `business` metadata and cart items with `businessId`, `businessSlug`, and `businessName`.
 - Adding a product from a different restaurant returns a mixed-business result from `addToCart`; the menu card shows the `Start a new order?` confirmation before clearing the cart.
@@ -144,3 +166,4 @@ The project is a Next.js 14 application with a clear separation of concerns.
 - `frontend/next.config.mjs` owns image formats, remote image hosts, production browser source maps, and security headers. The CSP must allow the app's current third-party needs: Google Maps, Stripe, Google fonts, WordPress/blog images, S3/media, and other configured image CDNs.
 - `frontend/package.json` includes the modern `browserslist` baseline used to avoid unnecessary legacy JavaScript transforms. Keep it aligned with the browsers the product actually supports.
 - Do not change global brand colors to satisfy contrast audits without explicit product approval. Prefer local accessibility treatments that preserve the Foodeez brand palette.
+- Run focused checkout/security regression coverage with `npm.cmd test`; it covers checkout validation, payment eligibility, guest-token integrity, canonical URLs, hashed rate limits, one-time inventory release, and non-failing guest email delivery.

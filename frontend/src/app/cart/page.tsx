@@ -66,7 +66,7 @@ function OrderSummary({ items, totalItems, checkoutSummary, showPayment = false 
         {showPayment && checkoutSummary?.paymentMethod && (
           <div className="flex justify-between">
             <span>Payment</span>
-            <span>{checkoutSummary.paymentMethod === "card" ? "Card" : checkoutSummary.paymentMethod === "cash_on_delivery" ? "Cash on delivery" : "Pay at pickup"}</span>
+            <span>{checkoutSummary.paymentMethod === "card" ? "Card" : checkoutSummary.paymentMethod === "cash_on_delivery" ? "Cash on Delivery" : "Cash on Pickup"}</span>
           </div>
         )}
         {checkoutSummary?.zoneName && (

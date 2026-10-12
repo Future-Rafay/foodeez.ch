@@ -61,7 +61,7 @@ const list = (value: unknown) =>
         .filter(Boolean);
 
 export const getFulfillmentOptions = (settings?: SettingsLike | null) => ({
-  deliveryEnabled: enabled(settings?.DELIVERY_ENABLED, true),
+  deliveryEnabled: enabled(settings?.DELIVERY_ENABLED),
   pickupEnabled: enabled(settings?.PICKUP_ENABLED),
   pickupInstructions: settings?.PICKUP_INSTRUCTIONS ?? "",
   defaultPickupPrepMinutes: settings?.DEFAULT_PICKUP_PREP_MINUTES ?? 20,
@@ -98,7 +98,7 @@ export const getDeliveryQuote = (
   postalCode: string,
   cartTotal: number
 ): DeliveryQuote => {
-  if (!enabled(settings?.DELIVERY_ENABLED, true)) {
+  if (!enabled(settings?.DELIVERY_ENABLED)) {
     return { available: false, reason: "Delivery is currently unavailable.", deliveryPrice: 0, freeDeliveryApplied: false };
   }
 

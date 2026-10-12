@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 import { PAYMENT_DONE } from "@/lib/order";
+import { releaseExpiredStripeOrderInventory } from "@/lib/inventory";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-07-30.basil",
@@ -36,19 +37,35 @@ export async function GET(req: NextRequest) {
           ? PAYMENT_DONE.failed
           : PAYMENT_DONE.pending;
 
-    await prisma.business_order.update({
+    if (session.status === "expired") {
+      await prisma.$transaction((tx) =>
+        releaseExpiredStripeOrderInventory(tx, order.BUSINESS_ORDER_ID)
+      );
+    } else if (paymentDone === PAYMENT_DONE.paid) {
+      await prisma.business_order.updateMany({
+        where: {
+          BUSINESS_ORDER_ID: order.BUSINESS_ORDER_ID,
+          PAYMENT_MODE: "stripe",
+          PAYMENT_DONE: { in: [PAYMENT_DONE.pending, PAYMENT_DONE.failed, PAYMENT_DONE.paid] },
+          INVENTORY_RELEASED_DATETIME: null,
+        },
+        data: {
+          PAYMENT_DONE: paymentDone,
+          PAYMENT_MODE: "stripe",
+          STRIPE_PAYMENT_INTENT_ID: intentId || order.STRIPE_PAYMENT_INTENT_ID,
+        },
+      });
+    }
+
+    const currentOrder = await prisma.business_order.findUnique({
       where: { BUSINESS_ORDER_ID: order.BUSINESS_ORDER_ID },
-      data: {
-        PAYMENT_DONE: paymentDone,
-        PAYMENT_MODE: "stripe",
-        STRIPE_PAYMENT_INTENT_ID: intentId || order.STRIPE_PAYMENT_INTENT_ID,
-      },
+      select: { PAYMENT_DONE: true },
     });
 
     return NextResponse.json({
       success: true,
       orderId: order.BUSINESS_ORDER_ID,
-      paymentDone,
+      paymentDone: currentOrder?.PAYMENT_DONE ?? paymentDone,
       paymentIntentId: intentId,
     });
   } catch (error) {
