@@ -9,7 +9,6 @@ import CheckoutForm, { CheckoutSummaryState } from "@/components/checkout/Checko
 import { useRouter } from "next/navigation";
 import ProductDetailsModal from "@/components/menu/ProductDetailsModal";
 import { useSession } from "next-auth/react";
-import LoginRequiredModal from "@/components/core/LoginRequiredModal";
 import { calculateCartTotals } from "@/lib/cartTotals";
 import { formatCHF, ORDER_TYPE } from "@/lib/orderStatus";
 import { toast } from "react-hot-toast";
@@ -145,7 +144,6 @@ export default function CartPage() {
   const { status } = useSession();
   const [isClient, setIsClient] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
-  const [showLoginModal, setShowLoginModal] = useState(false);
   const [checkoutSummary, setCheckoutSummary] = useState<CheckoutSummaryState | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
   const router = useRouter();
@@ -160,10 +158,10 @@ export default function CartPage() {
   }, []);
 
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("checkout") === "1" && status === "authenticated") {
+    if (new URLSearchParams(window.location.search).get("checkout") === "1") {
       setShowCheckout(true);
     }
-  }, [status]);
+  }, []);
 
   const handleBackToCart = () => {
     setShowCheckout(false);
@@ -173,10 +171,6 @@ export default function CartPage() {
   const handleCheckoutClick = () => {
     if (hasStockIssues) {
       toast.error("Please fix stock issues before checkout.");
-      return;
-    }
-    if (status !== "authenticated") {
-      setShowLoginModal(true);
       return;
     }
     setShowCheckout(true);
@@ -362,6 +356,7 @@ export default function CartPage() {
 
             {status === "unauthenticated" && (
               <div className="mt-4 text-sm text-center text-gray-600">
+                <p>No account needed to place an order.</p>
                 <p>Have an account?{' '}
                   <Link href="/auth/signin?callbackUrl=/cart" className="text-primary hover:underline">
                     Sign in
@@ -381,13 +376,6 @@ export default function CartPage() {
           isInCart={isInCart(selectedProduct.BUSINESS_PRODUCT_ID.toString())}
         />
       )}
-      <LoginRequiredModal
-        isOpen={showLoginModal}
-        onClose={() => setShowLoginModal(false)}
-        title="Log in to continue"
-        message="Please log in to place your order."
-        callbackUrl="/cart?checkout=1"
-      />
     </div>
   );
 }

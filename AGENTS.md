@@ -110,6 +110,7 @@ The project is a Next.js 14 application with a clear separation of concerns.
 
 ## Checkout Payment and Guest Order Notes
 
+- The cart's Proceed to Checkout action and `/cart?checkout=1` must open checkout for guests as well as signed-in customers; sign-in remains optional for faster prefill.
 - Delivery is opt-in: absent or null `business_settings.DELIVERY_ENABLED` is off for public options and checkout quotes. The shared column default is `0` in both Prisma schemas and is changed by the admin repository's manual SQL migration; existing `1` values remain enabled.
 
 - Public fulfillment options expose restaurant-level Cash on Delivery and Cash on Pickup flags. Card is always available; COD is delivery-only and stored as `cash_on_delivery`, while Cash on Pickup is pickup-only and stored as `pay_at_pickup`.
