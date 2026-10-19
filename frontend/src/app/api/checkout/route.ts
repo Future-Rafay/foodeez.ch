@@ -19,6 +19,8 @@ import {
   validateCartInventory,
 } from "@/lib/inventory";
 import { sendEmail } from "@/services/EmailService";
+import { cents, chf, type AppliedDiscount } from "@/lib/discounts";
+import { resolveOnlineDiscount } from "@/lib/online-discounts";
 import { getBusinessMenuWithProducts } from "@/services/MenuPageService";
 
 export const runtime = "nodejs";
@@ -52,6 +54,13 @@ type ExistingOrder = {
   PAYMENT_MODE: string | null;
   ORDER_TYPE: string;
   ORDER_GROSS_AMOUNT: unknown;
+  ORDER_DISCOUNT_AMOUNT: unknown;
+  DISCOUNT_ID: number | null;
+  DISCOUNT_NAME: string | null;
+  DISCOUNT_TYPE: string | null;
+  DISCOUNT_VALUE: unknown;
+  DISCOUNT_CODE: string | null;
+  ORDER_FINAL_AMOUNT: unknown;
   SHIPPING_CHARGES: unknown;
   INVENTORY_RELEASED_DATETIME: Date | null;
   PAYMENT_DONE: number | null;
@@ -73,6 +82,8 @@ async function findByRequestId(requestId: string) {
     SELECT BUSINESS_ORDER_ID, BUSINESS_ID, VISITOR_ID, EMAIL_ADDRESS,
            CREATION_DATETIME, ORDER_NUMBER, STRIPE_CHECKOUT_SESSION_ID,
            PAYMENT_MODE, ORDER_TYPE, ORDER_GROSS_AMOUNT, SHIPPING_CHARGES,
+           ORDER_DISCOUNT_AMOUNT, DISCOUNT_ID, DISCOUNT_NAME, DISCOUNT_TYPE,
+           DISCOUNT_VALUE, DISCOUNT_CODE, ORDER_FINAL_AMOUNT,
            INVENTORY_RELEASED_DATETIME, PAYMENT_DONE
     FROM business_order
     WHERE CHECKOUT_REQUEST_ID = ${requestId}
@@ -90,6 +101,7 @@ async function createUnpaidOrder(params: {
   requestId: string;
   shippingCharges: number;
   totalAmount: number;
+  discount: AppliedDiscount | null;
   visitorId: number;
 }) {
   const existing = await findByRequestId(params.requestId);
@@ -126,10 +138,16 @@ async function createUnpaidOrder(params: {
           PHONE_NUMBER: params.customerInfo.phone.trim(),
           EMAIL_ADDRESS: normalizeEmail(params.customerInfo.email),
           ORDER_GROSS_AMOUNT: params.totalAmount,
-          ORDER_NET_AMOUNT: params.totalAmount,
-          ORDER_AMOUNT: params.totalAmount,
+          ORDER_NET_AMOUNT: params.totalAmount - chf(params.discount?.amountCents ?? 0),
+          ORDER_AMOUNT: params.totalAmount - chf(params.discount?.amountCents ?? 0),
+          ORDER_DISCOUNT_AMOUNT: chf(params.discount?.amountCents ?? 0),
+          DISCOUNT_ID: params.discount?.id ?? null,
+          DISCOUNT_NAME: params.discount?.name ?? null,
+          DISCOUNT_TYPE: params.discount?.type ?? null,
+          DISCOUNT_VALUE: params.discount?.value ?? null,
+          DISCOUNT_CODE: params.discount?.code ?? null,
           SHIPPING_CHARGES: params.shippingCharges,
-          ORDER_FINAL_AMOUNT: params.totalAmount + params.shippingCharges,
+          ORDER_FINAL_AMOUNT: params.totalAmount - chf(params.discount?.amountCents ?? 0) + params.shippingCharges,
           CHECKOUT_REQUEST_ID: params.requestId,
         },
       });
@@ -178,12 +196,18 @@ export async function POST(req: NextRequest) {
     checkoutRequestId,
     orderType = ORDER_TYPE.delivery,
     paymentMethod = "card",
+    couponCode,
+    expectedItemsTotalCents,
+    expectedDiscountId,
   } = body as {
     items: CartItem[];
     customerInfo: CustomerInfo;
     checkoutRequestId?: string;
     orderType?: "delivery" | "pickup";
     paymentMethod?: PaymentMethod;
+    couponCode?: unknown;
+    expectedItemsTotalCents?: unknown;
+    expectedDiscountId?: unknown;
   };
 
   if (!Array.isArray(items) || !items.length) {
@@ -364,6 +388,16 @@ export async function POST(req: NextRequest) {
   const totalAmount = resumingCardOrder
     ? Number(existing?.ORDER_GROSS_AMOUNT ?? 0)
     : trustedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const subtotalCents = cents(totalAmount);
+  let appliedDiscount: AppliedDiscount | null = null;
+  if (resumingCardOrder && existing?.DISCOUNT_ID) {
+    appliedDiscount = {
+      id: existing.DISCOUNT_ID, name: existing.DISCOUNT_NAME || "Discount",
+      type: existing.DISCOUNT_TYPE === "fixed" ? "fixed" : "percentage",
+      value: Number(existing.DISCOUNT_VALUE ?? 0), amountCents: cents(Number(existing.ORDER_DISCOUNT_AMOUNT ?? 0)),
+      code: existing.DISCOUNT_CODE,
+    };
+  }
   let shippingCharges = resumingCardOrder
     ? Number(existing?.SHIPPING_CHARGES ?? 0)
     : 0;
@@ -377,6 +411,20 @@ export async function POST(req: NextRequest) {
     shippingCharges = quote.deliveryPrice;
   } else if (!resumingCardOrder && !options.pickupEnabled) {
     return new NextResponse("Pickup is currently unavailable", { status: 400 });
+  }
+  if (!resumingCardOrder) {
+    try {
+      appliedDiscount = (await resolveOnlineDiscount(
+        businessId, subtotalCents, couponCode,
+        paymentMethod === "card" ? Math.max(1, 50 - cents(shippingCharges)) : 1
+      )).applied;
+    } catch (error) {
+      return new NextResponse(error instanceof Error ? error.message : "Discount unavailable.", { status: 409 });
+    }
+    if (Number(expectedItemsTotalCents) !== subtotalCents - (appliedDiscount?.amountCents ?? 0) ||
+      (expectedDiscountId == null ? null : Number(expectedDiscountId)) !== (appliedDiscount?.id ?? null)) {
+      return new NextResponse("Order total changed. Review your discount and try again.", { status: 409 });
+    }
   }
   const missingFields = requiredFields.filter((field) => !String(customerInfo[field] ?? "").trim());
   if (missingFields.length) {
@@ -392,6 +440,9 @@ export async function POST(req: NextRequest) {
   });
   if (!allowedPaymentMethods.includes(paymentMethod)) {
     return new NextResponse("This payment method is not available for the selected order type.", { status: 400 });
+  }
+  if (paymentMethod === "card" && cents(totalAmount - chf(appliedDiscount?.amountCents ?? 0) + shippingCharges) < 50) {
+    return new NextResponse("Card payments require at least CHF 0.50 after discounts.", { status: 409 });
   }
 
   if (
@@ -413,6 +464,7 @@ export async function POST(req: NextRequest) {
       requestId: checkoutRequestId,
       shippingCharges,
       totalAmount,
+      discount: appliedDiscount,
       visitorId,
     });
   } catch (error) {
@@ -423,6 +475,14 @@ export async function POST(req: NextRequest) {
     return new NextResponse("Checkout could not be completed. Please retry.", { status: 503 });
   }
   const order = result.order as ExistingOrder;
+  appliedDiscount = order.DISCOUNT_ID ? {
+    id: order.DISCOUNT_ID,
+    name: order.DISCOUNT_NAME || "Discount",
+    type: order.DISCOUNT_TYPE === "fixed" ? "fixed" : "percentage",
+    value: Number(order.DISCOUNT_VALUE ?? 0),
+    amountCents: cents(Number(order.ORDER_DISCOUNT_AMOUNT ?? 0)),
+    code: order.DISCOUNT_CODE,
+  } : null;
   const tracking = isGuest ? guestTracking(order, origin) : null;
 
   const emailGuest = async (paymentStatus: string) => {
@@ -438,7 +498,8 @@ export async function POST(req: NextRequest) {
           quantity: item.quantity,
           subtotal: `CHF ${(item.price * item.quantity).toFixed(2)}`,
         })),
-        total: `CHF ${(totalAmount + shippingCharges).toFixed(2)}`,
+        discount: appliedDiscount ? { name: appliedDiscount.name, amount: `CHF ${chf(appliedDiscount.amountCents).toFixed(2)}` } : null,
+        total: `CHF ${(totalAmount - chf(appliedDiscount?.amountCents ?? 0) + shippingCharges).toFixed(2)}`,
         paymentStatus,
         fulfillment: effectiveOrderType === "pickup" ? "Pickup" : "Delivery",
         trackingUrl: tracking.url,
@@ -483,7 +544,7 @@ export async function POST(req: NextRequest) {
     orderType: effectiveOrderType,
     paymentMethod,
     shippingCharges: shippingCharges.toFixed(2),
-    totalAmount: totalAmount.toFixed(2),
+    totalAmount: (totalAmount - chf(appliedDiscount?.amountCents ?? 0) + shippingCharges).toFixed(2),
   };
   const successParams = tracking
     ? `&orderId=${order.BUSINESS_ORDER_ID}&guestToken=${encodeURIComponent(tracking.token)}`
@@ -511,11 +572,35 @@ export async function POST(req: NextRequest) {
   if (effectiveOrderType === ORDER_TYPE.delivery) {
     sessionConfig.shipping_address_collection = { allowed_countries: ["CH"] };
   }
+  if (appliedDiscount?.amountCents) {
+    try {
+      const couponId = `fdz-order-${checkoutRequestId}`;
+      let coupon: Stripe.Coupon;
+      try {
+        coupon = await stripe.coupons.create({
+          id: couponId, amount_off: appliedDiscount.amountCents,
+          currency: "chf", duration: "once", name: appliedDiscount.name,
+        }, { idempotencyKey: `discount-${checkoutRequestId}` });
+      } catch {
+        coupon = await stripe.coupons.retrieve(couponId);
+      }
+      if (!coupon.valid || coupon.amount_off !== appliedDiscount.amountCents || coupon.currency !== "chf") {
+        throw new Error("Stripe coupon does not match the order discount.");
+      }
+      sessionConfig.discounts = [{ coupon: coupon.id }];
+    } catch (error) {
+      console.error("Stripe discount creation failed", error);
+      return new NextResponse("Card discount could not be prepared. Please retry this checkout.", { status: 502 });
+    }
+  }
   let checkoutSession: Stripe.Checkout.Session;
   try {
     checkoutSession = await stripe.checkout.sessions.create(sessionConfig, {
       idempotencyKey: checkoutRequestId,
     });
+    if (checkoutSession.currency !== "chf" || checkoutSession.amount_total !== cents(Number(order.ORDER_FINAL_AMOUNT))) {
+      throw new Error("Stripe checkout amount does not match the order total.");
+    }
     const paymentIntentId =
       typeof checkoutSession.payment_intent === "string"
         ? checkoutSession.payment_intent

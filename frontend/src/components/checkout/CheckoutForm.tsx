@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useCartStore } from "@/stores/cartStore";
@@ -33,6 +33,7 @@ export type CheckoutSummaryState = {
   deliveryQuoteReady: boolean;
   tax: number;
   discount: number;
+  discountName?: string | null;
   zoneName?: string;
   freeDeliveryApplied: boolean;
   deliveryZones: DeliveryZoneDisplay[];
@@ -62,6 +63,15 @@ const emptyQuote: DeliveryQuote = {
   freeDeliveryApplied: false,
 };
 
+type DiscountQuote = {
+  subtotalCents: number;
+  discountCents: number;
+  itemsTotalCents: number;
+  discountId: number | null;
+  discountName: string | null;
+  automaticBeatCoupon: boolean;
+};
+
 export default function CheckoutForm({
   onSummaryChange,
 }: {
@@ -88,6 +98,12 @@ export default function CheckoutForm({
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card");
   const [quote, setQuote] = useState<DeliveryQuote>(emptyQuote);
   const [checkoutRequestId, setCheckoutRequestId] = useState("");
+  const attemptedFingerprint = useRef<string | null>(null);
+  const [couponInput, setCouponInput] = useState("");
+  const [couponCode, setCouponCode] = useState("");
+  const [discountQuote, setDiscountQuote] = useState<DiscountQuote | null>(null);
+  const [discountLoading, setDiscountLoading] = useState(false);
+  const [discountError, setDiscountError] = useState("");
   const [formData, setFormData] = useState<CheckoutFormData>({
     firstName: "",
     lastName: "",
@@ -110,8 +126,29 @@ export default function CheckoutForm({
   }, [session]);
 
   useEffect(() => {
-    setCheckoutRequestId(crypto.randomUUID());
+    if (!attemptedFingerprint.current) setCheckoutRequestId(crypto.randomUUID());
   }, [items]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setDiscountQuote(null);
+    setDiscountError("");
+    if (!businessId || !items.length || !orderType) return;
+    setDiscountLoading(true);
+    const timer = setTimeout(() => {
+      fetch("/api/discounts/quote", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items, couponCode, paymentMethod, orderType, postalCode: formData.zip }), signal: controller.signal,
+      }).then(async (response) => {
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "Could not check discounts.");
+        return result as DiscountQuote;
+      }).then((result) => { if (!controller.signal.aborted) setDiscountQuote(result); })
+        .catch((caught) => { if (!controller.signal.aborted) setDiscountError(caught instanceof Error ? caught.message : "Could not check discounts."); })
+        .finally(() => { if (!controller.signal.aborted) setDiscountLoading(false); });
+    }, 250);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [businessId, items, couponCode, paymentMethod, orderType, formData.zip]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -201,7 +238,7 @@ export default function CheckoutForm({
   const deliveryBlocked = isDelivery && (!formData.zip.trim() || quoteLoading || !quote.available);
   const orderingUnavailable = !optionsLoading && options && !options.deliveryEnabled && !options.pickupEnabled;
   const mixedCart = businessIds.length > 1;
-  const disabled = loading || optionsLoading || mixedCart || !!stockIssue || !businessId || !orderType || !!orderingUnavailable || deliveryBlocked;
+  const disabled = loading || optionsLoading || discountLoading || !discountQuote || !!discountError || mixedCart || !!stockIssue || !businessId || !orderType || !!orderingUnavailable || deliveryBlocked;
   const shippingCharge = isDelivery && quote.available ? quote.deliveryPrice : 0;
 
   useEffect(() => {
@@ -211,12 +248,13 @@ export default function CheckoutForm({
       deliveryFee: shippingCharge,
       deliveryQuoteReady: isDelivery ? quote.available : false,
       tax: 0,
-      discount: 0,
+      discount: (discountQuote?.discountCents ?? 0) / 100,
+      discountName: discountQuote?.discountName,
       zoneName: quote.zoneName,
       freeDeliveryApplied: quote.freeDeliveryApplied,
       deliveryZones: options?.deliveryZones ?? [],
     });
-  }, [isDelivery, onSummaryChange, options?.deliveryZones, orderType, paymentMethod, quote.available, quote.freeDeliveryApplied, quote.zoneName, shippingCharge]);
+  }, [discountQuote, isDelivery, onSummaryChange, options?.deliveryZones, orderType, paymentMethod, quote.available, quote.freeDeliveryApplied, quote.zoneName, shippingCharge]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -227,6 +265,14 @@ export default function CheckoutForm({
       return;
     }
     if (disabled) return;
+    const fingerprint = JSON.stringify({ items: items.map((item) => [item.id, item.quantity]), couponCode, paymentMethod, orderType, customer: formData, discountId: discountQuote?.discountId, itemsTotalCents: discountQuote?.itemsTotalCents, shippingCharge });
+    if (attemptedFingerprint.current && attemptedFingerprint.current !== fingerprint) {
+      setError("This checkout may already exist. Restore the original cart and offer before retrying.");
+      return;
+    }
+    attemptedFingerprint.current = fingerprint;
+    const requestId = checkoutRequestId || crypto.randomUUID();
+    setCheckoutRequestId(requestId);
     setLoading(true);
 
     try {
@@ -238,7 +284,10 @@ export default function CheckoutForm({
           businessId,
           orderType,
           paymentMethod,
-          checkoutRequestId: checkoutRequestId || crypto.randomUUID(),
+          checkoutRequestId: requestId,
+          couponCode,
+          expectedItemsTotalCents: discountQuote?.itemsTotalCents,
+          expectedDiscountId: discountQuote?.discountId,
           shippingCharges: shippingCharge,
           customerInfo: {
             ...formData,
@@ -248,8 +297,9 @@ export default function CheckoutForm({
 
       if (!response.ok) {
         const message = await response.text();
-        if (response.status === 409 && message.includes("checkout expired")) {
+        if (response.status === 409 && /checkout expired|Order total changed|Coupon is invalid|Card payments require/.test(message)) {
           setCheckoutRequestId(crypto.randomUUID());
+          attemptedFingerprint.current = null;
         }
         throw new Error(message);
       }
@@ -423,6 +473,19 @@ export default function CheckoutForm({
             {paymentMethodLabel(value)}
           </label>
         ))}
+      </div>
+
+      <div className="space-y-3 rounded-lg bg-white p-6 shadow-md">
+        <h2 className="text-xl font-semibold">Coupon code</h2>
+        <div className="flex flex-wrap gap-2">
+          <input aria-label="Coupon code" value={couponInput} onChange={(event) => setCouponInput(event.target.value.toUpperCase())} maxLength={64} placeholder="Enter code" className="min-h-11 flex-1 rounded-md border border-gray-300 px-3 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30" />
+          <button type="button" onClick={() => setCouponCode(couponInput.trim())} className="min-h-11 rounded-md bg-primary px-4 font-medium text-white hover:bg-primary-dark">Apply</button>
+          {couponCode && <button type="button" onClick={() => { setCouponCode(""); setCouponInput(""); }} className="min-h-11 rounded-md border border-gray-300 px-4 font-medium text-gray-700 hover:bg-gray-50">Remove</button>}
+        </div>
+        {discountLoading && <p className="text-sm text-gray-600">Checking offers…</p>}
+        {discountError && <p role="alert" className="text-sm text-red-700">{discountError}</p>}
+        {discountQuote?.discountName && <p className="text-sm text-green-700">{discountQuote.discountName} applied: -{formatCHF(discountQuote.discountCents / 100)}.</p>}
+        {discountQuote?.automaticBeatCoupon && <p className="text-sm text-gray-600">A better automatic offer was applied instead of your coupon.</p>}
       </div>
 
       {error && <p role="alert" className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md p-3">{error}</p>}

@@ -16,6 +16,7 @@ export type GuestOrderConfirmationData = {
   restaurantName: string;
   items: Array<{ name: string; quantity: number; subtotal: string }>;
   total: string;
+  discount?: { name: string; amount: string } | null;
   paymentStatus: string;
   fulfillment: string;
   trackingUrl: string;
@@ -26,6 +27,7 @@ export default function GuestOrderConfirmationEmail({
   restaurantName,
   items,
   total,
+  discount,
   paymentStatus,
   fulfillment,
   trackingUrl,
@@ -47,6 +49,7 @@ export default function GuestOrderConfirmationEmail({
                 {item.quantity} × {item.name}: {item.subtotal}
               </Text>
             ))}
+            {discount && <Text><strong>{discount.name}:</strong> -{discount.amount}</Text>}
             <Text><strong>Total:</strong> {total}</Text>
           </Section>
           <Button href={trackingUrl} style={button}>Track this order</Button>

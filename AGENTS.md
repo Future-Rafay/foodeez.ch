@@ -110,6 +110,9 @@ The project is a Next.js 14 application with a clear separation of concerns.
 
 ## Checkout Payment and Guest Order Notes
 
+- Online discounts use restaurant-owned definitions and optional codes from the shared schema; see the admin repository's manual `20261019000000_add_business_discounts` migration. Deploy only after that migration, and enable online availability after customer checkout code is deployed.
+- `frontend/src/lib/online-discounts.ts` chooses the largest eligible single saving on the pre-discount items subtotal, with an entered coupon winning a tie. Delivery fees and thresholds use the original subtotal. Checkout compares the server quote with the displayed items total and discount ID, then snapshots the selected definition on `business_order`; retries use that snapshot.
+- Stripe Checkout applies the saved order discount as a fixed CHF coupon and keeps delivery separate. Both the webhook and verification route compare the charged CHF cents with `ORDER_FINAL_AMOUNT` before marking paid; discounted card charges must remain at least CHF 0.50.
 - The cart's Proceed to Checkout action and `/cart?checkout=1` must open checkout for guests as well as signed-in customers; sign-in remains optional for faster prefill.
 - Delivery is opt-in: absent or null `business_settings.DELIVERY_ENABLED` is off for public options and checkout quotes. The shared column default is `0` in both Prisma schemas and is changed by the admin repository's manual SQL migration; existing `1` values remain enabled.
 

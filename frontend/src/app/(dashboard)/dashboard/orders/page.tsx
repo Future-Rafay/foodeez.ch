@@ -65,6 +65,8 @@ type Order = {
   ORDER_GROSS_AMOUNT: number;
   ORDER_TAX_AMOUNT: number;
   ORDER_DISCOUNT_AMOUNT: number;
+  DISCOUNT_NAME?: string | null;
+  DISCOUNT_CODE?: string | null;
   SHIPPING_CHARGES: number;
   ORDER_REFUND_AMOUNT: number;
   ORDER_FINAL_AMOUNT: number;
@@ -446,7 +448,7 @@ function OrderModal({ order, onClose, changed = [] }: { order: Order; onClose: (
               <h3 className="mb-3 font-semibold text-gray-900">Payment summary</h3>
               <dl className="space-y-2 text-sm">
                 <div className="flex justify-between"><dt className="text-gray-500">Gross</dt><dd>{formatCHF(order.ORDER_GROSS_AMOUNT)}</dd></div>
-                <div className="flex justify-between"><dt className="text-gray-500">Discount</dt><dd>{formatCHF(order.ORDER_DISCOUNT_AMOUNT)}</dd></div>
+                <div className="flex justify-between"><dt className="text-gray-500">{order.DISCOUNT_NAME || "Discount"}{order.DISCOUNT_CODE ? ` (${order.DISCOUNT_CODE})` : ""}</dt><dd>-{formatCHF(order.ORDER_DISCOUNT_AMOUNT)}</dd></div>
                 <div className="flex justify-between"><dt className="text-gray-500">Delivery fee</dt><dd>{formatCHF(order.SHIPPING_CHARGES)}</dd></div>
                 <div className="flex justify-between"><dt className="text-gray-500">Tax</dt><dd>{formatCHF(order.ORDER_TAX_AMOUNT)}</dd></div>
                 {order.ORDER_REFUND_AMOUNT > 0 && (

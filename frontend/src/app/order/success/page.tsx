@@ -33,6 +33,8 @@ type Order = {
   ADDRESS_COUNTRY_CODE?: string | null;
   ORDER_GROSS_AMOUNT: number;
   ORDER_DISCOUNT_AMOUNT: number;
+  DISCOUNT_NAME?: string | null;
+  DISCOUNT_CODE?: string | null;
   SHIPPING_CHARGES: number;
   ORDER_TAX_AMOUNT: number;
   ORDER_REFUND_AMOUNT: number;
@@ -213,7 +215,7 @@ function SuccessContent() {
           <h2 className="mb-4 text-lg font-semibold">Payment summary</h2>
           <dl className="space-y-2 text-sm">
             <div className="flex justify-between"><dt>Gross amount</dt><dd>{formatCHF(order.ORDER_GROSS_AMOUNT)}</dd></div>
-            <div className="flex justify-between"><dt>Discount</dt><dd>{formatCHF(order.ORDER_DISCOUNT_AMOUNT)}</dd></div>
+            <div className="flex justify-between"><dt>{order.DISCOUNT_NAME || "Discount"}{order.DISCOUNT_CODE ? ` (${order.DISCOUNT_CODE})` : ""}</dt><dd>-{formatCHF(order.ORDER_DISCOUNT_AMOUNT)}</dd></div>
             <div className="flex justify-between"><dt>Delivery fee</dt><dd>{formatCHF(order.SHIPPING_CHARGES)}</dd></div>
             <div className="flex justify-between"><dt>Tax</dt><dd>{formatCHF(order.ORDER_TAX_AMOUNT)}</dd></div>
             {order.ORDER_REFUND_AMOUNT > 0 && (

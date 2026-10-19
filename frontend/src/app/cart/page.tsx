@@ -57,7 +57,7 @@ function OrderSummary({ items, totalItems, checkoutSummary, showPayment = false 
         </div>
         {totals.discount > 0 && (
           <div className="flex justify-between text-green-700">
-            <span>Discount</span>
+            <span>{checkoutSummary?.discountName || "Discount"}</span>
             <span>-{formatCHF(totals.discount)}</span>
           </div>
         )}
