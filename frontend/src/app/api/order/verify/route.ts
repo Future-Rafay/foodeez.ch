@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 import { PAYMENT_DONE } from "@/lib/order";
 import { releaseExpiredStripeOrderInventory } from "@/lib/inventory";
+import { matchesOrderCharge } from "@/lib/payment-amount";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-07-30.basil",
@@ -36,6 +37,11 @@ export async function GET(req: NextRequest) {
         : session.status === "expired"
           ? PAYMENT_DONE.failed
           : PAYMENT_DONE.pending;
+
+    if (paymentDone === PAYMENT_DONE.paid && !matchesOrderCharge(order.ORDER_FINAL_AMOUNT, session.amount_total, session.currency)) {
+      console.error("Stripe session total differs from order", { orderId: order.BUSINESS_ORDER_ID, sessionId });
+      return NextResponse.json({ success: false, error: "Payment amount needs review." }, { status: 409 });
+    }
 
     if (session.status === "expired") {
       await prisma.$transaction((tx) =>
