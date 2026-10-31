@@ -179,3 +179,17 @@ The project is a Next.js 14 application with a clear separation of concerns.
 - Foodeez platform reviews are public only when `APPROVED = 1`; a signed-in reviewer also sees their own pending reviews. Other reviewers' `REVIEWER_EMAIL` values are nulled through `frontend/src/lib/foodeez-review.ts`. Reviewer edits go through `pickReviewUpdate` and always reset `APPROVED` to `0`; approval belongs to the admin repository.
 - Editing a restaurant review (`/api/reviews` PUT) also resets `APPROVED` to `0`, and only changes media fields the client sent.
 - Uploads pass through Vercel functions, so `MAX_UPLOAD_SIZE_BYTES` and `MAX_VIDEO_UPLOAD_SIZE_BYTES` in `frontend/src/lib/media.ts` stay at 4 MB until uploads move to presigned S3 URLs. Profile image replacement deletes the old S3 object only after the new URL is saved.
+- Credentials sign-in (`frontend/src/lib/auth.ts`) and registration are rate-limited through the same helper; passwords need at least `MIN_PASSWORD_LENGTH` (8) characters on register, reset, and profile change.
+- `/api/discounts/quote` rate-limits by IP only when a coupon code is sent, so automatic discounts keep re-quoting freely.
+- Review likes are limited to one per account per review per day through the rate-limit table. The permanent one-like design is drafted in `docs/sql/create_visitor_review_likes.sql` and needs manual approval before it is applied.
+- Food journey author name, email, and picture always come from the signed-in account.
+
+## Stripe Paid-State Guard
+
+- The server Stripe client lives in `frontend/src/lib/stripe-server.ts`; do not create more `new Stripe()` instances.
+- Every route that marks a card order paid must call `markStripeOrderPaid` from `frontend/src/lib/inventory.ts`; it never revives released-inventory orders or downgrades refunded ones and is covered by `stripe-paid.test.ts`.
+
+## Shared Profile and Order History Notes
+
+- The manage-business page renders the shared `BusinessInfoSection` with `showOrdering={false}` and the shared `GoogleReviews` without `GOOGLE_PROFILE`; only its `BusinessDeferredSections` composition stays local.
+- `getCustomerOrders` loads at most the newest 100 orders because My Orders and the bell poll every 30 seconds. Notification event keys include the previous snapshot so a value returning to an earlier state still creates an event.
