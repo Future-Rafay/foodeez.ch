@@ -171,3 +171,11 @@ The project is a Next.js 14 application with a clear separation of concerns.
 - `frontend/package.json` includes the modern `browserslist` baseline used to avoid unnecessary legacy JavaScript transforms. Keep it aligned with the browsers the product actually supports.
 - Do not change global brand colors to satisfy contrast audits without explicit product approval. Prefer local accessibility treatments that preserve the Foodeez brand palette.
 - Run focused checkout/security regression coverage with `npm.cmd test`; it covers checkout validation, payment eligibility, guest-token integrity, canonical URLs, hashed rate limits, one-time inventory release, and non-failing guest email delivery.
+
+## Public Form, Review, and Upload Safety Notes
+
+- Public email-sending routes (`/api/contact`, `/api/reservation`, `/api/claim-business`, `/api/subscribe`, `/api/auth/forgot-password`) call `publicFormRateLimitResponse` from `frontend/src/lib/checkout-rate-limit.ts`, which reuses the `checkout_rate_limit` table with per-form HMAC keys.
+- Never echo user-typed free text to a user-typed address. Contact messages go only to `ADMIN_EMAIL`; the reservation customer copy omits occasion and special requests and takes the restaurant name from the database.
+- Foodeez platform reviews are public only when `APPROVED = 1`; a signed-in reviewer also sees their own pending reviews. Other reviewers' `REVIEWER_EMAIL` values are nulled through `frontend/src/lib/foodeez-review.ts`. Reviewer edits go through `pickReviewUpdate` and always reset `APPROVED` to `0`; approval belongs to the admin repository.
+- Editing a restaurant review (`/api/reviews` PUT) also resets `APPROVED` to `0`, and only changes media fields the client sent.
+- Uploads pass through Vercel functions, so `MAX_UPLOAD_SIZE_BYTES` and `MAX_VIDEO_UPLOAD_SIZE_BYTES` in `frontend/src/lib/media.ts` stay at 4 MB until uploads move to presigned S3 URLs. Profile image replacement deletes the old S3 object only after the new URL is saved.
