@@ -25,7 +25,8 @@ export const ALLOWED_IMAGE_TYPES = [
   "image/gif",
 ] as const;
 
-export const MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
+// shortcut: uploads pass through a Vercel function, which rejects bodies over 4.5 MB; move to presigned S3 uploads to allow larger files.
+export const MAX_UPLOAD_SIZE_BYTES = 4 * 1024 * 1024; // 4 MB
 
 export const ALLOWED_VIDEO_TYPES = [
   "video/mp4",
@@ -33,7 +34,7 @@ export const ALLOWED_VIDEO_TYPES = [
   "video/webm",
 ] as const;
 
-export const MAX_VIDEO_UPLOAD_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
+export const MAX_VIDEO_UPLOAD_SIZE_BYTES = 4 * 1024 * 1024; // 4 MB, same Vercel body limit as images
 
 export function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;

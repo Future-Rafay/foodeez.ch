@@ -1,6 +1,7 @@
 import {
   ALLOWED_IMAGE_TYPES,
   MAX_UPLOAD_SIZE_BYTES,
+  formatFileSize,
 } from "@/lib/media";
 
 export interface UploadResult {
@@ -13,7 +14,7 @@ function validateFile(file: File) {
     throw new Error("Only PNG, JPEG, WebP, and GIF images are allowed.");
   }
   if (file.size > MAX_UPLOAD_SIZE_BYTES) {
-    throw new Error("Image must be 10 MB or smaller.");
+    throw new Error(`Image must be ${formatFileSize(MAX_UPLOAD_SIZE_BYTES)} or smaller.`);
   }
 }
 

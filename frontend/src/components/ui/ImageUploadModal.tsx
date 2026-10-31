@@ -6,6 +6,7 @@ import { Fragment } from 'react';
 import { Camera, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import { toast } from 'react-hot-toast';
+import { formatFileSize, MAX_UPLOAD_SIZE_BYTES } from '@/lib/media';
 
 interface ImageUploadModalProps {
   isOpen: boolean;
@@ -33,9 +34,8 @@ export default function ImageUploadModal({
         toast.error('Please select an image file');
         return;
       }
-      // Check file size (max 10MB)
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error('Image size should be less than 10MB');
+      if (file.size > MAX_UPLOAD_SIZE_BYTES) {
+        toast.error(`Image size should be at most ${formatFileSize(MAX_UPLOAD_SIZE_BYTES)}`);
         return;
       }
       setSelectedFile(file);

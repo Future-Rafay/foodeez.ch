@@ -7,6 +7,7 @@ import {
   ALLOWED_VIDEO_TYPES,
   MAX_UPLOAD_SIZE_BYTES,
   MAX_VIDEO_UPLOAD_SIZE_BYTES,
+  formatFileSize,
 } from "@/lib/media";
 
 const storage = new S3Storage();
@@ -45,7 +46,7 @@ export async function POST(req: NextRequest) {
 
     if (file.size > maxSize) {
       return NextResponse.json(
-        { error: `File must be ${isVideo ? "50" : "10"} MB or smaller.` },
+        { error: `File must be ${formatFileSize(maxSize)} or smaller.` },
         { status: 400 }
       );
     }
