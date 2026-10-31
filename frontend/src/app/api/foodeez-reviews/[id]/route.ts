@@ -2,22 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { pickReviewUpdate, withoutForeignEmail } from '@/lib/foodeez-review';
+import { pickReviewUpdate, serializeBigInt, withoutForeignEmail } from '@/lib/foodeez-review';
 
-// Helper function to serialize BigInt values
-const serializeBigInt = (obj: any): any => {
-  if (obj === null || obj === undefined) return obj;
-  if (typeof obj === 'bigint') return obj.toString();
-  if (Array.isArray(obj)) return obj.map(serializeBigInt);
-  if (typeof obj === 'object') {
-    const result: any = {};
-    for (const key in obj) {
-      result[key] = serializeBigInt(obj[key]);
-    }
-    return result;
-  }
-  return obj;
-};
 
 export async function GET(
   request: NextRequest,

@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
+import { randomInt } from 'node:crypto';
 import { prisma } from '@/lib/prisma';
 import { sendEmail } from '@/services/EmailService';
 import { publicFormRateLimitResponse } from '@/lib/checkout-rate-limit';
 
 export async function POST(request: Request) {
   try {
-    const { email } = await request.json();
+    const body = await request.json();
+    const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : '';
 
     if (!email) {
       return NextResponse.json(
@@ -14,7 +16,14 @@ export async function POST(request: Request) {
       );
     }
 
-    const limited = await publicFormRateLimitResponse(request.headers, 'subscribe', String(email));
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return NextResponse.json(
+        { success: false, code: 'EMAIL_INVALID', message: 'Enter a valid email address.' },
+        { status: 400 }
+      );
+    }
+
+    const limited = await publicFormRateLimitResponse(request.headers, 'subscribe', email);
     if (limited) return limited;
 
     // Check if the email already exists
@@ -36,7 +45,8 @@ export async function POST(request: Request) {
     // Create new subscription
     await prisma.foodeez_subscription.create({
       data: {
-        FOODEEZ_SUBSCRIPTION_ID: BigInt(Date.now()),
+        // The shared table has no auto-increment; random low digits stop same-millisecond sign-ups colliding.
+        FOODEEZ_SUBSCRIPTION_ID: BigInt(Date.now()) * BigInt(1000) + BigInt(randomInt(1000)),
         EMAIL_ADDRESS: email,
         CREATION_DATETIME: new Date(),
       },

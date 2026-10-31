@@ -1,5 +1,15 @@
 export const MAX_FOODEEZ_REVIEWS = 100;
 
+/** Prisma returns BigInt ids, which JSON.stringify cannot encode. Dates pass through for NextResponse.json. */
+export const serializeBigInt = (value: unknown): unknown => {
+  if (typeof value === "bigint") return value.toString();
+  if (Array.isArray(value)) return value.map(serializeBigInt);
+  if (value && typeof value === "object" && !(value instanceof Date)) {
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, serializeBigInt(item)]));
+  }
+  return value;
+};
+
 export const isValidRating = (value: unknown) =>
   Number.isInteger(value) && Number(value) >= 1 && Number(value) <= 5;
 
