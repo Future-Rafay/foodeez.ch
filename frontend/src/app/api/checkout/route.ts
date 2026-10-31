@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import Stripe from "stripe";
+import type Stripe from "stripe";
 import type { CartItem } from "@/stores/cartStore";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -22,13 +22,9 @@ import { sendEmail } from "@/services/EmailService";
 import { cents, chf, type AppliedDiscount } from "@/lib/discounts";
 import { resolveOnlineDiscount } from "@/lib/online-discounts";
 import { getBusinessMenuWithProducts } from "@/services/MenuPageService";
+import { stripe } from "@/lib/stripe-server";
 
 export const runtime = "nodejs";
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2025-07-30.basil",
-  typescript: true,
-});
 
 type CustomerInfo = {
   userId?: string;

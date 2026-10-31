@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import Stripe from "stripe";
+import type Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 import { PAYMENT_DONE } from "@/lib/order";
-import { releaseExpiredStripeOrderInventory } from "@/lib/inventory";
+import { markStripeOrderPaid, releaseExpiredStripeOrderInventory } from "@/lib/inventory";
 import { matchesOrderCharge } from "@/lib/payment-amount";
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2025-07-30.basil",
-});
+import { stripe } from "@/lib/stripe-server";
 
 const paymentIntentId = (value: string | Stripe.PaymentIntent | null) =>
   typeof value === "string" ? value : value?.id ?? null;
@@ -48,19 +45,7 @@ export async function GET(req: NextRequest) {
         releaseExpiredStripeOrderInventory(tx, order.BUSINESS_ORDER_ID)
       );
     } else if (paymentDone === PAYMENT_DONE.paid) {
-      await prisma.business_order.updateMany({
-        where: {
-          BUSINESS_ORDER_ID: order.BUSINESS_ORDER_ID,
-          PAYMENT_MODE: "stripe",
-          PAYMENT_DONE: { in: [PAYMENT_DONE.pending, PAYMENT_DONE.failed, PAYMENT_DONE.paid] },
-          INVENTORY_RELEASED_DATETIME: null,
-        },
-        data: {
-          PAYMENT_DONE: paymentDone,
-          PAYMENT_MODE: "stripe",
-          STRIPE_PAYMENT_INTENT_ID: intentId || order.STRIPE_PAYMENT_INTENT_ID,
-        },
-      });
+      await markStripeOrderPaid(prisma, order.BUSINESS_ORDER_ID, intentId);
     }
 
     const currentOrder = await prisma.business_order.findUnique({

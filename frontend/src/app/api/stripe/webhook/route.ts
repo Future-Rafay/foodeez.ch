@@ -1,16 +1,13 @@
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-import Stripe from "stripe";
+import type Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 import { PAYMENT_DONE } from "@/lib/order";
-import { releaseExpiredStripeOrderInventory } from "@/lib/inventory";
+import { markStripeOrderPaid, releaseExpiredStripeOrderInventory } from "@/lib/inventory";
 import { matchesOrderCharge } from "@/lib/payment-amount";
+import { stripe } from "@/lib/stripe-server";
 
 export const runtime = "nodejs";
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2025-07-30.basil",
-});
 
 const intentId = (value: string | Stripe.PaymentIntent | null) =>
   typeof value === "string" ? value : value?.id ?? null;
@@ -25,19 +22,7 @@ async function markBySession(session: Stripe.Checkout.Session) {
     console.error("Stripe session total differs from order", { sessionId: session.id });
     return;
   }
-  await prisma.business_order.updateMany({
-    where: {
-      PAYMENT_MODE: "stripe",
-      PAYMENT_DONE: { in: [PAYMENT_DONE.pending, PAYMENT_DONE.failed, PAYMENT_DONE.paid] },
-      INVENTORY_RELEASED_DATETIME: null,
-      BUSINESS_ORDER_ID: order.BUSINESS_ORDER_ID,
-    },
-    data: {
-      PAYMENT_DONE: PAYMENT_DONE.paid,
-      PAYMENT_MODE: "stripe",
-      STRIPE_PAYMENT_INTENT_ID: intentId(session.payment_intent),
-    },
-  });
+  await markStripeOrderPaid(prisma, order.BUSINESS_ORDER_ID, intentId(session.payment_intent));
 }
 
 async function markByPaymentIntent(paymentIntent: Stripe.PaymentIntent, paymentDone: number) {
@@ -51,15 +36,14 @@ async function markByPaymentIntent(paymentIntent: Stripe.PaymentIntent, paymentD
     console.error("Stripe payment total differs from order", { paymentIntentId: paymentIntent.id });
     return;
   }
+  if (paymentDone === PAYMENT_DONE.paid) {
+    await markStripeOrderPaid(prisma, order.BUSINESS_ORDER_ID, paymentIntent.id);
+    return;
+  }
   await prisma.business_order.updateMany({
     where: {
       PAYMENT_MODE: "stripe",
-      PAYMENT_DONE: paymentDone === PAYMENT_DONE.paid
-        ? { in: [PAYMENT_DONE.pending, PAYMENT_DONE.failed, PAYMENT_DONE.paid] }
-        : PAYMENT_DONE.pending,
-      ...(paymentDone === PAYMENT_DONE.paid
-        ? { INVENTORY_RELEASED_DATETIME: null }
-        : {}),
+      PAYMENT_DONE: PAYMENT_DONE.pending,
       BUSINESS_ORDER_ID: order.BUSINESS_ORDER_ID,
     },
     data: {

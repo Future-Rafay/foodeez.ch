@@ -88,6 +88,32 @@ export async function reserveCartInventory(db: InventoryDb, items: InventoryItem
   }
 }
 
+/**
+ * Marks a card order paid. Refunded orders and orders whose stock was already released
+ * (expired sessions) are never revived. Returns whether the order changed.
+ */
+export async function markStripeOrderPaid(
+  db: Pick<typeof prisma, "business_order">,
+  orderId: number,
+  paymentIntentId: string | null
+) {
+  const result = await db.business_order.updateMany({
+    where: {
+      BUSINESS_ORDER_ID: orderId,
+      PAYMENT_MODE: "stripe",
+      PAYMENT_DONE: { in: [PAYMENT_DONE.pending, PAYMENT_DONE.failed, PAYMENT_DONE.paid] },
+      INVENTORY_RELEASED_DATETIME: null,
+    },
+    data: {
+      PAYMENT_DONE: PAYMENT_DONE.paid,
+      PAYMENT_MODE: "stripe",
+      // undefined keeps a stored intent id when Stripe did not send one
+      STRIPE_PAYMENT_INTENT_ID: paymentIntentId ?? undefined,
+    },
+  });
+  return result.count === 1;
+}
+
 export async function releaseExpiredStripeOrderInventory(
   db: OrderInventoryDb,
   orderId: number
