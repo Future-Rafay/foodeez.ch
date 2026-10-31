@@ -49,7 +49,8 @@ export async function syncCustomerNotifications(visitorId: number, orders: Custo
     const base = { VISITORS_ACCOUNT_ID: visitorId, BUSINESS_ORDER_ID: order.BUSINESS_ORDER_ID, BUSINESS_ID: order.BUSINESS_ID };
     const make = (type: string, title: string, message: string, changedField: string, value: unknown) => ({
       ...base,
-      EVENT_KEY: eventKey(order.BUSINESS_ORDER_ID, type, value),
+      // Changes include the previous snapshot, so returning to an earlier value (A -> B -> A) is a new event.
+      EVENT_KEY: eventKey(order.BUSINESS_ORDER_ID, type, before ? [before, value] : value),
       NOTIFICATION_TYPE: type,
       TITLE: title,
       MESSAGE: message,
