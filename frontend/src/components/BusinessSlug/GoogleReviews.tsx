@@ -9,7 +9,8 @@ import { GoogleReview } from "@/types/google-business";
 
 interface GoogleReviewsProps {
   reviews: GoogleReview[];
-  GOOGLE_PROFILE: string;
+  /** Omit to hide the "View more Google reviews" link. */
+  GOOGLE_PROFILE?: string;
 }
 
 export default function GoogleReviews({
@@ -137,7 +138,7 @@ export default function GoogleReviews({
           </button>
         )}
       </div>
-      {reviews.length > 0 && (
+      {reviews.length > 0 && GOOGLE_PROFILE && (
         <a
           href={GOOGLE_PROFILE}
           target="_blank"

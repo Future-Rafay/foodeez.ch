@@ -5,7 +5,7 @@ import { getBusinessById } from "@/services/BusinessProfilePageService";
 import type { BusinessGoogleData } from "@/types/google-business";
 import BusinessDeferredSections from "./components/BusinessDeferredSections";
 import BusinessImage from "@/components/BusinessSlug/BusinessImage";
-import BusinessInfoSection, { FulfillmentOptions } from "./components/BusinessInfoSection";
+import BusinessInfoSection, { FulfillmentOptions } from "@/components/BusinessSlug/BusinessInfoSection";
 import ResturantProfilePageHeader from "@/components/BusinessSlug/ResturantProfilePageHeader";
 
 async function getBusinessFulfillmentOptions(businessId: number): Promise<FulfillmentOptions | null> {
@@ -103,7 +103,7 @@ export default async function BusinessDetailPage({ params }: { params: { slug: s
         className="mb-6"
       />
 
-      <BusinessInfoSection business={business} genSlug={genSlug} fulfillmentOptions={fulfillmentOptions} />
+      <BusinessInfoSection business={business} genSlug={genSlug} fulfillmentOptions={fulfillmentOptions} showOrdering={false} />
 
       <BusinessDeferredSections business={business} googleBusinessData={googleBusinessData} />
     </div>

@@ -81,10 +81,17 @@ function FulfillmentInfoBox({ options }: { options: FulfillmentOptions | null })
   );
 }
 
-const BusinessInfoSection: React.FC<{ business: business_detail_view_all, genSlug: string, fulfillmentOptions: FulfillmentOptions | null }> = ({
+const BusinessInfoSection: React.FC<{
+  business: business_detail_view_all;
+  genSlug: string;
+  fulfillmentOptions: FulfillmentOptions | null;
+  /** Reserve/menu buttons and ordering options; hidden on the owner's manage-business view. */
+  showOrdering?: boolean;
+}> = ({
   business,
   genSlug,
   fulfillmentOptions,
+  showOrdering = true,
 }) => {
 
   return (
@@ -142,7 +149,7 @@ const BusinessInfoSection: React.FC<{ business: business_detail_view_all, genSlu
       <Separator />
       {/* Social & Reserve */}
       <div className="flex flex-col md:flex-row gap-10 justify-between pt-8">
-        <div className="flex items-center gap-2">
+        {showOrdering && <div className="flex items-center gap-2">
           {business.EMAIL_ADDRESS ? (
             <Link href={`/business/${genSlug}/reservation`} target="_blank">
               <button className="btn-primary">Reserve Table</button>
@@ -167,7 +174,7 @@ const BusinessInfoSection: React.FC<{ business: business_detail_view_all, genSlu
               Menu info not available
             </button>
           )}
-        </div>
+        </div>}
 
         <SocialLinks
           facebook={business.FACEBOOK_LINK}
@@ -177,7 +184,7 @@ const BusinessInfoSection: React.FC<{ business: business_detail_view_all, genSlu
           className="gap-2 [&>a]:text-primary"
         />
       </div>
-      <FulfillmentInfoBox options={fulfillmentOptions} />
+      {showOrdering && <FulfillmentInfoBox options={fulfillmentOptions} />}
     </div>
   );
 };

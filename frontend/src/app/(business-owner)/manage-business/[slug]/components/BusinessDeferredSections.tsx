@@ -9,7 +9,7 @@ import ClaimBusinessSection from "./ClaimBusinessSection";
 
 const GooglePhotoGallery = dynamic(() => import("@/components/BusinessSlug/PhotoGallary"), { ssr: false, loading: () => null });
 const OpeningHours = dynamic(() => import("@/components/BusinessSlug/OpeningHoursSection"), { ssr: false, loading: () => null });
-const GoogleReviews = dynamic(() => import("./GoogleReviews"), { ssr: false, loading: () => null });
+const GoogleReviews = dynamic(() => import("@/components/BusinessSlug/GoogleReviews"), { ssr: false, loading: () => null });
 const MapCard = dynamic(() => import("@/components/BusinessSlug/MapSectionBusinesProfile"), { ssr: false, loading: () => null });
 
 function LazyRender({
