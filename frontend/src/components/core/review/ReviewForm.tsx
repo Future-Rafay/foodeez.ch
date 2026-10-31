@@ -2,6 +2,7 @@ import React, { useState, FormEvent } from 'react';
 import { Star, Loader2, Info, CheckCircle } from 'lucide-react';
 import ImageUploadField from '@/components/ui/ImageUploadField';
 import VideoUploadField from '@/components/ui/VideoUploadField';
+import { uploadFileToS3, uploadVideoToS3 } from '@/lib/media-upload';
 
 const MAX_IMAGES = 3;
 const MAX_REMARKS = 1000;
@@ -65,21 +66,6 @@ const ReviewForm: React.FC<ReviewFormProps> = ({
     setImagePreviews(prev => prev.map((item, idx) => idx === index ? preview : item));
   };
 
-  async function uploadFile(file: File): Promise<{ url: string; key: string } | null> {
-    const formData = new FormData();
-    formData.append('file', file);
-    try {
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
-      if (!res.ok) throw new Error('Failed to upload file');
-      return await res.json();
-    } catch (error) {
-      console.error('Error uploading file:', error);
-      return null;
-    }
-  }
 
 
   const handleSubmit = async (e: FormEvent) => {
@@ -92,20 +78,15 @@ const ReviewForm: React.FC<ReviewFormProps> = ({
       for (let idx = 0; idx < images.length; idx += 1) {
         const image = images[idx];
         if (!image) continue;
-        const result = await uploadFile(image);
-        if (!result) {
-          throw new Error(`Failed to upload photo ${idx + 1}`);
-        }
-        uploadedImageUrls[idx] = result.url;
+        uploadedImageUrls[idx] = (await uploadFileToS3(image)).url;
       }
       // 2. Upload video to S3 (if any)
       let uploadedVideoUrl: string | null = videoValue || null;
       if (video) {
-        const result = await uploadFile(video);
-        if (!result) {
+        uploadedVideoUrl = await uploadVideoToS3(video);
+        if (!uploadedVideoUrl) {
           throw new Error('Failed to upload video');
         }
-        uploadedVideoUrl = result.url;
       }
       // 3. Prepare payload for your API
       const payload = {

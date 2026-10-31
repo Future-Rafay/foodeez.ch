@@ -10,6 +10,7 @@ import FoodJourneyPagination from "@/components/core/food-journey/FoodJourneyPag
 import FoodJourneyGridSkeleton from "@/components/core/food-journey/FoodJourneyGridSkeleton";
 import type { visitor_food_journey_view } from "@/lib/prisma";
 import Separator from "@/components/ui/separator";
+import { uploadFileToS3 } from "@/lib/media-upload";
 
 const initialForm = {
   TITLE: "",
@@ -22,21 +23,6 @@ const emptyImageSlots = () => [null, null, null] as (File | null)[];
 const emptyPreviewSlots = () => [null, null, null] as (string | null)[];
 const emptyImageValues = () => ["", "", ""];
 
-async function uploadFile(file: File): Promise<{ url: string; key: string } | null> {
-  const formData = new FormData();
-  formData.append('file', file);
-  try {
-    const res = await fetch('/api/upload', {
-      method: 'POST',
-      body: formData,
-    });
-    if (!res.ok) throw new Error('Failed to upload file');
-    return await res.json();
-  } catch (error) {
-    console.error('Error uploading file:', error);
-    return null;
-  }
-}
 
 
 export default function FoodJourneyPage({ searchParams }: { searchParams: { [key: string]: string } })  {
@@ -154,9 +140,7 @@ export default function FoodJourneyPage({ searchParams }: { searchParams: { [key
       for (let idx = 0; idx < images.length; idx += 1) {
         const image = images[idx];
         if (image) {
-          const result = await uploadFile(image);
-          if (!result) throw new Error(`Failed to upload photo ${idx + 1}`);
-          imageUrls[idx] = result.url;
+          imageUrls[idx] = (await uploadFileToS3(image)).url;
         }
       }
       const formToSend = {

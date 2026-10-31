@@ -29,7 +29,8 @@ export async function uploadFileToS3(file: File): Promise<UploadResult> {
     body: formData,
   });
 
-  const data = await res.json();
+  // Vercel answers oversized bodies with plain text, not JSON.
+  const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     throw new Error(data.error || "Upload failed");
   }
@@ -41,15 +42,6 @@ export async function uploadFileToS3(file: File): Promise<UploadResult> {
   return { key: data.key, url: data.url };
 }
 
-export async function uploadImagesToS3(images: File[]): Promise<string[]> {
-  const urls: string[] = [];
-  for (const file of images) {
-    const result = await uploadFileToS3(file);
-    urls.push(result.url);
-  }
-  return urls;
-}
-
 export async function uploadVideoToS3(video: File): Promise<string | null> {
   const formData = new FormData();
   formData.append("file", video);
@@ -59,7 +51,8 @@ export async function uploadVideoToS3(video: File): Promise<string | null> {
     body: formData,
   });
 
-  const data = await res.json();
+  // Vercel answers oversized bodies with plain text, not JSON.
+  const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     throw new Error(data.error || "Video upload failed");
   }
