@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { UpdateFoodeezReviewData } from '@/types/foodeez-review.types';
+import { pickReviewUpdate, withoutForeignEmail } from '@/lib/foodeez-review';
 
 // Helper function to serialize BigInt values
 const serializeBigInt = (obj: any): any => {
@@ -29,8 +29,11 @@ export async function GET(
         FOODEEZ_REVIEW_ID: BigInt(params.id),
       },
     });
+    const session = await getServerSession(authOptions);
+    const viewerEmail = session?.user?.email || null;
 
-    if (!review) {
+    // Pending reviews are visible only to their author.
+    if (!review || (review.APPROVED !== 1 && review.REVIEWER_EMAIL !== viewerEmail)) {
       return NextResponse.json(
         { error: 'Review not found' },
         { status: 404 }
@@ -38,7 +41,7 @@ export async function GET(
     }
 
     // Serialize BigInt values before sending response
-    const serializedReview = serializeBigInt(review);
+    const serializedReview = serializeBigInt(withoutForeignEmail(review, viewerEmail));
 
     return NextResponse.json(serializedReview);
   } catch (error) {
@@ -64,7 +67,10 @@ export async function PUT(
       );
     }
 
-    const body: UpdateFoodeezReviewData = await request.json();
+    const body = await request.json().catch(() => null);
+    if (!body || typeof body !== 'object') {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    }
 
     // Check if review exists and user owns it or is admin
     const existingReview = await prisma.foodeez_review.findUnique({
@@ -92,7 +98,7 @@ export async function PUT(
       where: {
         FOODEEZ_REVIEW_ID: BigInt(params.id),
       },
-      data: body,
+      data: pickReviewUpdate(body),
     });
 
     // Serialize BigInt values before sending response

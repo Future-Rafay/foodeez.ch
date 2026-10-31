@@ -124,10 +124,12 @@ export async function PUT(request: Request) {
     if (!user || Number(review.VISITORS_ACCOUNT_ID) !== Number(user.VISITORS_ACCOUNT_ID)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
-    // Map picUrls to PIC_1...PIC_10
+    // Map picUrls to PIC_1...PIC_10, but only when the client sent a list; otherwise keep the saved media
     const picFields: { [key: string]: string | null } = {};
-    for (let i = 0; i < 10; i++) {
-      picFields[`PIC_${i + 1}`] = picUrls?.[i] || null;
+    if (Array.isArray(picUrls)) {
+      for (let i = 0; i < 10; i++) {
+        picFields[`PIC_${i + 1}`] = picUrls[i] || null;
+      }
     }
     const updated = await prisma.visitor_business_review.update({
       where: { VISITOR_BUSINESS_REVIEW_ID: Number(reviewId) },
@@ -135,7 +137,9 @@ export async function PUT(request: Request) {
         REMARKS: remarks ? String(remarks) : undefined,
         RATING: rating ? String(rating) : undefined,
         ...picFields,
-        VIDEO_1: videoUrl || null,
+        ...(videoUrl !== undefined ? { VIDEO_1: videoUrl || null } : {}),
+        // An edited review must be moderated again.
+        APPROVED: 0,
       },
     });
     return NextResponse.json({ success: true, review: updated });

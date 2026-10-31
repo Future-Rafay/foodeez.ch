@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { CreateFoodeezReviewData } from '@/types/foodeez-review.types';
+import { isValidRating, MAX_FOODEEZ_REVIEWS, withoutForeignEmail } from '@/lib/foodeez-review';
 
 // Helper function to serialize BigInt values
 const serializeBigInt = (obj: any): any => {
@@ -22,26 +23,27 @@ const serializeBigInt = (obj: any): any => {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const approved = searchParams.get('approved');
-    const limit = searchParams.get('limit');
-    const offset = searchParams.get('offset');
+    const limit = Number(searchParams.get('limit')) || MAX_FOODEEZ_REVIEWS;
+    const offset = Number(searchParams.get('offset')) || 0;
+    const session = await getServerSession(authOptions);
+    const viewerEmail = session?.user?.email || null;
 
-    const whereClause: any = {};
-    if (approved !== null) {
-      whereClause.APPROVED = parseInt(approved);
-    }
-
+    // Public sees approved reviews only; a signed-in reviewer also sees their own pending ones.
     const reviews = await prisma.foodeez_review_view.findMany({
-      where: whereClause,
+      where: viewerEmail
+        ? { OR: [{ APPROVED: 1 }, { REVIEWER_EMAIL: viewerEmail }] }
+        : { APPROVED: 1 },
       orderBy: {
         CREATION_DATETIME: 'desc',
       },
-      take: limit ? parseInt(limit) : undefined,
-      skip: offset ? parseInt(offset) : undefined,
+      take: Math.min(Math.max(1, limit), MAX_FOODEEZ_REVIEWS),
+      skip: Math.max(0, offset),
     });
 
-    // Serialize BigInt values before sending response
-    const serializedReviews = serializeBigInt(reviews);
+    // Serialize BigInt values before sending response; other reviewers' emails never leave the server.
+    const serializedReviews = serializeBigInt(
+      reviews.map((review) => withoutForeignEmail(review, viewerEmail))
+    );
 
     return NextResponse.json(serializedReviews);
   } catch (error) {
@@ -59,7 +61,8 @@ export async function POST(request: NextRequest) {
     const body: CreateFoodeezReviewData = await request.json();
 
     let reviewerName = body.REVIEWER_NAME;
-    let reviewerEmail = body.REVIEWER_EMAIL;
+    // Ownership is the session email only; a request cannot claim someone else's address.
+    let reviewerEmail: string | null | undefined;
     let avatar = body.AVATAR;
 
     if (session?.user?.email) {
@@ -69,10 +72,10 @@ export async function POST(request: NextRequest) {
       });
       if (user) {
         reviewerName = reviewerName || `${user.FIRST_NAME} ${user.LAST_NAME}`;
-        reviewerEmail = reviewerEmail || session.user.email;
+        reviewerEmail = session.user.email;
         avatar = user.PIC || "";
       } else {
-        reviewerEmail = reviewerEmail || session.user.email;
+        reviewerEmail = session.user.email;
       }
     }
 
@@ -85,6 +88,9 @@ export async function POST(request: NextRequest) {
         { error: 'Reviewer name is required.' },
         { status: 400 }
       );
+    }
+    if (!isValidRating(body.RATING) || typeof body.REVIEW !== 'string' || !body.REVIEW.trim()) {
+      return NextResponse.json({ error: 'Rating and review are required.' }, { status: 400 });
     }
 
     const reviewData = {
