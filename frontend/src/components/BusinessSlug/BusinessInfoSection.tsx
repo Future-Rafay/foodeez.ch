@@ -128,11 +128,12 @@ const BusinessInfoSection: React.FC<{ business: business_detail_view_all, genSlu
             <p className="font-medium text-gray-900">{business.PHONE_NUMBER}</p>
             {business.WEB_ADDRESS && (
               <a
-                href={business.WEB_ADDRESS}
+                href={/^https?:\/\//i.test(business.WEB_ADDRESS) ? business.WEB_ADDRESS : `https://${business.WEB_ADDRESS}`}
                 className="text-primary flex items-center gap-2"
               >
                 <Globe className="h-4 w-4" />
-                {new URL(business.WEB_ADDRESS).hostname}
+                {/* Stored addresses may lack a protocol, so parse by hand instead of new URL(). */}
+                {business.WEB_ADDRESS.replace(/^https?:\/\//i, "").split("/")[0]}
               </a>
             )}
           </div>
