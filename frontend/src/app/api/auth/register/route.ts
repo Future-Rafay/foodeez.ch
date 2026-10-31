@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
+import { MIN_PASSWORD_LENGTH } from '@/lib/auth';
+import { publicFormRateLimitResponse } from '@/lib/checkout-rate-limit';
 
 export async function POST(req: Request) {
   try {
@@ -13,6 +15,18 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
+    if (typeof password !== 'string' || password.length < MIN_PASSWORD_LENGTH) {
+      return NextResponse.json(
+        { message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.` },
+        { status: 400 }
+      );
+    }
+    if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      return NextResponse.json({ message: 'Enter a valid email address.' }, { status: 400 });
+    }
+
+    const limited = await publicFormRateLimitResponse(req.headers, 'register', email);
+    if (limited) return limited;
 
     // Check if user already exists
     const existingUser = await prisma.visitors_account.findUnique({
@@ -52,10 +66,10 @@ export async function POST(req: Request) {
       },
       { status: 201 }
     );
-  } catch (error : any) {
+  } catch (error) {
     console.error('Registration error:', error);
     return NextResponse.json(
-      { message: error.message || 'Error creating user' },
+      { message: 'Error creating user' },
       { status: 500 }
     );
   }

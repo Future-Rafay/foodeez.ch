@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
-import { authOptions } from '@/lib/auth';
+import { authOptions, MIN_PASSWORD_LENGTH } from '@/lib/auth';
 
 export async function PUT(req: Request) {
   try {
@@ -31,6 +31,12 @@ export async function PUT(req: Request) {
 
     // If changing password, verify current password
     if (currentPassword && newPassword) {
+      if (typeof newPassword !== 'string' || newPassword.length < MIN_PASSWORD_LENGTH) {
+        return NextResponse.json(
+          { message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.` },
+          { status: 400 }
+        );
+      }
       const isValidPassword = await bcrypt.compare(
         currentPassword,
         user.PASSWORD || ''

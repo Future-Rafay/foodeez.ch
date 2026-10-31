@@ -51,7 +51,7 @@ function SignInContent() {
       });
 
       if (result?.error) {
-        setErrorMessage("Invalid email or password");
+        setErrorMessage(result.error.startsWith("Too many") ? result.error : "Invalid email or password");
         return;
       }
 

@@ -3,19 +3,15 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import GoogleProvider from 'next-auth/providers/google';
 import { prisma } from './prisma';
 import bcrypt from 'bcryptjs';
+import { enforceRateLimit, LOGIN_LIMITS, RateLimitError } from './checkout-rate-limit';
+
+export const MIN_PASSWORD_LENGTH = 8;
 
 export const authOptions: NextAuthOptions = {
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      authorization: {
-        params: {
-          prompt: "consent",
-          access_type: "offline",
-          response_type: "code"
-        }
-      }
     }),
     CredentialsProvider({
       name: 'credentials',
@@ -23,9 +19,16 @@ export const authOptions: NextAuthOptions = {
         email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' }
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         if (!credentials?.email || !credentials?.password) {
           throw new Error('Invalid credentials');
+        }
+
+        try {
+          await enforceRateLimit(new Headers(req.headers as Record<string, string>), 'login', credentials.email, LOGIN_LIMITS);
+        } catch (error) {
+          if (error instanceof RateLimitError) throw new Error('Too many sign-in attempts. Please wait and try again.');
+          throw error;
         }
 
         const user = await prisma.visitors_account.findUnique({

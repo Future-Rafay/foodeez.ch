@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
+import { MIN_PASSWORD_LENGTH } from '@/lib/auth';
 
 export async function POST(req: Request) {
     try {
@@ -9,6 +10,12 @@ export async function POST(req: Request) {
         if (!token || !password) {
             return NextResponse.json(
                 { message: 'Token and password are required' },
+                { status: 400 }
+            );
+        }
+        if (typeof password !== 'string' || password.length < MIN_PASSWORD_LENGTH) {
+            return NextResponse.json(
+                { message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.` },
                 { status: 400 }
             );
         }

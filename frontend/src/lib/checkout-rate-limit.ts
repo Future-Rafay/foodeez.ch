@@ -16,6 +16,17 @@ const PUBLIC_FORM_LIMITS: Limits = {
   email: { limit: 3, windowMs: 60 * 60 * 1000 },
 };
 
+export const LOGIN_LIMITS: Limits = {
+  ip: { limit: 30, windowMs: 15 * 60 * 1000 },
+  email: { limit: 10, windowMs: 15 * 60 * 1000 },
+};
+
+// Coupon checks are keyed by IP only; checkout re-quotes as the customer types, so the limit allows normal editing.
+export const COUPON_LIMITS: Limits = {
+  ip: { limit: 40, windowMs: 10 * 60 * 1000 },
+  email: { limit: 40, windowMs: 10 * 60 * 1000 },
+};
+
 export class RateLimitError extends Error {
   constructor(
     public readonly retryAfterSeconds: number,
@@ -50,13 +61,13 @@ export function getCheckoutClientIp(headers: Headers) {
 export function getRateLimitRules(
   headers: Headers,
   purpose: string,
-  email: string,
+  email: string | null,
   limits: Limits = PUBLIC_FORM_LIMITS
 ) {
   const ip = getCheckoutClientIp(headers);
   const identities = [
     ...(ip ? [{ scope: "ip" as const, value: ip }] : []),
-    { scope: "email" as const, value: email.trim().toLowerCase() },
+    ...(email !== null ? [{ scope: "email" as const, value: email.trim().toLowerCase() }] : []),
   ];
 
   return identities.map(({ scope, value }) => ({
@@ -114,10 +125,15 @@ export async function enforceGuestCheckoutRateLimit(headers: Headers, email: str
   );
 }
 
-/** Returns a 429 response when a public email-sending form is over its limit, otherwise null. */
-export async function publicFormRateLimitResponse(headers: Headers, purpose: string, email: string) {
+/** Throws RateLimitError when this caller is over the limit for the given purpose. */
+export async function enforceRateLimit(headers: Headers, purpose: string, email: string | null, limits?: Limits) {
+  await enforceRules(getRateLimitRules(headers, purpose, email, limits), (seconds) => new RateLimitError(seconds));
+}
+
+/** Returns a 429 response when the caller is over the limit (public email forms by default), otherwise null. */
+export async function publicFormRateLimitResponse(headers: Headers, purpose: string, email: string | null, limits?: Limits) {
   try {
-    await enforceRules(getRateLimitRules(headers, purpose, email), (seconds) => new RateLimitError(seconds));
+    await enforceRateLimit(headers, purpose, email, limits);
     return null;
   } catch (error) {
     if (!(error instanceof RateLimitError)) throw error;

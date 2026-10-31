@@ -39,3 +39,13 @@ test("public form limits are separate per form and stricter than checkout", asyn
   assert.notEqual(contact[1].key, reservation[1].key);
   assert.ok(contact[1].limit < checkout[1].limit);
 });
+
+test("coupon checks are limited by IP only", async () => {
+  process.env.NEXTAUTH_SECRET = "test-only-secret";
+  // @ts-expect-error Node's TypeScript test runner requires the file extension.
+  const { getRateLimitRules, COUPON_LIMITS } = await import("./checkout-rate-limit.ts");
+
+  const rules = getRateLimitRules(new Headers({ "x-forwarded-for": "203.0.113.4" }), "coupon-quote", null, COUPON_LIMITS);
+  assert.equal(rules.length, 1);
+  assert.equal(rules[0].limit, COUPON_LIMITS.ip.limit);
+});
