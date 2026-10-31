@@ -1,5 +1,6 @@
 import { sendEmail } from '@/services/EmailService';
 import { NextResponse } from 'next/server';
+import { publicFormRateLimitResponse } from '@/lib/checkout-rate-limit';
 
 export async function POST(request: Request) {
   try {
@@ -13,17 +14,16 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+    if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      return NextResponse.json({ error: 'Enter a valid email address.' }, { status: 400 });
+    }
 
-    // Send email to admin
+    const limited = await publicFormRateLimitResponse(request.headers, 'contact', email);
+    if (limited) return limited;
+
+    // Only the admin receives the message; echoing it to the typed address would let anyone send mail as Foodeez.
     await sendEmail(
       process.env.ADMIN_EMAIL || 'admin@foodeez.ch',
-      'contact',
-      { name, email, subject, message }
-    );
-
-    // Send confirmation email to user
-    await sendEmail(
-      email,
       'contact',
       { name, email, subject, message }
     );
@@ -39,4 +39,4 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
-} 
+}

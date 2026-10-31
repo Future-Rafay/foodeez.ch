@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/services/EmailService";
+import { publicFormRateLimitResponse } from "@/lib/checkout-rate-limit";
 
 export async function POST(request: Request) {
   try {
@@ -7,6 +8,9 @@ export async function POST(request: Request) {
     if (typeof email !== "string" || !/^\S+@\S+\.\S+$/.test(email) || !Number.isInteger(businessId) || typeof businessName !== "string" || !businessName.trim()) {
       return NextResponse.json({ error: "Invalid claim request" }, { status: 400 });
     }
+
+    const limited = await publicFormRateLimitResponse(request.headers, "claim-business", email);
+    if (limited) return limited;
 
     await sendEmail(process.env.ADMIN_EMAIL! , "contact", {
       name: businessName,

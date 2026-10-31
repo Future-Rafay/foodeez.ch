@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import crypto from 'crypto';
 import { sendEmail } from '@/services/EmailService';
+import { publicFormRateLimitResponse } from '@/lib/checkout-rate-limit';
 
 export async function POST(request: Request) {
   try {
@@ -13,6 +14,9 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+
+    const limited = await publicFormRateLimitResponse(request.headers, 'forgot-password', String(email));
+    if (limited) return limited;
 
     // Check if user exists
     const user = await prisma.visitors_account.findUnique({

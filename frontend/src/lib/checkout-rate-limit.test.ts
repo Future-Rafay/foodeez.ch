@@ -24,3 +24,18 @@ test("guest checkout limits still protect an email when proxy headers are absent
 
   assert.equal(getGuestCheckoutRateLimitRules(new Headers(), "guest@example.com").length, 1);
 });
+
+test("public form limits are separate per form and stricter than checkout", async () => {
+  process.env.NEXTAUTH_SECRET = "test-only-secret";
+  // @ts-expect-error Node's TypeScript test runner requires the file extension.
+  const { getGuestCheckoutRateLimitRules, getRateLimitRules } = await import("./checkout-rate-limit.ts");
+  const headers = new Headers({ "x-forwarded-for": "203.0.113.4" });
+
+  const checkout = getGuestCheckoutRateLimitRules(headers, "guest@example.com");
+  const contact = getRateLimitRules(headers, "contact", "guest@example.com");
+  const reservation = getRateLimitRules(headers, "reservation", "guest@example.com");
+
+  assert.notEqual(contact[1].key, checkout[1].key);
+  assert.notEqual(contact[1].key, reservation[1].key);
+  assert.ok(contact[1].limit < checkout[1].limit);
+});

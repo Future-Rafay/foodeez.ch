@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { sendEmail } from '@/services/EmailService';
+import { publicFormRateLimitResponse } from '@/lib/checkout-rate-limit';
 
 export async function POST(request: Request) {
   try {
@@ -12,6 +13,9 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+
+    const limited = await publicFormRateLimitResponse(request.headers, 'subscribe', String(email));
+    if (limited) return limited;
 
     // Check if the email already exists
     const existingSubscription = await prisma.foodeez_subscription.findFirst({
