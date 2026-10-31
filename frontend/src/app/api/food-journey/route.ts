@@ -25,9 +25,10 @@ export async function POST(request: NextRequest) {
 
     const journeyData = {
       VISITORS_ACCOUNT_ID: Number(user.VISITORS_ACCOUNT_ID),
-      VISITOR_NAME: body.VISITOR_NAME || `${user.FIRST_NAME} ${user.LAST_NAME}`,
-      VISITOR_EMAIL_ADDRESS: body.VISITOR_EMAIL_ADDRESS || session.user.email,
-      VISITOR_PIC: body.VISITOR_PIC || user.PIC,
+      // Author identity always comes from the account, never from the request.
+      VISITOR_NAME: `${user.FIRST_NAME} ${user.LAST_NAME}`,
+      VISITOR_EMAIL_ADDRESS: session.user.email,
+      VISITOR_PIC: user.PIC,
       TITLE: body.TITLE,
       DESCRIPTION: body.DESCRIPTION,
       RESTAURANT_NAME: body.RESTAURANT_NAME,

@@ -94,6 +94,9 @@ export default function FoodeezReviewCard({
       if (data.success) {
         setLocalLikeCount(data.likeCount);
         setLiked(true);
+      } else if (res.status === 429) {
+        // Already liked recently; show the button as liked.
+        setLiked(true);
       }
     } catch (e) {
       console.error("Error liking review:", e);

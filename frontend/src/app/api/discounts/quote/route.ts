@@ -6,6 +6,7 @@ import { validateCartInventory } from "@/lib/inventory";
 import { getBusinessMenuWithProducts } from "@/services/MenuPageService";
 import { prisma } from "@/lib/prisma";
 import { getDeliveryQuote } from "@/lib/fulfillment";
+import { COUPON_LIMITS, publicFormRateLimitResponse } from "@/lib/checkout-rate-limit";
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
@@ -20,6 +21,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid payment method." }, { status: 400 });
   }
   if (body.orderType !== "delivery" && body.orderType !== "pickup") return NextResponse.json({ error: "Choose delivery or pickup." }, { status: 400 });
+  // Only coupon checks count, so automatic discounts keep working while someone types.
+  if (typeof body.couponCode === "string" && body.couponCode.trim()) {
+    const limited = await publicFormRateLimitResponse(request.headers, "coupon-quote", null, COUPON_LIMITS);
+    if (limited) return limited;
+  }
   try {
     const products = await validateCartInventory(items);
     const businessIds = new Set(products.map((item) => item.BUSINESS_ID));
