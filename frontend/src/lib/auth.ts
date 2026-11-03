@@ -7,6 +7,18 @@ import { enforceRateLimit, LOGIN_LIMITS, RateLimitError } from './checkout-rate-
 
 export const MIN_PASSWORD_LENGTH = 8;
 
+/**
+ * Registration does not verify email ownership, but Google does. Clearing the password on Google
+ * sign-in removes any password someone else set by registering this address first.
+ */
+export function googleAccountUpdate(
+  existing: { PIC: string | null; PASSWORD: string | null },
+  image: string | null | undefined
+) {
+  if (existing.PIC === image && !existing.PASSWORD) return null;
+  return { PIC: image || '', PASSWORD: null };
+}
+
 export const authOptions: NextAuthOptions = {
   providers: [
     GoogleProvider({
@@ -85,12 +97,14 @@ export const authOptions: NextAuthOptions = {
                 LANGUAGE: 'en',
               }
             });
-          } else if (existingUser.PIC !== user.image) {
-            // Update Google profile picture if it has changed
-            await prisma.visitors_account.update({
-              where: { EMAIL_ADDRESS: user.email! },
-              data: { PIC: user.image || '' }
-            });
+          } else {
+            const update = googleAccountUpdate(existingUser, user.image);
+            if (update) {
+              await prisma.visitors_account.update({
+                where: { EMAIL_ADDRESS: user.email! },
+                data: update
+              });
+            }
           }
           return true;
         } catch (error) {
