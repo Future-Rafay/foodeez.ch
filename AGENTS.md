@@ -193,3 +193,7 @@ The project is a Next.js 14 application with a clear separation of concerns.
 
 - The manage-business page renders the shared `BusinessInfoSection` with `showOrdering={false}` and the shared `GoogleReviews` without `GOOGLE_PROFILE`; only its `BusinessDeferredSections` composition stays local.
 - `getCustomerOrders` loads at most the newest 100 orders because My Orders and the bell poll every 30 seconds. Notification event keys include the previous snapshot so a value returning to an earlier state still creates an event.
+
+## Business Search Notes
+
+- `searchBusinesses` in `frontend/src/services/DiscoverPageService.ts` is a browser-callable server action. All its SQL comes from `buildBusinessSearchQuery` in `frontend/src/lib/business-search.ts`: caller values must stay bound `?` parameters and filter names must resolve through its fixed maps. Never paste caller values into the SQL string.
