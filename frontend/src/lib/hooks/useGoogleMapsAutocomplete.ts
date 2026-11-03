@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 interface UseGoogleMapsAutocompleteProps {
-  inputRef: React.RefObject<HTMLInputElement>;
+  inputRef: React.RefObject<HTMLInputElement | null>;
   onPlaceSelect?: (place: google.maps.places.PlaceResult) => void;
   types?: string[];
   componentRestrictions?: google.maps.places.ComponentRestrictions;

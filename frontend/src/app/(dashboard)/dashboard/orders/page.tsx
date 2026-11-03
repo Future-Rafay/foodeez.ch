@@ -485,7 +485,7 @@ export default function OrdersPage() {
   const [error, setError] = useState("");
   const [changedOrders, setChangedOrders] = useState<ChangedOrders>({});
   const previousOrders = useRef<Order[] | null>(null);
-  const highlightTimer = useRef<number>();
+  const highlightTimer = useRef<number | undefined>(undefined);
 
   const showChanges = useCallback((changes: ChangedOrders) => {
     if (!Object.keys(changes).length) return;
