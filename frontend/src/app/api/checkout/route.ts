@@ -15,7 +15,9 @@ import { getPublicAppOrigin } from "@/lib/public-app-url";
 import { sendGuestOrderEmailSafely } from "@/lib/guest-order-email";
 import { generateOrderNumberFromId, ORDER_STATUS, ORDER_TYPE, PAYMENT_DONE } from "@/lib/order";
 import {
+  releaseExpiredStripeOrderInventory,
   reserveCartInventory,
+  stripeSessionExpiresAt,
   validateCartInventory,
 } from "@/lib/inventory";
 import { sendEmail } from "@/services/EmailService";
@@ -563,11 +565,8 @@ export async function POST(req: NextRequest) {
       },
     }],
     customer_email: normalizeEmail(customerInfo.email),
-    phone_number_collection: { enabled: true },
+    expires_at: stripeSessionExpiresAt(order.CREATION_DATETIME ?? new Date()),
   };
-  if (effectiveOrderType === ORDER_TYPE.delivery) {
-    sessionConfig.shipping_address_collection = { allowed_countries: ["CH"] };
-  }
   if (appliedDiscount?.amountCents) {
     try {
       const couponId = `fdz-order-${checkoutRequestId}`;
@@ -613,6 +612,12 @@ export async function POST(req: NextRequest) {
       orderId: order.BUSINESS_ORDER_ID,
       error: error instanceof Error ? error.message : "Unknown Stripe error",
     });
+    // Stripe refused the request, so no payable session exists and the reservation can go.
+    if ((error as { type?: string }).type === "StripeInvalidRequestError") {
+      await prisma.$transaction((tx) => releaseExpiredStripeOrderInventory(tx, order.BUSINESS_ORDER_ID))
+        .catch((releaseError) => console.error("Checkout stock release failed", releaseError));
+      return new NextResponse("This checkout expired. Please submit the cart again.", { status: 409 });
+    }
     return new NextResponse("Card checkout could not be started. Please retry this checkout.", {
       status: 502,
     });

@@ -114,6 +114,33 @@ export async function markStripeOrderPaid(
   return result.count === 1;
 }
 
+// Stripe needs at least 30 minutes from now. Tied to the order's age so a retry sends the same value.
+export const stripeSessionExpiresAt = (orderCreatedAt: Date) =>
+  Math.floor(orderCreatedAt.getTime() / 1000) + 35 * 60;
+
+/** Card orders whose Stripe session never got saved have no expiry event, so a scheduled job releases them. */
+export async function releaseUnstartedStripeOrders(now = new Date()) {
+  const orders = await prisma.business_order.findMany({
+    where: {
+      PAYMENT_MODE: "stripe",
+      PAYMENT_DONE: PAYMENT_DONE.pending,
+      STRIPE_CHECKOUT_SESSION_ID: null,
+      INVENTORY_RELEASED_DATETIME: null,
+      // Older than any session the order could have, including one whose id failed to save.
+      CREATION_DATETIME: { lt: new Date(now.getTime() - 60 * 60 * 1000) },
+    },
+    select: { BUSINESS_ORDER_ID: true },
+    take: 100,
+  });
+  let released = 0;
+  for (const order of orders) {
+    if (await prisma.$transaction((tx) => releaseExpiredStripeOrderInventory(tx, order.BUSINESS_ORDER_ID))) {
+      released += 1;
+    }
+  }
+  return released;
+}
+
 export async function releaseExpiredStripeOrderInventory(
   db: OrderInventoryDb,
   orderId: number
