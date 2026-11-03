@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import type { MenuCard, MenuProduct } from "@/types/product";
+import { isMenuActiveOn, type MenuCardSchedule } from "@/lib/menu-schedule";
 
 export async function getBusinessMenuOnly(BUSINESS_ID: number) {
   try {
@@ -93,18 +94,6 @@ export async function getBusinessMenuWithProducts(businessId: number) {
   }
 }
 
-type MenuCardSchedule = {
-  BUSINESS_FOOD_MENU_CARD_ID: number;
-  TITLE: string | null;
-  VALID_FROM: Date | null;
-  VALID_TO: Date | null;
-  STATUS: number | null;
-  REPEAT_WEEKLY: number | null;
-  ACTIVE_DAYS_JSON: string | null;
-  IS_UNLIMITED: number | null;
-  SALES_CHANNEL: string | null;
-};
-
 async function activeMenuCards(businessId: number) {
   const cards = await prisma.$queryRaw<MenuCardSchedule[]>`
     SELECT
@@ -121,41 +110,6 @@ async function activeMenuCards(businessId: number) {
     WHERE BUSINESS_ID = ${businessId}
     ORDER BY TITLE ASC
   `;
-  const today = startOfDay(new Date());
-  const weekday = today
-    .toLocaleDateString("en-US", { weekday: "long" })
-    .toLowerCase();
-
-  return cards.filter(
-    (card) =>
-      card.SALES_CHANNEL !== "pos" && isActiveToday(card, today, weekday)
-  );
-}
-
-function isActiveToday(card: MenuCardSchedule, today: Date, weekday: string) {
-  if (Number(card.STATUS ?? 1) !== 1 || !card.VALID_FROM) return false;
-  if (startOfDay(card.VALID_FROM) > today) return false;
-  if (Number(card.IS_UNLIMITED ?? 0) !== 1 && card.VALID_TO && startOfDay(card.VALID_TO) < today) {
-    return false;
-  }
-  if (Number(card.REPEAT_WEEKLY ?? 0) === 1) {
-    const activeDays = parseActiveDays(card.ACTIVE_DAYS_JSON);
-    return activeDays.includes(weekday);
-  }
-  return true;
-}
-
-function parseActiveDays(value: string | null) {
-  try {
-    const days = JSON.parse(value || "[]");
-    return Array.isArray(days) ? days.map((day) => String(day).toLowerCase()) : [];
-  } catch {
-    return [];
-  }
-}
-
-function startOfDay(value: Date) {
-  const date = new Date(value);
-  date.setHours(0, 0, 0, 0);
-  return date;
+  const now = new Date();
+  return cards.filter((card) => card.SALES_CHANNEL !== "pos" && isMenuActiveOn(card, now));
 }
