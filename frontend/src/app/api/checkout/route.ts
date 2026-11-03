@@ -17,6 +17,7 @@ import { generateOrderNumberFromId, ORDER_STATUS, ORDER_TYPE, PAYMENT_DONE } fro
 import {
   releaseExpiredStripeOrderInventory,
   reserveCartInventory,
+  isStripeExpiryRejection,
   stripeSessionExpiresAt,
   validateCartInventory,
 } from "@/lib/inventory";
@@ -612,8 +613,8 @@ export async function POST(req: NextRequest) {
       orderId: order.BUSINESS_ORDER_ID,
       error: error instanceof Error ? error.message : "Unknown Stripe error",
     });
-    // Stripe refused the request, so no payable session exists and the reservation can go.
-    if ((error as { type?: string }).type === "StripeInvalidRequestError") {
+    // Stripe refused the expiry, so no payable session exists and the reservation can go.
+    if (isStripeExpiryRejection(error)) {
       await prisma.$transaction((tx) => releaseExpiredStripeOrderInventory(tx, order.BUSINESS_ORDER_ID))
         .catch((releaseError) => console.error("Checkout stock release failed", releaseError));
       return new NextResponse("This checkout expired. Please submit the cart again.", { status: 409 });

@@ -83,6 +83,17 @@ test("Google sign-in keeps a password set through a completed email reset", asyn
   assert.deepEqual(googleAccountUpdate({ ...reset, RESET_TOKEN: "pending" }, "a"), { PIC: "a", PASSWORD: null });
 });
 
+test("only a rejected expiry counts as an expired checkout", async () => {
+  const { isStripeExpiryRejection } = await import("./inventory");
+  const type = "StripeInvalidRequestError";
+
+  assert.equal(isStripeExpiryRejection({ type, param: "expires_at" }), true);
+  assert.equal(isStripeExpiryRejection({ type, param: "line_items[0][price_data][product_data][images][0]" }), false);
+  assert.equal(isStripeExpiryRejection({ type: "StripeConnectionError", param: "expires_at" }), false);
+  assert.equal(isStripeExpiryRejection(new Error("network")), false);
+  assert.equal(isStripeExpiryRejection(undefined), false);
+});
+
 test("Stripe sessions expire 35 minutes after the order, the same on every retry", async () => {
   const { stripeSessionExpiresAt } = await import("./inventory");
   const created = new Date("2026-11-02T10:00:00Z");

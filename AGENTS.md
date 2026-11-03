@@ -206,7 +206,7 @@ The project is a Next.js 14 application with a clear separation of concerns.
 - `isUnpaidCardOrder` in `frontend/src/lib/order.ts` keeps pending or failed card orders out of the Active list, and the first customer notification waits until the order is paid.
 - Google sign-in clears `visitors_account.PASSWORD` on an existing account because registration does not verify email ownership. Those users can set a password again through reset, which keeps it: a completed reset leaves `RESET_TOKEN_EXPIRY` set with `RESET_TOKEN` null, and `googleAccountUpdate` treats that as the owner's password.
 - Checkout no longer asks Stripe for address or phone; the order uses the checkout form's values.
-- Stripe sessions expire 35 minutes after the order was created, tied to the order so retries reuse the same idempotent request. A `StripeInvalidRequestError` means no session exists, so checkout releases the reservation at once.
+- Stripe sessions expire 35 minutes after the order was created, tied to the order so retries reuse the same idempotent request. Only a `StripeInvalidRequestError` on `expires_at` (`isStripeExpiryRejection`) releases the reservation at once and asks for a new checkout; other rejections return the retryable 502 and keep the same order until the stale-checkout job releases it.
 - `/api/cron/release-stale-checkouts` (scheduled in `frontend/vercel.json`, needs `CRON_SECRET`) releases card orders over an hour old that never saved a session.
 - `/api/business/register` emails the request to `ADMIN_EMAIL` and creates no database rows.
 - `shortPhotoUrl` leaves out photo URLs over 100 characters until `docs/sql/widen_review_and_journey_avatar_columns.sql` is approved and applied.

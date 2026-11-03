@@ -118,6 +118,12 @@ export async function markStripeOrderPaid(
 export const stripeSessionExpiresAt = (orderCreatedAt: Date) =>
   Math.floor(orderCreatedAt.getTime() / 1000) + 35 * 60;
 
+/** Only a rejected expiry means the order is too old to pay. Other rejections keep the order and its retry id. */
+export function isStripeExpiryRejection(error: unknown) {
+  const { type, param } = (error ?? {}) as { type?: string; param?: string };
+  return type === "StripeInvalidRequestError" && param === "expires_at";
+}
+
 /** Card orders whose Stripe session never got saved have no expiry event, so a scheduled job releases them. */
 export async function releaseUnstartedStripeOrders(now = new Date()) {
   const orders = await prisma.business_order.findMany({
