@@ -197,3 +197,16 @@ The project is a Next.js 14 application with a clear separation of concerns.
 ## Business Search Notes
 
 - `searchBusinesses` in `frontend/src/services/DiscoverPageService.ts` is a browser-callable server action. All its SQL comes from `buildBusinessSearchQuery` in `frontend/src/lib/business-search.ts`: caller values must stay bound `?` parameters and filter names must resolve through its fixed maps. Never paste caller values into the SQL string.
+
+## Server Action, Time Zone, and Order State Notes
+
+- Files with `'use server'` in `frontend/src/services/` are callable from any browser. Read the viewer from the session inside the function, never from an argument, and leave private columns out of what they return. `getFoodJourney`, `getFoodJourneyById`, and `getBusinessReviewsForUser` follow this; `PublicFoodJourney` omits author email.
+- Editing a food story resets `APPROVED` to `0`, the same as reviews.
+- Menu schedules (`frontend/src/lib/menu-schedule.ts`) and ETA text (`formatEtaTimeOnly`) use `Europe/Zurich`, because Vercel runs in UTC.
+- `isUnpaidCardOrder` in `frontend/src/lib/order.ts` keeps pending or failed card orders out of the Active list, and the first customer notification waits until the order is paid.
+- Google sign-in clears `visitors_account.PASSWORD` on an existing account because registration does not verify email ownership. Those users can set a password again through reset.
+- Checkout no longer asks Stripe for address or phone; the order uses the checkout form's values.
+- Stripe sessions expire 35 minutes after the order was created, tied to the order so retries reuse the same idempotent request. A `StripeInvalidRequestError` means no session exists, so checkout releases the reservation at once.
+- `/api/cron/release-stale-checkouts` (scheduled in `frontend/vercel.json`, needs `CRON_SECRET`) releases card orders over an hour old that never saved a session.
+- `/api/business/register` emails the request to `ADMIN_EMAIL` and creates no database rows.
+- `shortPhotoUrl` leaves out photo URLs over 100 characters until `docs/sql/widen_review_and_journey_avatar_columns.sql` is approved and applied.
