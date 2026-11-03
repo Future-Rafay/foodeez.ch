@@ -1,6 +1,6 @@
 import { createHash } from "crypto";
 import { prisma } from "@/lib/prisma";
-import { formatEtaTimeOnly, getDisplayOrderNumber, getOrderStatusLabel, getPaymentStatusLabel } from "@/lib/order";
+import { formatEtaTimeOnly, getDisplayOrderNumber, getOrderStatusLabel, getPaymentStatusLabel, isUnpaidCardOrder } from "@/lib/order";
 import type { CustomerOrder } from "@/lib/order-data";
 
 type Snapshot = {
@@ -56,6 +56,8 @@ export async function syncCustomerNotifications(visitorId: number, orders: Custo
       MESSAGE: message,
       METADATA_JSON: JSON.stringify({ changedField, snapshot: current }),
     });
+    // "Received your order" stays false until a card order is paid; the first sync after payment sends it.
+    if (!before && isUnpaidCardOrder(order)) return [];
     if (!before) return [make("order_created", `${number} Placed`, `${business} Received your order.`, "status", current.status)];
     const next = [];
     if (before.eta !== current.eta) next.push(make("eta_updated", `${number} ETA changed`, `${business} updated ETA to ${formatEtaTimeOnly(current.eta)}.`, "eta", current.eta));

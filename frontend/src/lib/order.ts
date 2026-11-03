@@ -26,6 +26,8 @@ type OrderLike = {
   DELIVERY_ET?: string | null;
   ORDER_STATUS?: number | null;
   ORDER_TYPE?: string | null;
+  PAYMENT_DONE?: number | null;
+  PAYMENT_MODE?: string | null;
   business?: {
     BUSINESS_NAME?: string | null;
     DEFAULT_DELIVERY_PREP_MINUTES?: number | null;
@@ -96,6 +98,11 @@ export const isPickupOrder = (order: OrderLike) =>
 export const isDeliveryOrder = (order: OrderLike) =>
   order.ORDER_TYPE === ORDER_TYPE.delivery;
 
+/** A card order nobody has paid for yet (or ever will): the restaurant has nothing to prepare. */
+export const isUnpaidCardOrder = (order: OrderLike) =>
+  ["stripe", "card"].includes((order.PAYMENT_MODE || "").toLowerCase()) &&
+  (order.PAYMENT_DONE === PAYMENT_DONE.pending || order.PAYMENT_DONE === PAYMENT_DONE.failed);
+
 export const getOrderStatusLabel = (order: OrderLike) =>
   (isPickupOrder(order) ? PICKUP_STATUS_LABELS : DELIVERY_STATUS_LABELS)[
     order.ORDER_STATUS ?? 0
@@ -134,6 +141,8 @@ export const formatEtaTimeOnly = (value?: string | Date | null) => {
     hour: "2-digit",
     minute: "2-digit",
     hourCycle: "h23",
+    // Also runs on the server (UTC) for saved notification text, and restaurants work on Swiss time.
+    timeZone: "Europe/Zurich",
   }).format(rounded);
 };
 

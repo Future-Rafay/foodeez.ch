@@ -26,6 +26,7 @@ import {
   getPaymentStatusLabel,
   ORDER_STATUS,
   PAYMENT_DONE,
+  isUnpaidCardOrder,
   isPickupOrder,
 } from "@/lib/orderStatus";
 import {
@@ -101,9 +102,9 @@ const dateTime = (value?: string | null) =>
     : "Not set";
 
 const isActiveOrder = (order: Order) =>
-  isPickupOrder(order)
+  !isUnpaidCardOrder(order) && (isPickupOrder(order)
     ? order.ORDER_STATUS === ORDER_STATUS.preparing || order.ORDER_STATUS === ORDER_STATUS.readyForPickup
-    : order.ORDER_STATUS === ORDER_STATUS.preparing || order.ORDER_STATUS === ORDER_STATUS.outForDelivery;
+    : order.ORDER_STATUS === ORDER_STATUS.preparing || order.ORDER_STATUS === ORDER_STATUS.outForDelivery);
 
 const isCompletedOrder = (order: Order) =>
   isPickupOrder(order)
