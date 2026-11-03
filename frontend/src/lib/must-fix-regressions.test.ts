@@ -94,6 +94,25 @@ test("only a rejected expiry counts as an expired checkout", async () => {
   assert.equal(isStripeExpiryRejection(undefined), false);
 });
 
+test("one failing order does not stop the stale-checkout job", async (t) => {
+  const { releaseUnstartedStripeOrders } = await import("./inventory");
+  let attempts = 0;
+  const db = {
+    business_order: {
+      findMany: async () => [{ BUSINESS_ORDER_ID: 1 }, { BUSINESS_ORDER_ID: 2 }, { BUSINESS_ORDER_ID: 3 }],
+    },
+    $transaction: async () => {
+      attempts += 1;
+      if (attempts === 1) throw new Error("Reserved inventory is inconsistent");
+      return true;
+    },
+  } as unknown as Parameters<typeof releaseUnstartedStripeOrders>[1];
+  t.mock.method(console, "error", () => {});
+
+  assert.equal(await releaseUnstartedStripeOrders(new Date(), db), 2);
+  assert.equal(attempts, 3);
+});
+
 test("Stripe sessions expire 35 minutes after the order, the same on every retry", async () => {
   const { stripeSessionExpiresAt } = await import("./inventory");
   const created = new Date("2026-11-02T10:00:00Z");

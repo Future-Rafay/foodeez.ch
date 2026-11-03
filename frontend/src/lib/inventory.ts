@@ -125,8 +125,8 @@ export function isStripeExpiryRejection(error: unknown) {
 }
 
 /** Card orders whose Stripe session never got saved have no expiry event, so a scheduled job releases them. */
-export async function releaseUnstartedStripeOrders(now = new Date()) {
-  const orders = await prisma.business_order.findMany({
+export async function releaseUnstartedStripeOrders(now = new Date(), db: Pick<typeof prisma, "business_order" | "$transaction"> = prisma) {
+  const orders = await db.business_order.findMany({
     where: {
       PAYMENT_MODE: "stripe",
       PAYMENT_DONE: PAYMENT_DONE.pending,
@@ -140,8 +140,13 @@ export async function releaseUnstartedStripeOrders(now = new Date()) {
   });
   let released = 0;
   for (const order of orders) {
-    if (await prisma.$transaction((tx) => releaseExpiredStripeOrderInventory(tx, order.BUSINESS_ORDER_ID))) {
-      released += 1;
+    try {
+      if (await db.$transaction((tx) => releaseExpiredStripeOrderInventory(tx, order.BUSINESS_ORDER_ID))) {
+        released += 1;
+      }
+    } catch (error) {
+      // One bad order must not hold back the stock of the others.
+      console.error("Stale checkout release failed", { orderId: order.BUSINESS_ORDER_ID, error });
     }
   }
   return released;
