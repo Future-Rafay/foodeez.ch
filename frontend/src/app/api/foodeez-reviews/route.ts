@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { CreateFoodeezReviewData } from '@/types/foodeez-review.types';
+import { shortPhotoUrl } from '@/lib/media';
 import { isValidRating, MAX_FOODEEZ_REVIEWS, serializeBigInt, withoutForeignEmail } from '@/lib/foodeez-review';
 
 
@@ -82,7 +83,7 @@ export async function POST(request: NextRequest) {
     const reviewData = {
       REVIEWER_NAME: reviewerName.trim(),
       REVIEWER_EMAIL: safeReviewerEmail,
-      AVATAR: safeAvatar,
+      AVATAR: shortPhotoUrl(safeAvatar),
       RATING: body.RATING,
       REVIEW: body.REVIEW,
       PIC_1: body.PIC_1,

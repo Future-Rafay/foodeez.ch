@@ -41,3 +41,8 @@ export function formatFileSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+// shortcut: AVATAR and VISITOR_PIC hold 100 characters, so longer URLs are left out and the card shows initials;
+// apply docs/sql/widen_review_and_journey_avatar_columns.sql, then remove this.
+export const shortPhotoUrl = (url: string | null | undefined) =>
+  url && url.length <= 100 ? url : undefined;

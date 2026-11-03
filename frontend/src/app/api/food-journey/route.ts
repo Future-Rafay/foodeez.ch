@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { shortPhotoUrl } from '@/lib/media';
 
 
 export async function POST(request: NextRequest) {
@@ -28,7 +29,7 @@ export async function POST(request: NextRequest) {
       // Author identity always comes from the account, never from the request.
       VISITOR_NAME: `${user.FIRST_NAME} ${user.LAST_NAME}`,
       VISITOR_EMAIL_ADDRESS: session.user.email,
-      VISITOR_PIC: user.PIC,
+      VISITOR_PIC: shortPhotoUrl(user.PIC),
       TITLE: body.TITLE,
       DESCRIPTION: body.DESCRIPTION,
       RESTAURANT_NAME: body.RESTAURANT_NAME,
