@@ -208,24 +208,6 @@ export async function getBusinessByFoodtypeCategoryLocation(params: {
   }
 }
 
-export async function getFoodeezReview() {
-  try {
-    const reviews = await prisma.foodeez_review_view.findMany({
-      where: {
-        APPROVED: 1,
-      },
-      orderBy: {
-        CREATION_DATETIME: 'desc',
-      },
-    });
-    return reviews;
-  } catch (error) {
-    console.error('Error fetching Foodeez reviews:', error);
-    return [];
-  }
-}
-
-
 /**
  * Get top rated restaurants near the user's location.
  */

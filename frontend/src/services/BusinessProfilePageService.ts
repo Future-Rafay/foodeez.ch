@@ -1,5 +1,7 @@
 "use server";
 
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { prisma } from "../lib/prisma";
 
 export async function getBusinesses() {
@@ -32,8 +34,11 @@ export async function getBusinessById(id: number) {
   }
 }
 
-export async function getBusinessReviewsForUser(businessId: number, userId?: number) {
+export async function getBusinessReviewsForUser(businessId: number) {
   try {
+    // Runs from the browser, so the viewer comes from the session, never from an argument.
+    const session = await getServerSession(authOptions);
+    const userId = Number(session?.user?.id) || undefined;
     const whereClause: any = {
       BUSINESS_ID: businessId,
       OR: [

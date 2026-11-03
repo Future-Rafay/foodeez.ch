@@ -1,5 +1,5 @@
 import { generateSlug } from "@/lib/utils/genSlug";
-import type { visitor_food_journey_view } from "@/lib/prisma";
+import type { PublicFoodJourney } from "@/types/food-journey";
 import Image from "next/image";
 import Link from "next/link";
 import React from "react";
@@ -7,10 +7,10 @@ import DeleteConfirmModal from "./DeleteConfirmModal";
 import { Edit, Trash } from "lucide-react";
 
 interface FoodJourneyCardProps {
-  journey: visitor_food_journey_view;
+  journey: PublicFoodJourney;
   currentUserId?: string;
   onDelete?: (id: number) => Promise<void>;
-  onEdit?: (story: visitor_food_journey_view) => void;
+  onEdit?: (story: PublicFoodJourney) => void;
 }
 
 const getInitials = (name?: string) => {

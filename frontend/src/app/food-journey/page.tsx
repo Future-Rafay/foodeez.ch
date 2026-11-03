@@ -8,7 +8,7 @@ import FoodJourneyForm from "@/components/core/food-journey/FoodJourneyForm";
 import FoodJourneyGrid from "@/components/core/food-journey/FoodJourneyGrid";
 import FoodJourneyPagination from "@/components/core/food-journey/FoodJourneyPagination";
 import FoodJourneyGridSkeleton from "@/components/core/food-journey/FoodJourneyGridSkeleton";
-import type { visitor_food_journey_view } from "@/lib/prisma";
+import type { PublicFoodJourney } from "@/types/food-journey";
 import Separator from "@/components/ui/separator";
 import { uploadFileToS3 } from "@/lib/media-upload";
 
@@ -34,20 +34,16 @@ export default function FoodJourneyPage({ searchParams }: { searchParams: { [key
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [allStories, setAllStories] = useState<visitor_food_journey_view[]>([]);
+  const [allStories, setAllStories] = useState<PublicFoodJourney[]>([]);
   const [page, setPage] = useState(1);
   const [images, setImages] = useState<(File | null)[]>(emptyImageSlots);
   const [imageValues, setImageValues] = useState<string[]>(emptyImageValues);
   const [imagePreviews, setImagePreviews] = useState<(string | null)[]>(emptyPreviewSlots);
-  const [editStory, setEditStory] = useState<visitor_food_journey_view | null>(null);
+  const [editStory, setEditStory] = useState<PublicFoodJourney | null>(null);
   const limit = 9;
 
   const fetchStories = useCallback(async () => {
-    let userId: number | undefined = undefined;
-    if (session?.user?.id) {
-      userId = Number(session.user.id);
-    }
-    const data = await getFoodJourney(userId);
+    const data = await getFoodJourney();
     setAllStories(data);
   }, [session]);
 
@@ -103,7 +99,7 @@ export default function FoodJourneyPage({ searchParams }: { searchParams: { [key
   };
 
   // Edit handler
-  const handleEdit = (story: visitor_food_journey_view) => {
+  const handleEdit = (story: PublicFoodJourney) => {
     const existingImages = [story.PIC_1 || "", story.PIC_2 || "", story.PIC_3 || ""];
     setEditStory(story);
     setForm({

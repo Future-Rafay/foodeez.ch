@@ -37,14 +37,7 @@ export default function AllFoodeezReviewsPage() {
 
   // helper function 
   const fetchReviews = useCallback(async () => {
-    let userId: number | undefined = undefined;
-    if (session?.user?.id) {
-      userId = Number(session.user.id);
-    }
-    const businessReviews = await getBusinessReviewsForUser(
-      businessId,
-      userId
-    );
+    const businessReviews = await getBusinessReviewsForUser(businessId);
     setReviews(businessReviews);
   }, [businessId, session]);
 

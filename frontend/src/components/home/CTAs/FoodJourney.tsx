@@ -2,7 +2,7 @@ import Banner from "@/components/core/Banner";
 import Link from "next/link";
 import React, { useCallback, useEffect, useState } from "react";
 import FoodJourneyCard from "../../core/food-journey/FoodJourneyCard";
-import type { visitor_food_journey_view } from "@/lib/prisma";
+import type { PublicFoodJourney } from "@/types/food-journey";
 import { getFoodJourney } from "@/services/FoodJourneyService";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -11,16 +11,12 @@ import LoginRequiredModal from "@/components/core/LoginRequiredModal";
 const FoodJourney = () => {
   const { data: session } = useSession();
   const router = useRouter();
-  const [journeys, setJourneys] = useState<visitor_food_journey_view[]>([]);
+  const [journeys, setJourneys] = useState<PublicFoodJourney[]>([]);
   const [hasMore, setHasMore] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
 
   const fetchStories = useCallback(async () => {
-    let userId: number | undefined = undefined;
-    if (session?.user?.id) {
-      userId = Number(session.user.id);
-    }
-    const data = await getFoodJourney(userId);
+    const data = await getFoodJourney();
     setHasMore(data.length > 6);
     setJourneys(data); // Fetch only the first 6 journeys
   }, [session]);
@@ -29,7 +25,7 @@ const FoodJourney = () => {
     fetchStories();
   }, [fetchStories]);
 
-  const handleEdit = (story: visitor_food_journey_view) => {
+  const handleEdit = (story: PublicFoodJourney) => {
     router.push(`/food-journey?edit=${story.VISITOR_FOOD_JOURNEY_ID}`);
     setTimeout(() => {
       if (typeof window !== 'undefined') {

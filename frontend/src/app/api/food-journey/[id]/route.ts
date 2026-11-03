@@ -66,6 +66,8 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         PIC_1: body.PIC_1,
         PIC_2: body.PIC_2,
         PIC_3: body.PIC_3,
+        // An edited story must be moderated again.
+        APPROVED: 0,
       },
     });
     return NextResponse.json(updatedJourney);
