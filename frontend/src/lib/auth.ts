@@ -9,14 +9,23 @@ export const MIN_PASSWORD_LENGTH = 8;
 
 /**
  * Registration does not verify email ownership, but Google does. Clearing the password on Google
- * sign-in removes any password someone else set by registering this address first.
+ * sign-in removes any password someone else set by registering this address first. A password set
+ * through a completed email reset is the owner's, so it stays.
+ * shortcut: an expiry with no token marks a completed reset, and a newer unfinished reset request
+ * hides it; replace with a verified-email column when a schema change is approved.
  */
 export function googleAccountUpdate(
-  existing: { PIC: string | null; PASSWORD: string | null },
+  existing: {
+    PIC: string | null;
+    PASSWORD: string | null;
+    RESET_TOKEN: string | null;
+    RESET_TOKEN_EXPIRY: Date | null;
+  },
   image: string | null | undefined
 ) {
-  if (existing.PIC === image && !existing.PASSWORD) return null;
-  return { PIC: image || '', PASSWORD: null };
+  const clearPassword = Boolean(existing.PASSWORD) && (Boolean(existing.RESET_TOKEN) || !existing.RESET_TOKEN_EXPIRY);
+  if (existing.PIC === image && !clearPassword) return null;
+  return { PIC: image || '', ...(clearPassword ? { PASSWORD: null } : {}) };
 }
 
 export const authOptions: NextAuthOptions = {

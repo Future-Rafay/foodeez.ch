@@ -46,7 +46,8 @@ export async function POST(req: Request) {
             data: {
                 PASSWORD: hashedPassword,
                 RESET_TOKEN: null,
-                RESET_TOKEN_EXPIRY: null,
+                // Marks this password as set by the email's owner; see googleAccountUpdate.
+                RESET_TOKEN_EXPIRY: new Date(),
             },
         });
 

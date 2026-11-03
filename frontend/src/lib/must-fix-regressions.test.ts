@@ -66,8 +66,21 @@ test("Google sign-in clears a password set by whoever registered the address", a
   process.env.NEXTAUTH_SECRET ||= "test-only-secret";
   const { googleAccountUpdate } = await import("./auth");
 
-  assert.deepEqual(googleAccountUpdate({ PIC: "a", PASSWORD: "hash" }, "a"), { PIC: "a", PASSWORD: null });
-  assert.equal(googleAccountUpdate({ PIC: "a", PASSWORD: null }, "a"), null);
+  const account = { PIC: "a", PASSWORD: "hash", RESET_TOKEN: null, RESET_TOKEN_EXPIRY: null };
+
+  assert.deepEqual(googleAccountUpdate(account, "a"), { PIC: "a", PASSWORD: null });
+  assert.equal(googleAccountUpdate({ ...account, PASSWORD: null }, "a"), null);
+});
+
+test("Google sign-in keeps a password set through a completed email reset", async () => {
+  process.env.NEXTAUTH_SECRET ||= "test-only-secret";
+  const { googleAccountUpdate } = await import("./auth");
+  const reset = { PIC: "a", PASSWORD: "hash", RESET_TOKEN: null, RESET_TOKEN_EXPIRY: new Date() };
+
+  assert.equal(googleAccountUpdate(reset, "a"), null);
+  assert.deepEqual(googleAccountUpdate(reset, "b"), { PIC: "b" });
+  // A pending request proves nothing: anyone can ask for a reset, only the owner can finish one.
+  assert.deepEqual(googleAccountUpdate({ ...reset, RESET_TOKEN: "pending" }, "a"), { PIC: "a", PASSWORD: null });
 });
 
 test("Stripe sessions expire 35 minutes after the order, the same on every retry", async () => {

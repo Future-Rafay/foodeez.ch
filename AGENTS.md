@@ -204,7 +204,7 @@ The project is a Next.js 14 application with a clear separation of concerns.
 - Editing a food story resets `APPROVED` to `0`, the same as reviews.
 - Menu schedules (`frontend/src/lib/menu-schedule.ts`) and ETA text (`formatEtaTimeOnly`) use `Europe/Zurich`, because Vercel runs in UTC.
 - `isUnpaidCardOrder` in `frontend/src/lib/order.ts` keeps pending or failed card orders out of the Active list, and the first customer notification waits until the order is paid.
-- Google sign-in clears `visitors_account.PASSWORD` on an existing account because registration does not verify email ownership. Those users can set a password again through reset.
+- Google sign-in clears `visitors_account.PASSWORD` on an existing account because registration does not verify email ownership. Those users can set a password again through reset, which keeps it: a completed reset leaves `RESET_TOKEN_EXPIRY` set with `RESET_TOKEN` null, and `googleAccountUpdate` treats that as the owner's password.
 - Checkout no longer asks Stripe for address or phone; the order uses the checkout form's values.
 - Stripe sessions expire 35 minutes after the order was created, tied to the order so retries reuse the same idempotent request. A `StripeInvalidRequestError` means no session exists, so checkout releases the reservation at once.
 - `/api/cron/release-stale-checkouts` (scheduled in `frontend/vercel.json`, needs `CRON_SECRET`) releases card orders over an hour old that never saved a session.
