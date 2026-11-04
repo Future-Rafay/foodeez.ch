@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { use, useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import LoginRequiredModal from "@/components/core/LoginRequiredModal";
 import { getFoodJourney, getFoodJourneyById } from "@/services/FoodJourneyService";
@@ -25,7 +25,8 @@ const emptyImageValues = () => ["", "", ""];
 
 
 
-export default function FoodJourneyPage({ searchParams }: { searchParams: { [key: string]: string } })  {
+export default function FoodJourneyPage({ searchParams: searchParamsPromise }: { searchParams: Promise<{ [key: string]: string }> })  {
+  const searchParams = use(searchParamsPromise);
 
   const { data: session } = useSession();
  

@@ -28,10 +28,10 @@ type GoogleDataTimestampRow = {
 // ─────────────────────────────────────────────────────────────────────────────
 export async function GET(
   request: NextRequest,
-  { params }: { params: { businessId: string } }
+  { params }: { params: Promise<{ businessId: string }> }
 ) {
   try {
-    const businessId = parseInt(params.businessId);
+    const businessId = parseInt((await params).businessId);
     if (!businessId) {
       return NextResponse.json(
         { success: false, error: 'Invalid business ID' } as BusinessGoogleDataResponse,

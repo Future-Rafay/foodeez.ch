@@ -46,7 +46,7 @@ Here are some commonly used commands for developing in this codebase:
 
 ## 🏛️ High-Level Code Architecture
 
-The project is a Next.js 14 application with a clear separation of concerns.
+The project is a Next.js 16 application with a clear separation of concerns.
 
 -   **`src/app/`**: This directory contains the Next.js App Router structure, including pages, layouts, and API routes.
 -   **`src/components/`**: This directory is further organized into:
@@ -62,7 +62,7 @@ The project is a Next.js 14 application with a clear separation of concerns.
 
 ### Key Technologies and Patterns:
 
--   **Next.js 14**: The application leverages the App Router for routing, data fetching, and server components.
+-   **Next.js 16 and React 19**: The application leverages the App Router for routing, data fetching, and server components. Route `params`, `searchParams`, and `headers()` are async. `npm run lint` is ESLint 9 with `frontend/eslint.config.mjs`; the build does not run it.
 -   **Tailwind CSS & Radix UI**: Styling is managed with Tailwind CSS for utility-first styling, complemented by Radix UI for accessible and unstyled UI primitives.
 -   **Prisma**: Used as the ORM for database interactions. Prisma client generation is integrated into the build process.
 -   **AWS S3**: Utilized for media storage (images, videos) via a custom S3Storage service and internal API routes.

@@ -71,7 +71,7 @@ async function releaseBySession(session: Stripe.Checkout.Session) {
 }
 
 export async function POST(req: NextRequest) {
-  const signature = headers().get("stripe-signature");
+  const signature = (await headers()).get("stripe-signature");
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
   if (!signature || !webhookSecret) {

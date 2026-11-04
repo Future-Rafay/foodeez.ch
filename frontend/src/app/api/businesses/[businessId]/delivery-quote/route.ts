@@ -4,9 +4,9 @@ import { getDeliveryQuote } from "@/lib/fulfillment";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { businessId: string } }
+  { params }: { params: Promise<{ businessId: string }> }
 ) {
-  const businessId = Number(params.businessId);
+  const businessId = Number((await params).businessId);
   if (!businessId) return NextResponse.json({ error: "Invalid business ID" }, { status: 400 });
 
   const { postalCode, cartTotal } = await req.json();

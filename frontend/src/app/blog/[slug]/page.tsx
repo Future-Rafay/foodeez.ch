@@ -11,11 +11,11 @@ import { notFound } from "next/navigation";
 import { getBlogPost } from "@/lib/wordpress";
 
 type SingleBlogPostPageProps = {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 };
 
 export default async function SingleBlogPostPage({ params }: SingleBlogPostPageProps) {
-  const blog = await getBlogPost(params.slug);
+  const blog = await getBlogPost((await params).slug);
 
   if (!blog) notFound();
 

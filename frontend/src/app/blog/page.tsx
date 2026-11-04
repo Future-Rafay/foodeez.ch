@@ -14,13 +14,13 @@ import type { BlogListResult } from "@/lib/wordpress/types";
 const POSTS_PER_PAGE = 12;
 
 type BlogPageProps = {
-  searchParams?: {
+  searchParams?: Promise<{
     page?: string | string[];
-  };
+  }>;
 };
 
 export default async function BlogPage({ searchParams }: BlogPageProps) {
-  const currentPage = parsePage(searchParams?.page);
+  const currentPage = parsePage((await searchParams)?.page);
   let result: BlogListResult | null = null;
   let failed = false;
 

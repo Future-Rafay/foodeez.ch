@@ -8,9 +8,9 @@ import MenuPageClient from "@/components/menu/MenuPageClient";
 export default async function MenuPage({
   params,
 }: {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }) {
-  const businessId = extractBusinessId(params.slug);
+  const businessId = extractBusinessId((await params).slug);
   const [menuCards, products] = businessId
     ? await Promise.all([
         getBusinessMenuOnly(businessId),

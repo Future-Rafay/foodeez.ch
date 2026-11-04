@@ -4,9 +4,9 @@ import { getDeliveryZonesDisplay, getFulfillmentOptions } from "@/lib/fulfillmen
 
 export async function GET(
   _req: Request,
-  { params }: { params: { businessId: string } }
+  { params }: { params: Promise<{ businessId: string }> }
 ) {
-  const businessId = Number(params.businessId);
+  const businessId = Number((await params).businessId);
   if (!businessId) return NextResponse.json({ error: "Invalid business ID" }, { status: 400 });
 
   const [settings, business, cashSettings] = await Promise.all([

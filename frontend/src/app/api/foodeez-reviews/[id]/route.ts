@@ -7,12 +7,12 @@ import { pickReviewUpdate, serializeBigInt, withoutForeignEmail } from '@/lib/fo
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const review = await prisma.foodeez_review.findUnique({
       where: {
-        FOODEEZ_REVIEW_ID: BigInt(params.id),
+        FOODEEZ_REVIEW_ID: BigInt((await params).id),
       },
     });
     const session = await getServerSession(authOptions);
@@ -41,7 +41,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -61,7 +61,7 @@ export async function PUT(
     // Check if review exists and user owns it or is admin
     const existingReview = await prisma.foodeez_review.findUnique({
       where: {
-        FOODEEZ_REVIEW_ID: BigInt(params.id),
+        FOODEEZ_REVIEW_ID: BigInt((await params).id),
       },
     });
 
@@ -82,7 +82,7 @@ export async function PUT(
 
     const updatedReview = await prisma.foodeez_review.update({
       where: {
-        FOODEEZ_REVIEW_ID: BigInt(params.id),
+        FOODEEZ_REVIEW_ID: BigInt((await params).id),
       },
       data: pickReviewUpdate(body),
     });
@@ -102,7 +102,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -117,7 +117,7 @@ export async function DELETE(
     // Check if review exists and user owns it
     const existingReview = await prisma.foodeez_review.findUnique({
       where: {
-        FOODEEZ_REVIEW_ID: BigInt(params.id),
+        FOODEEZ_REVIEW_ID: BigInt((await params).id),
       },
     });
 
@@ -137,7 +137,7 @@ export async function DELETE(
 
     await prisma.foodeez_review.delete({
       where: {
-        FOODEEZ_REVIEW_ID: BigInt(params.id),
+        FOODEEZ_REVIEW_ID: BigInt((await params).id),
       },
     });
 

@@ -74,8 +74,8 @@ const getCachedGoogleBusinessData = unstable_cache(
   { revalidate: 300 }
 );
 
-export default async function BusinessDetailPage({ params }: { params: { slug: string } }) {
-  const parsedId = parseSlug(params.slug);
+export default async function BusinessDetailPage({ params }: { params: Promise<{ slug: string }> }) {
+  const parsedId = parseSlug((await params).slug);
   const businessId = Number(parsedId.id);
 
   const [business, fulfillmentOptions, googleBusinessData] = await Promise.all([

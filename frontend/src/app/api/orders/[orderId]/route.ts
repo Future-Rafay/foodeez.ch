@@ -7,9 +7,9 @@ import { verifyGuestOrderToken } from "@/lib/guest-order";
 
 export async function GET(
   req: Request,
-  { params }: { params: { orderId: string } }
+  { params }: { params: Promise<{ orderId: string }> }
 ) {
-  const orderId = Number(params.orderId);
+  const orderId = Number((await params).orderId);
   if (!orderId) return NextResponse.json({ error: "Invalid order ID" }, { status: 400 });
 
   const token = new URL(req.url).searchParams.get("guestToken");

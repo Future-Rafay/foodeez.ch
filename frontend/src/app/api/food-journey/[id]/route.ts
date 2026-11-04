@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
@@ -16,7 +16,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
     const journey = await prisma.visitor_food_journey.findUnique({
-      where: { VISITOR_FOOD_JOURNEY_ID: Number(params.id) }
+      where: { VISITOR_FOOD_JOURNEY_ID: Number((await params).id) }
     });
     if (!journey) {
       return NextResponse.json({ error: 'Food journey not found' }, { status: 404 });
@@ -25,7 +25,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
     }
     await prisma.visitor_food_journey.delete({
-      where: { VISITOR_FOOD_JOURNEY_ID: Number(params.id) }
+      where: { VISITOR_FOOD_JOURNEY_ID: Number((await params).id) }
     });
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -34,7 +34,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
   }
 }
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
@@ -47,7 +47,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
     const journey = await prisma.visitor_food_journey.findUnique({
-      where: { VISITOR_FOOD_JOURNEY_ID: Number(params.id) }
+      where: { VISITOR_FOOD_JOURNEY_ID: Number((await params).id) }
     });
     if (!journey) {
       return NextResponse.json({ error: 'Food journey not found' }, { status: 404 });
@@ -57,7 +57,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     }
     const body = await request.json();
     const updatedJourney = await prisma.visitor_food_journey.update({
-      where: { VISITOR_FOOD_JOURNEY_ID: Number(params.id) },
+      where: { VISITOR_FOOD_JOURNEY_ID: Number((await params).id) },
       data: {
         TITLE: body.TITLE,
         DESCRIPTION: body.DESCRIPTION,
