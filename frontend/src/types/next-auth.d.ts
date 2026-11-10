@@ -9,7 +9,19 @@ declare module 'next-auth' {
       image?: string | null;
     }
   }
-} 
+
+  interface User {
+    /** Password fingerprint, set by credentials sign-in only. */
+    pwf?: string;
+  }
+}
+
+declare module 'next-auth/jwt' {
+  interface JWT {
+    pwf?: string;
+    pwCheckedAt?: number;
+  }
+}
 
 export interface VisitorsAccount {
   VISITORS_ACCOUNT_ID: bigint;

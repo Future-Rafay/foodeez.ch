@@ -145,3 +145,33 @@ test("reset tokens must be the 64-character hex string the email link carries", 
   assert.equal(isResetToken("a".repeat(63)), false);
   assert.equal(isResetToken(undefined), false);
 });
+
+test("a password session ends once the account password changes or is cleared", async () => {
+  process.env.NEXTAUTH_SECRET ??= "test-secret";
+  const { checkPasswordSession, passwordFingerprint } = await import("./auth");
+  const signedInAt = Date.UTC(2026, 10, 10, 12, 0);
+  const later = signedInAt + 11 * 60 * 1000;
+  const session = () => ({ email: "victim@example.com", pwf: passwordFingerprint("attacker-hash")!, pwCheckedAt: signedInAt });
+
+  // Same password: the session stays and the check is recorded.
+  const unchanged = session();
+  assert.equal(await checkPasswordSession(unchanged, async () => "attacker-hash", later), true);
+  assert.equal(unchanged.pwCheckedAt, later);
+
+  // Google sign-in cleared the password, or the owner reset it: the old session ends.
+  assert.equal(await checkPasswordSession(session(), async () => null, later), false);
+  assert.equal(await checkPasswordSession(session(), async () => "owner-hash", later), false);
+
+  // Within 10 minutes no database read happens.
+  let reads = 0;
+  assert.equal(await checkPasswordSession(session(), async () => { reads += 1; return null; }, signedInAt + 60_000), true);
+  assert.equal(reads, 0);
+
+  // Google sessions carry no fingerprint and are never rechecked.
+  assert.equal(await checkPasswordSession({ email: "a@b.ch" }, async () => null, later), true);
+
+  // A database error keeps the session and retries on the next request.
+  const blip = session();
+  assert.equal(await checkPasswordSession(blip, async () => { throw new Error("timeout"); }, later), true);
+  assert.equal(blip.pwCheckedAt, signedInAt);
+});

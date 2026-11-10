@@ -3,9 +3,41 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import GoogleProvider from 'next-auth/providers/google';
 import { prisma } from './prisma';
 import bcrypt from 'bcryptjs';
+import { createHash } from 'node:crypto';
 import { enforceRateLimit, LOGIN_LIMITS, RateLimitError } from './checkout-rate-limit';
 
 export const MIN_PASSWORD_LENGTH = 8;
+
+const PASSWORD_SESSION_RECHECK_MS = 10 * 60 * 1000;
+
+/** Short hash of the stored password hash. It changes whenever the password is reset, changed or cleared. */
+export const passwordFingerprint = (hash: string | null | undefined) =>
+  hash ? createHash('sha256').update(hash).digest('hex').slice(0, 16) : null;
+
+/**
+ * Password sessions remember the password they were issued for. At most every 10 minutes this
+ * compares it with the account, so a session from before a reset or a Google sign-in (which clears
+ * a password someone else registered) stops working. Returns false when the session must end;
+ * otherwise records the check on the token.
+ */
+export async function checkPasswordSession(
+  token: { email?: string | null; pwf?: string; pwCheckedAt?: number },
+  readPassword: (email: string) => Promise<string | null | undefined>,
+  now = Date.now()
+) {
+  if (!token.pwf || now - (token.pwCheckedAt ?? 0) < PASSWORD_SESSION_RECHECK_MS) return true;
+  let password;
+  try {
+    password = await readPassword(token.email ?? '');
+  } catch (error) {
+    // A database blip must not sign everyone out; the next request checks again.
+    console.error('[Session] Password check failed:', error);
+    return true;
+  }
+  if (passwordFingerprint(password) !== token.pwf) return false;
+  token.pwCheckedAt = now;
+  return true;
+}
 
 /**
  * Reset links carry crypto.randomBytes(32).toString('hex'). Anything else is rejected before it
@@ -81,6 +113,7 @@ export const authOptions: NextAuthOptions = {
           name: `${user.FIRST_NAME} ${user.LAST_NAME}`,
           email: user.EMAIL_ADDRESS,
           image: user.PIC,
+          pwf: passwordFingerprint(user.PASSWORD) ?? undefined,
         };
       }
     })
@@ -147,6 +180,9 @@ export const authOptions: NextAuthOptions = {
         token.name = user.name;
         token.email = user.email;
         token.picture = user.image;
+        // Only password sign-ins carry a fingerprint; Google sessions are not rechecked.
+        token.pwf = user.pwf;
+        token.pwCheckedAt = user.pwf ? Date.now() : undefined;
       }
 
       if (trigger === "update" && session?.user) {
@@ -166,6 +202,15 @@ export const authOptions: NextAuthOptions = {
           token.picture = dbUser.PIC;
         }
       }
+
+      const stillValid = await checkPasswordSession(token, async (email) =>
+        (await prisma.visitors_account.findUnique({
+          where: { EMAIL_ADDRESS: email },
+          select: { PASSWORD: true },
+        }))?.PASSWORD
+      );
+      // NextAuth clears the session cookie when this callback throws.
+      if (!stillValid) throw new Error('Session ended because the account password changed.');
 
       return token;
     }
