@@ -5,6 +5,7 @@ import { authOptions } from '@/lib/auth';
 import { CreateFoodeezReviewData } from '@/types/foodeez-review.types';
 import { shortPhotoUrl } from '@/lib/media';
 import { isValidRating, MAX_FOODEEZ_REVIEWS, serializeBigInt, withoutForeignEmail } from '@/lib/foodeez-review';
+import { publicFormRateLimitResponse } from '@/lib/checkout-rate-limit';
 
 
 export async function GET(request: NextRequest) {
@@ -45,6 +46,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
+    // Anyone can post, so each IP (and signed-in account) gets only a few reviews an hour.
+    const limited = await publicFormRateLimitResponse(request.headers, 'foodeez-review', session?.user?.email ?? null);
+    if (limited) return limited;
     const body: CreateFoodeezReviewData = await request.json();
 
     let reviewerName = body.REVIEWER_NAME;
