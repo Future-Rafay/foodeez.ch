@@ -3,7 +3,7 @@ import type { PublicFoodJourney } from "@/types/food-journey";
 import Image from "next/image";
 import Link from "next/link";
 import React from "react";
-import DeleteConfirmModal from "./DeleteConfirmModal";
+import DeleteConfirmModal from "@/components/core/DeleteConfirmModal";
 import { Edit, Trash } from "lucide-react";
 
 interface FoodJourneyCardProps {
@@ -142,6 +142,8 @@ const FoodJourneyCard: React.FC<FoodJourneyCardProps> = ({ journey, currentUserI
       </div>
 
       <DeleteConfirmModal
+        title="Delete Story"
+        message="Are you sure you want to delete this food journey story? This action cannot be undone."
         isOpen={showDeleteModal}
         onCancel={() => setShowDeleteModal(false)}
         onConfirm={handleDelete}

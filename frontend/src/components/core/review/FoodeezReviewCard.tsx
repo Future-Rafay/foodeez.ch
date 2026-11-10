@@ -6,7 +6,7 @@ import type { visitor_business_review_view } from "@/lib/prisma";
 import { createPortal } from "react-dom";
 import { useSession } from "next-auth/react";
 import ReviewEditModal from "./ReviewEditModal";
-import DeleteConfirmModal from "./DeleteConfirmModal";
+import DeleteConfirmModal from "@/components/core/DeleteConfirmModal";
 import UserAvatarAndName from "./UserAvatarAndName";
 import ReviewStars from "./ReviewStars";
 import ReviewGallery from "./ReviewGallery";
@@ -281,6 +281,8 @@ export default function FoodeezReviewCard({
       {/* Delete Confirm Modal */}
       {showDeleteModal && (
         <DeleteConfirmModal
+          title="Delete Review"
+          message="Are you sure you want to delete this review? This action cannot be undone."
           onConfirm={handleDelete}
           onCancel={() => setShowDeleteModal(false)}
           loading={deleteLoading}

@@ -8,7 +8,7 @@ import { getFoodJourneyById } from '@/services/FoodJourneyService';
 import { parseSlug } from '@/lib/utils/genSlug';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import DeleteConfirmModal from '@/components/core/food-journey/DeleteConfirmModal';
+import DeleteConfirmModal from '@/components/core/DeleteConfirmModal';
 
 const FoodJourneyDetailPage = () => {
   const params = useParams();
@@ -92,6 +92,8 @@ const FoodJourneyDetailPage = () => {
           </div>
         ) : null}
         <DeleteConfirmModal
+          title="Delete Story"
+          message="Are you sure you want to delete this food journey story? This action cannot be undone."
           isOpen={showDeleteModal}
           onCancel={() => setShowDeleteModal(false)}
           onConfirm={handleDelete}

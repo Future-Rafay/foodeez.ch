@@ -3,13 +3,15 @@
 import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
-import ModalPortal from '../ModalPortal';
+import ModalPortal from './ModalPortal';
 
 interface DeleteConfirmModalProps {
   onConfirm: () => void;
   onCancel: () => void;
   loading?: boolean;
   isOpen: boolean;
+  title: string;
+  message: string;
 }
 
 const DeleteConfirmModal = ({
@@ -17,6 +19,8 @@ const DeleteConfirmModal = ({
   onCancel,
   loading = false,
   isOpen,
+  title,
+  message,
 }: DeleteConfirmModalProps) => {
 
   useEffect(() => {
@@ -40,7 +44,7 @@ const DeleteConfirmModal = ({
             <motion.div
               className="bg-white rounded-2xl shadow-xl p-6 w-[90%] max-w-md  relative"
               initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
+              animate={{ scale: 1, opacity: 1 }}  
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 300, damping: 25 }}
               role="dialog"
@@ -60,14 +64,13 @@ const DeleteConfirmModal = ({
                 id="delete-title"
                 className="sub-heading"
               >
-                Delete Story
+                {title}
               </h3>
               <p
                 id="delete-description"
                 className="sub-heading-description text-gray-600 mt-2 mb-4"
               >
-                Are you sure you want to delete this Food Journey Story ? This action cannot
-                be undone.
+                {message}
               </p>
 
               <div className="flex gap-4">
