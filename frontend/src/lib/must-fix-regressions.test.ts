@@ -133,3 +133,15 @@ test("the stale-checkout job stays closed without the right secret", async () =>
   assert.equal((await call()).status, 401);
   assert.equal((await call("Bearer wrong")).status, 401);
 });
+
+test("reset tokens must be the 64-character hex string the email link carries", async () => {
+  process.env.NEXTAUTH_SECRET ??= "test-secret";
+  const { isResetToken } = await import("./auth");
+
+  assert.equal(isResetToken("a".repeat(64)), true);
+  // Prisma would read an object as a filter that matches any pending reset.
+  assert.equal(isResetToken({ not: "" }), false);
+  assert.equal(isResetToken({ contains: "" }), false);
+  assert.equal(isResetToken("a".repeat(63)), false);
+  assert.equal(isResetToken(undefined), false);
+});

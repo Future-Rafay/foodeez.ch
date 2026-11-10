@@ -8,6 +8,13 @@ import { enforceRateLimit, LOGIN_LIMITS, RateLimitError } from './checkout-rate-
 export const MIN_PASSWORD_LENGTH = 8;
 
 /**
+ * Reset links carry crypto.randomBytes(32).toString('hex'). Anything else is rejected before it
+ * reaches Prisma, which would read an object such as {"not": ""} as a filter matching any account.
+ */
+export const isResetToken = (value: unknown): value is string =>
+  typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
+
+/**
  * Registration does not verify email ownership, but Google does. Clearing the password on Google
  * sign-in removes any password someone else set by registering this address first. A password set
  * through a completed email reset is the owner's, so it stays.

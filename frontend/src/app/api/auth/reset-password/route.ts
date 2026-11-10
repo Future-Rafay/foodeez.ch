@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
-import { MIN_PASSWORD_LENGTH } from '@/lib/auth';
+import { isResetToken, MIN_PASSWORD_LENGTH } from '@/lib/auth';
 
 export async function POST(req: Request) {
     try {
@@ -10,6 +10,12 @@ export async function POST(req: Request) {
         if (!token || !password) {
             return NextResponse.json(
                 { message: 'Token and password are required' },
+                { status: 400 }
+            );
+        }
+        if (!isResetToken(token)) {
+            return NextResponse.json(
+                { message: 'Invalid or expired reset token' },
                 { status: 400 }
             );
         }
