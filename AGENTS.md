@@ -96,7 +96,7 @@ The project is a Next.js 16 application with a clear separation of concerns.
 ## Production Runtime Notes
 
 - `frontend/src/lib/prisma.ts` uses one MariaDB connection per serverless instance and caches the Prisma singleton in every environment; do not increase the pool without production evidence.
-- Customer NextAuth configuration lives only in `frontend/src/lib/auth.ts`; the route imports it and routine JWT session reads must not query the database.
+- Customer NextAuth configuration lives only in `frontend/src/lib/auth.ts`; the route imports it and routine JWT session reads must not query the database. The one exception is `checkPasswordSession`: password sessions carry a password fingerprint (`pwf`) and re-read `PASSWORD` at most every 10 minutes, ending the session when it changed or was cleared.
 - Manual production query indexes live in `docs/sql/add_production_query_indexes.sql`. Apply them manually, then run `prisma db pull` and `prisma generate`; do not use `prisma migrate` for this file.
 - `EMAIL_FROM` must use a verified Resend domain in production. Newsletter storage is the source of subscription success; welcome-email failure is logged separately.
 
@@ -157,6 +157,7 @@ The project is a Next.js 16 application with a clear separation of concerns.
 ## Business Profile Notes
 
 - The owner business-profile map is `frontend/src/app/(business-owner)/manage-business/[slug]/components/MapSectionBusinesProfile.tsx`; missing API keys, place IDs, Places errors, and initialization errors must render an in-card fallback instead of leaving a broken map surface.
+- Business profile pages read Google reviews, hours and photos straight from the `business_google_*` tables. Nothing in the app calls `/api/business-google-data` since July 2026, so that data is not refreshed. Server Google calls use `GOOGLE_PLACES_API_KEY` (falling back to the public Maps key); photos are saved as their keyless googleusercontent redirect URL, and stored URLs containing `key=` are never sent to the browser.
 - Foodeez reviews are currently hidden on `frontend/src/app/(business-owner)/manage-business/[slug]/page.tsx`; do not re-enable them without confirming the intended owner-profile review experience.
 - Shared business-profile presentation components live in `frontend/src/components/BusinessSlug/`; both `/business/[slug]` and `/manage-business/[slug]` should reuse them instead of maintaining duplicate copies.
 - The manage-business claim card is mounted between Google reviews and the map through its local `BusinessDeferredSections`. Its dialog lives in `ClaimBusinessSection.tsx`, submits the official email and business identity to `/api/claim-business`, and sends the request to `ADMIN_EMAIL` through the existing email service.
@@ -166,7 +167,7 @@ The project is a Next.js 16 application with a clear separation of concerns.
 - The homepage route is `frontend/src/app/page.tsx`. Keep `AdsBar1`, `HeroSection`, and `Separator` eager because they are above the fold; keep lower homepage sections behind `next/dynamic({ ssr: false })` plus the local `LazyRender` viewport gate so heavy sections do not load on first paint.
 - `GoogleMapsProvider` and `frontend/src/components/home/MapSection.tsx` should only render inside the homepage `LazyMapSection`, which uses `IntersectionObserver` and a `300px` root margin. Do not move Google Maps script loading back into the initial homepage render.
 - Hero carousel controls in `frontend/src/components/home/HeroSection.tsx` need accessible names. Dot buttons should keep at least a 24x24 touch target while preserving the small visible dot.
-- Homepage card/list images should keep explicit `sizes` values. Current shared sizing fixes live in `HeroSection`, `BusinessCard`, `RecentBlogs`, `Banner`, `AdsBar1`, `AdsBar2`, `ScrollingBusinessBar`, testimonial review cards, and food journey cards.
+- Homepage card/list images should keep explicit `sizes` values. Current shared sizing fixes live in `HeroSection`, `BusinessCard`, `RecentBlogs`, `Banner`, `AdsBar1`, `AdsBar2`, testimonial review cards, and food journey cards.
 - `frontend/next.config.mjs` owns image formats, remote image hosts, production browser source maps, and security headers. The CSP must allow the app's current third-party needs: Google Maps, Stripe, Google fonts, WordPress/blog images, S3/media, and other configured image CDNs.
 - `frontend/package.json` includes the modern `browserslist` baseline used to avoid unnecessary legacy JavaScript transforms. Keep it aligned with the browsers the product actually supports.
 - Do not change global brand colors to satisfy contrast audits without explicit product approval. Prefer local accessibility treatments that preserve the Foodeez brand palette.
@@ -205,6 +206,8 @@ The project is a Next.js 16 application with a clear separation of concerns.
 - Menu schedules (`frontend/src/lib/menu-schedule.ts`) and ETA text (`formatEtaTimeOnly`) use `Europe/Zurich`, because Vercel runs in UTC.
 - `isUnpaidCardOrder` in `frontend/src/lib/order.ts` keeps pending or failed card orders out of the Active list, and the first customer notification waits until the order is paid.
 - Google sign-in clears `visitors_account.PASSWORD` on an existing account because registration does not verify email ownership. Those users can set a password again through reset, which keeps it: a completed reset leaves `RESET_TOKEN_EXPIRY` set with `RESET_TOKEN` null, and `googleAccountUpdate` treats that as the owner's password.
+- Password sessions end within 10 minutes of a reset, a profile password change, or a Google sign-in that clears the password; the jwt callback throws, which makes NextAuth clear the cookie. Google sessions are not rechecked.
+- `/api/auth/reset-password` accepts only `isResetToken` values (64-character hex). Never pass an unchecked request value into a Prisma `where`: an object such as `{"not": ""}` becomes a filter.
 - Checkout no longer asks Stripe for address or phone; the order uses the checkout form's values.
 - Stripe sessions expire 35 minutes after the order was created, tied to the order so retries reuse the same idempotent request. Only a `StripeInvalidRequestError` on `expires_at` (`isStripeExpiryRejection`) releases the reservation at once and asks for a new checkout; other rejections return the retryable 502 and keep the same order until the stale-checkout job releases it.
 - `/api/cron/release-stale-checkouts` (scheduled in `frontend/vercel.json`, needs `CRON_SECRET`) releases card orders over an hour old that never saved a session.
