@@ -24,6 +24,7 @@ export default function ReservationPage() {
 
   const [business, setBusiness] = useState<any>();
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [formData, setFormData] = useState({
     date: "",
     time: "",
@@ -49,6 +50,7 @@ export default function ReservationPage() {
         setBusiness(data);
       } catch (error) {
         console.error("Error fetching business:", error);
+        setLoadFailed(true);
       } finally {
         setLoading(false);
       }
@@ -98,10 +100,12 @@ export default function ReservationPage() {
     return (
       <div className="max-w-3xl mx-auto px-4 py-12 text-center">
         <h2 className="text-2xl font-bold text-red-600 mb-4">
-          Business Not Found
+          {loadFailed ? "Restaurant could not be loaded" : "Business Not Found"}
         </h2>
         <p className="text-gray-600 mb-6">
-          Sorry, we couldn't find the business you're looking for.
+          {loadFailed
+            ? "Something went wrong on our side. Please refresh the page to try again."
+            : "Sorry, we couldn't find the business you're looking for."}
         </p>
         <Link
           href="/business"

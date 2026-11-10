@@ -20,18 +20,14 @@ export async function getBusinesses() {
   }
 }
 
+// Returns null only when the business does not exist; database errors throw so pages can show a retry.
 export async function getBusinessById(id: number) {
-  try {
-    const business = await prisma.business_detail_view_all.findFirst({
-      where: {
-        BUSINESS_ID: id
-      }
-    })
-    return business
-  } catch (error) {
-    console.error('Error fetching business:', error)
-    return null
-  }
+  if (!Number.isInteger(id) || id < 1) return null;
+  return prisma.business_detail_view_all.findFirst({
+    where: {
+      BUSINESS_ID: id
+    }
+  })
 }
 
 export async function getBusinessReviewsForUser(businessId: number) {

@@ -7,6 +7,7 @@ import BusinessDeferredSections from "./components/BusinessDeferredSections";
 import BusinessImage from "@/components/BusinessSlug/BusinessImage";
 import BusinessInfoSection, { FulfillmentOptions } from "@/components/BusinessSlug/BusinessInfoSection";
 import ResturantProfilePageHeader from "@/components/BusinessSlug/ResturantProfilePageHeader";
+import { notFound } from "next/navigation";
 
 async function getBusinessFulfillmentOptions(businessId: number): Promise<FulfillmentOptions | null> {
   const settings = await prisma.business_settings.findUnique({ where: { BUSINESS_ID: businessId } });
@@ -77,13 +78,7 @@ export default async function BusinessDetailPage({ params }: { params: Promise<{
     getGoogleBusinessData(businessId),
   ]);
 
-  if (!business) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-xl text-red-500">
-        Business not found
-      </div>
-    );
-  }
+  if (!business) notFound();
 
   const genSlug = generateSlug(business.BUSINESS_NAME || "business", business.BUSINESS_ID || 0);
 
