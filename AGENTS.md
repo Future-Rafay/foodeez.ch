@@ -1,75 +1,39 @@
 # AGENTS.md
 
-This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
+Guidance for every AI coding tool (Claude, Codex and others) working in this repository. `CLAUDE.md` only points here, so add new guidance to this file.
 
-## 🚀 Common Development Tasks
+## Start Here
 
-Here are some commonly used commands for developing in this codebase:
+- This is the customer-facing Foodeez website (foodeez.ch). The restaurant owner/admin app is the separate `myfoodeez.foodeez.ch` repository; both use the same MySQL database.
+- The Next.js app lives in `frontend/`. Run every npm command from `frontend/`; on Windows use `npm.cmd` and `npx.cmd`.
+- Stack: Next.js 16 (App Router) and React 19, TypeScript, Tailwind CSS 3 with Radix/shadcn primitives, Prisma 7 with the MariaDB adapter on MySQL, NextAuth 4 (JWT sessions), Stripe Checkout, Resend, AWS S3, Google Maps and Places, Zustand and Framer Motion.
+- Vercel deploys production from `main`, so pushing `main` is a production release. Ask before pushing.
+- `frontend/.env` may point at the production database. Never run write tests, seed scripts, `prisma migrate` or `prisma db push` against it; use an isolated test database for anything that writes.
 
--   **Start development server:**
-    ```bash
-    npm run dev
-    # or
-    yarn dev
-    ```
-    This will start the Next.js development server and open the application at `http://localhost:3000`.
+## Commands (run from `frontend/`)
 
--   **Build for production:**
-    ```bash
-    npm run build
-    # or
-    yarn build
-    ```
-    This command builds the application for production, including Prisma client generation.
+| Task | Command | Notes |
+|---|---|---|
+| Dev server | `npm.cmd run dev` | http://localhost:3000 |
+| Tests | `npm.cmd test` | `tsx --test` over `src/**/*.test.ts`; no database needed |
+| Typecheck | `npx.cmd tsc --noEmit` | |
+| Lint | `npm.cmd run lint` | ESLint 9 with `eslint.config.mjs`. The build does not run it, and about 43 existing errors remain (mostly `react-hooks/set-state-in-effect`), so check only the files you changed |
+| Build | `npm.cmd run build` | Runs `prisma generate`, then `next build` |
+| Prisma client | `npx.cmd prisma generate` | Also runs on `postinstall` |
 
--   **Start production server:**
-    ```bash
-    npm run start
-    # or
-    yarn start
-    ```
-    This starts the Next.js application in production mode.
+- Run the smallest relevant check: tests and typecheck for logic changes, plus a build for config, routing or dependency changes.
+- Schema changes are manual SQL files in `docs/sql/` (or the admin repository's migrations). They are applied by hand, followed by `npx prisma db pull` and `npx prisma generate`. Never use `prisma migrate` in this repository.
 
--   **Run ESLint:**
-    ```bash
-    npm run lint
-    # or
-    yarn lint
-    ```
-    This command runs ESLint to check for code style and quality issues.
+## Repository Layout (`frontend/src`)
 
--   **Generate Prisma Client:**
-    ```bash
-    npx prisma generate
-    ```
-    This command is automatically run during `postinstall` and `build`, but can be run manually if needed to regenerate the Prisma client after schema changes.
-
-## 🏛️ High-Level Code Architecture
-
-The project is a Next.js 16 application with a clear separation of concerns.
-
--   **`src/app/`**: This directory contains the Next.js App Router structure, including pages, layouts, and API routes.
--   **`src/components/`**: This directory is further organized into:
-    -   `core/`: Contains fundamental, reusable UI components that are application-agnostic.
-    -   `home/`: Houses components specific to the home page.
-    -   `layout/`: Defines the overall structure and navigation of the application.
-    -   `ui/`: Contains re-usable UI components built with Radix UI and styled with Tailwind CSS (e.g., buttons, dialogs, forms).
--   **`src/features/`**: This directory is intended for feature-specific code, encapsulating logic and components related to a particular feature, promoting modularity.
--   **`src/lib/`**: This directory contains utility functions and helper modules used across the application (e.g., date formatting with `date-fns`, utility functions from `lodash`).
--   **`src/services/`**: This directory is dedicated to API services, handling data fetching and interactions with external APIs (e.g., Google Maps API).
--   **`src/shared/`**: This directory holds shared resources like constants, configuration files, and hooks that might be used across different parts of the application.
--   **`src/types/`**: This directory defines TypeScript types and interfaces for the application.
-
-### Key Technologies and Patterns:
-
--   **Next.js 16 and React 19**: The application leverages the App Router for routing, data fetching, and server components. Route `params`, `searchParams`, and `headers()` are async. `npm run lint` is ESLint 9 with `frontend/eslint.config.mjs`; the build does not run it.
--   **Tailwind CSS & Radix UI**: Styling is managed with Tailwind CSS for utility-first styling, complemented by Radix UI for accessible and unstyled UI primitives.
--   **Prisma**: Used as the ORM for database interactions. Prisma client generation is integrated into the build process.
--   **AWS S3**: Utilized for media storage (images, videos) via a custom S3Storage service and internal API routes.
--   **NextAuth.js**: Handles secure authentication.
--   **Google Maps API**: Integrated for location-based features.
--   **Zustand**: Used for state management where global state is required.
--   **Framer Motion**: Utilized for animations and interactive UI elements.
+- `app/`: routes, layouts and API route handlers (`app/api/**/route.ts`).
+- `components/core/`: shared building blocks such as `ModalPortal`, `DeleteConfirmModal`, `Button`, `Input` and `BusinessCard`. `components/ui/` holds shadcn/Radix primitives, `layout/` the navbar, footer and notification bell, `home/` homepage sections, `BusinessSlug/` the shared business-profile pieces, and `menu/`, `cart/` and `checkout/` the ordering flow.
+- `lib/`: domain logic (checkout, inventory, discounts, order display, auth, rate limits, guest tokens, media) with its tests beside it as `*.test.ts`. `lib/utils.ts` holds `cn` and `toExternalUrl`.
+- `services/`: data access. Files with `'use server'` are server actions that any browser can call.
+- `stores/cartStore.ts` is the Zustand cart, `emails/` holds the React Email templates sent through `services/EmailService.ts`, and `types/` holds shared types plus the `next-auth.d.ts` augmentation.
+- `proxy.ts` (Next 16's name for middleware) requires a NextAuth token for `/dashboard`, `/profile`, `/settings`, `/admin` and `/api/user`.
+- `prisma/schema.prisma` is the database source of truth. The client is generated into `prisma/generated/prisma`; import it through `@/lib/prisma`.
+- `frontend/.env.example` lists every environment variable the code reads.
 
 ## Frontend Modal and Dialog Rules
 
@@ -88,7 +52,7 @@ The project is a Next.js 16 application with a clear separation of concerns.
 - Customer product cards use `business_product.PIC`, `TITLE`, `DESCRIPTION`, `PRODUCT_PRICE`, `COMPARE_AS_PRICE`, `TRACK_INVENTORY`, `INVENTORY_AVAILABLE`, `WEIGHT`, and `WEIGHT_UNIT`. Never expose `COST_PRICE` on the customer frontend.
 - Show prices with CHF formatting. Show compare-at pricing only when `COMPARE_AS_PRICE > PRODUCT_PRICE`; show weight only when `WEIGHT > 0`.
 - For tracked inventory, show `Out of stock` and disable Add to cart when `INVENTORY_AVAILABLE = 0`; otherwise show the available quantity. Do not show a stock badge for untracked products.
-- Cart quantity changes and add-to-cart are guarded in `frontend/src/stores/cartStore.ts`; backend stock validation and reservation live in `frontend/src/lib/inventory.ts` and are called by both `/api/checkout` and `/api/order/verify`.
+- Cart quantity changes and add-to-cart are guarded in `frontend/src/stores/cartStore.ts`; backend stock validation and reservation live in `frontend/src/lib/inventory.ts` and run in `/api/checkout`; `/api/order/verify`, the Stripe webhook and the stale-checkout job only mark orders paid or release stock.
 - Tracked inventory checkout must reserve stock inside the same transaction that creates the order/details: decrement `business_product.INVENTORY_AVAILABLE` and increment `INVENTORY_COMMITED` only when `INVENTORY_AVAILABLE >= quantity`; otherwise return `Only X left in stock for PRODUCT_TITLE.` Untracked products do not apply stock limits.
 - Cart and checkout surfaces should show item-level stock warnings from stored cart availability and disable checkout until the quantity is reduced; backend validation remains the source of truth because stock can change after add-to-cart.
 - The mixed-restaurant `Start a new order?` confirmation in `frontend/src/components/menu/MenuProductCard.tsx` uses `frontend/src/components/core/ModalPortal.tsx`; keep the safe `Keep current cart` action prominent and the cart-clearing action visually separate.
@@ -104,7 +68,7 @@ The project is a Next.js 16 application with a clear separation of concerns.
 
 - Manual SQL for Stripe order fields lives at `docs/sql/add_stripe_order_payment_fields.sql`; run it in MySQL Workbench, then run `npx prisma db pull` and `npx prisma generate` from `frontend`. Do not use `prisma migrate` for this change.
 - Stripe checkout is created in `frontend/src/app/api/checkout/route.ts`; card orders are inserted once with `PAYMENT_MODE = "stripe"` and `PAYMENT_DONE = 0`, then updated with `STRIPE_CHECKOUT_SESSION_ID` and any available `STRIPE_PAYMENT_INTENT_ID`.
-- Stripe webhook handling lives at `frontend/src/app/api/stripe/webhook/route.ts` and verifies signatures with `STRIPE_WEBHOOK_SECRET`; it handles `checkout.session.completed`, `payment_intent.succeeded`, and `payment_intent.payment_failed` without creating duplicate orders.
+- Stripe webhook handling lives at `frontend/src/app/api/stripe/webhook/route.ts` and verifies signatures with `STRIPE_WEBHOOK_SECRET`; it handles `checkout.session.completed`, `checkout.session.expired`, `payment_intent.succeeded`, and `payment_intent.payment_failed` without creating duplicate orders.
 - Stripe Checkout expiration is also handled by the webhook and `/api/order/verify`. Failed session creation and expired sessions claim `business_order.INVENTORY_RELEASED_DATETIME` and release reserved stock exactly once; paid updates must not revive an order whose inventory was released.
 - Payment state uses `PAYMENT_DONE`: `0` pending/unpaid, `1` paid, `2` refunded, `3` failed. Refund display fields are `ORDER_REFUND_AMOUNT`, `STRIPE_REFUND_STATUS`, and `STRIPE_REFUNDED_DATETIME`.
 
@@ -156,7 +120,7 @@ The project is a Next.js 16 application with a clear separation of concerns.
 
 ## Business Profile Notes
 
-- The owner business-profile map is `frontend/src/app/(business-owner)/manage-business/[slug]/components/MapSectionBusinesProfile.tsx`; missing API keys, place IDs, Places errors, and initialization errors must render an in-card fallback instead of leaving a broken map surface.
+- The business-profile map is `frontend/src/components/BusinessSlug/MapSectionBusinesProfile.tsx`, shared by both profile routes; missing API keys, place IDs, Places errors, and initialization errors must render an in-card fallback instead of leaving a broken map surface.
 - Business profile pages read Google reviews, hours and photos straight from the `business_google_*` tables. Nothing in the app calls `/api/business-google-data` since July 2026, so that data is not refreshed. Server Google calls use `GOOGLE_PLACES_API_KEY` (falling back to the public Maps key); photos are saved as their keyless googleusercontent redirect URL, and stored URLs containing `key=` are never sent to the browser.
 - Foodeez reviews are currently hidden on `frontend/src/app/(business-owner)/manage-business/[slug]/page.tsx`; do not re-enable them without confirming the intended owner-profile review experience.
 - Shared business-profile presentation components live in `frontend/src/components/BusinessSlug/`; both `/business/[slug]` and `/manage-business/[slug]` should reuse them instead of maintaining duplicate copies.
@@ -213,3 +177,17 @@ The project is a Next.js 16 application with a clear separation of concerns.
 - `/api/cron/release-stale-checkouts` (scheduled in `frontend/vercel.json`, needs `CRON_SECRET`) releases card orders over an hour old that never saved a session.
 - `/api/business/register` emails the request to `ADMIN_EMAIL` and creates no database rows.
 - `shortPhotoUrl` leaves out photo URLs over 100 characters until `docs/sql/widen_review_and_journey_avatar_columns.sql` is approved and applied.
+
+## Known Gaps and Open Decisions (as of 2026-11-10)
+
+Check these before assuming a feature works. Remove an item once it is fixed.
+
+- None of the 11 `metadata.ts` files under `frontend/src/app/` are used, because Next only reads metadata exported from `page` or `layout` files. Except `/business`, whose `page.tsx` exports its own, those routes fall back to the root layout's title and description. The files also read `params` synchronously and `business/[slug]/metadata.ts` calls Google Places on every render, so fix both before wiring them in.
+- Google reviews, hours and photos are never refreshed (see Business Profile Notes). Whether to wire `/api/business-google-data` back in, at Google API cost, or delete it is the owner's decision. Its `business_opening_hours` inserts use `MAX(id) + 1` because that column has no auto-increment; changing that needs an approved schema change.
+- `GOOGLE_PLACES_API_KEY` must be set in Vercel, or server photo lookups fail.
+- The stale-checkout cron runs once a day at 03:00 UTC (`frontend/vercel.json`). Vercel's Hobby plan rejects more frequent crons, so confirm the plan before changing it.
+- The root `frontend/src/app/loading.tsx` streams every page, so `notFound()` renders the 404 page with `noindex` but the HTTP status stays 200.
+- `frontend/src/components/home/FoodeezTestimonials/DeleteConfirmModal.tsx` performs its own delete and does not render through `ModalPortal`; the shared dialog is `components/core/DeleteConfirmModal.tsx`.
+- Password sessions issued before 2026-11-10 carry no password fingerprint, so they are not rechecked and run until they expire (up to 30 days).
+- Checkout, Stripe payment and signed-in flows have not been browser-tested since the Next 16 upgrade.
+- GitHub Dependabot reports open alerts on `main` that have not been triaged.

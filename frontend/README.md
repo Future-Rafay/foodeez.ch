@@ -1,6 +1,6 @@
 # 🍽️ Foodeez - Modern Food Exploring Platform
 
-Foodeez is a cutting-edge food exploring platform built with Next.js 14, offering a seamless experience for exploring food online. The platform features a modern UI, real-time reviews, and an intuitive user interface.
+Foodeez is a cutting-edge food exploring platform built with Next.js 16, offering a seamless experience for exploring food online. The platform features a modern UI, real-time reviews, and an intuitive user interface.
 
 ## ✨ Features
 
@@ -12,51 +12,48 @@ Foodeez is a cutting-edge food exploring platform built with Next.js 14, offerin
 
 ## 🛠️ Tech Stack
 
-- **Framework:** Next.js 14
+- **Framework:** Next.js 16 (App Router) and React 19
 - **Language:** TypeScript
 - **Styling:** Tailwind CSS
 - **UI Components:** Radix UI
 - **Animations:** Framer Motion
 - **Maps Integration:** Google Maps API
-- **Database:** Prisma
+- **Database:** MySQL through Prisma 7
+- **Auth:** NextAuth
+- **Payments:** Stripe Checkout
+- **Email:** Resend
+- **Media:** AWS S3
 - **Icons:** Lucide React & React Icons
 - **Date Handling:** date-fns
-- **Utilities:** lodash, clsx, tailwind-merge
+- **Utilities:** clsx, tailwind-merge
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 
-- Node.js 18.x or later
-- npm or yarn
-- Google Maps API key (for location features)
+- Node.js 20 or later
+- npm
+- Access to a MySQL database (use a separate one for development)
 
 ### Installation
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/foodeez.git
-cd foodeez
+git clone https://github.com/Future-Rafay/foodeez.ch.git
+cd foodeez.ch/frontend
 ```
 
 2. Install dependencies:
 ```bash
 npm install
-# or
-yarn install
 ```
 
 3. Set up environment variables:
-Create a `.env` file in the root directory and add:
-```env
-NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
-```
+Copy `frontend/.env.example` to `frontend/.env` and fill in the values. It lists every variable the app reads.
 
 4. Run the development server:
 ```bash
 npm run dev
-# or
-yarn dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
@@ -71,11 +68,12 @@ src/
 │   ├── home/     # Home page components
 │   ├── layout/   # Layout components
 │   └── ui/       # UI components
-├── features/     # Feature-specific code
-├── lib/          # Utility functions
-├── services/     # API services
-├── shared/       # Shared resources
-└── types/        # TypeScript types
+├── emails/       # React Email templates
+├── lib/          # Domain logic and helpers, with *.test.ts beside them
+├── services/     # Data access and server actions
+├── stores/       # Zustand cart store
+├── types/        # TypeScript types
+└── proxy.ts      # Sign-in guard for account routes
 ```
 
 ## 🛠️ Available Scripts
@@ -84,6 +82,9 @@ src/
 - `npm run build` - Build for production
 - `npm run start` - Start production server
 - `npm run lint` - Run ESLint
+- `npm test` - Run the regression tests in `src/**/*.test.ts`
+
+Contributor and AI-agent rules live in [AGENTS.md](../AGENTS.md).
 
 ## 📝 License
 
