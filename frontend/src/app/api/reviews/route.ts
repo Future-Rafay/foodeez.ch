@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { isValidRating } from '@/lib/foodeez-review';
 
 export async function POST(request: Request) {
   try {
@@ -17,7 +18,7 @@ export async function POST(request: Request) {
     const { businessId, rating, remarks, picUrls, videoUrl } = body;
 
     // Validate required fields
-    if (!businessId || !rating || !remarks) {
+    if (!businessId || !isValidRating(Number(rating)) || !remarks) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -45,7 +46,7 @@ export async function POST(request: Request) {
       data: {
         BUSINESS_ID: Number(businessId),
         VISITORS_ACCOUNT_ID: Number(user.VISITORS_ACCOUNT_ID),
-        RATING: String(rating),
+        RATING: String(Number(rating)),
         REMARKS: String(remarks),
         ...picFields,
         VIDEO_1: videoUrl || null,
@@ -110,6 +111,9 @@ export async function PUT(request: Request) {
     if (!reviewId) {
       return NextResponse.json({ error: 'Missing reviewId' }, { status: 400 });
     }
+    if (rating && !isValidRating(Number(rating))) {
+      return NextResponse.json({ error: 'Rating must be a whole number from 1 to 5.' }, { status: 400 });
+    }
     // Find review and check ownership
     const review = await prisma.visitor_business_review.findUnique({
       where: { VISITOR_BUSINESS_REVIEW_ID: Number(reviewId) },
@@ -135,7 +139,7 @@ export async function PUT(request: Request) {
       where: { VISITOR_BUSINESS_REVIEW_ID: Number(reviewId) },
       data: {
         REMARKS: remarks ? String(remarks) : undefined,
-        RATING: rating ? String(rating) : undefined,
+        RATING: rating ? String(Number(rating)) : undefined,
         ...picFields,
         ...(videoUrl !== undefined ? { VIDEO_1: videoUrl || null } : {}),
         // An edited review must be moderated again.
