@@ -5,6 +5,7 @@ import { MapPin, Star, Calendar, Phone } from "lucide-react";
 import { generateSlug } from "@/lib/utils/genSlug";
 import { SocialLinks } from "@/components/core/SocialLinks";
 import { BusinessDetail } from "@/types/business.types";
+import { toExternalUrl } from "@/lib/utils";
 
 interface Props {
   business: BusinessDetail;
@@ -28,21 +29,12 @@ export default function BusinessListItem({ business }: Props) {
   const slug = generateSlug(BUSINESS_NAME || "business", BUSINESS_ID);
   const rating = GOOGLE_RATING ? parseFloat(GOOGLE_RATING) : null;
 
-  const formatUrl = (url: string | undefined) => {
-    if (!url || url.trim() === '' || url === '0' || url === 'null') return null;
-
-    // Handle regular URLs
-    if (!/^https?:\/\//i.test(url)) {
-      return `https://${url}`;
-    }
-    return url;
-  };
 
   const socialLinks = {
-    facebook: formatUrl(FACEBOOK_LINK),
-    instagram: formatUrl(INSTA_LINK),
+    facebook: toExternalUrl(FACEBOOK_LINK),
+    instagram: toExternalUrl(INSTA_LINK),
     whatsapp: WHATSAPP_NUMBER,
-    website: formatUrl(WEB_ADDRESS),
+    website: toExternalUrl(WEB_ADDRESS),
   };
 
 

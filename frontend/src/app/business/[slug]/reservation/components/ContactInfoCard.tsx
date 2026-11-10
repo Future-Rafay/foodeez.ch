@@ -2,6 +2,7 @@ import React from "react";
 import { MapPin, Phone, Globe } from "lucide-react";
 import Link from "next/link";
 import { BusinessDetail } from "@/types/business.types";
+import { toExternalUrl } from "@/lib/utils";
 
 interface ContactInfoCardProps {
   business: BusinessDetail;
@@ -29,7 +30,7 @@ const ContactInfoCard: React.FC<ContactInfoCardProps> = ({ business }) => {
         {business.WEB_ADDRESS && (
           <li className="">
             <Link
-              href={business.WEB_ADDRESS}
+              href={toExternalUrl(business.WEB_ADDRESS) || "#"}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-3 text-text-muted hover:text-primary"

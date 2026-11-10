@@ -3,6 +3,7 @@
 import { getAdsLinkData } from "@/services/HomePageService";
 import { adsLinkData } from "@/types/addlink.types";
 import Image from "next/image";
+import { toExternalUrl } from "@/lib/utils";
 import { useEffect, useRef, useState } from "react";
 
 const AdsBar1: React.FC = () => {
@@ -38,7 +39,7 @@ const AdsBar1: React.FC = () => {
         {adsLinkData.map((biz, index) => (
           <a
             key={index}
-            href={biz.WEB_ADDRESS || "#"}
+            href={toExternalUrl(biz.WEB_ADDRESS) || "#"}
             target="_blank"
             rel="noopener noreferrer"
             title={biz.BUSINESS_NAME || ""}

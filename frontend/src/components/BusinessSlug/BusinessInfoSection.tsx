@@ -7,6 +7,7 @@ import FoodTypeBadges from "@/components/core/FoodTypeBadges";
 import type { business_detail_view_all } from "@/lib/prisma";
 import Separator from "@/components/ui/separator";
 import { formatCHF } from "@/lib/orderStatus";
+import { toExternalUrl } from "@/lib/utils";
 
 type DeliveryZone = {
   zoneName: string;
@@ -135,7 +136,7 @@ const BusinessInfoSection: React.FC<{
             <p className="font-medium text-gray-900">{business.PHONE_NUMBER}</p>
             {business.WEB_ADDRESS && (
               <a
-                href={/^https?:\/\//i.test(business.WEB_ADDRESS) ? business.WEB_ADDRESS : `https://${business.WEB_ADDRESS}`}
+                href={toExternalUrl(business.WEB_ADDRESS) || "#"}
                 className="text-primary flex items-center gap-2"
               >
                 <Globe className="h-4 w-4" />

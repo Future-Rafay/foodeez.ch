@@ -8,7 +8,7 @@ import { generateSlug } from "@/lib/utils/genSlug";
 import { BusinessDetail } from "@/types/business.types";
 import { SocialLinks } from "@/components/core/SocialLinks";
 import StarIcon from "../ui/StarIcon";
-import { cn } from "@/lib/utils";
+import { cn, toExternalUrl } from "@/lib/utils";
 import FoodTypeBadges from "./FoodTypeBadges";
 
 export interface BusinessCardProps {
@@ -40,19 +40,10 @@ const BusinessCard: React.FC<BusinessCardProps> = ({ business }) => {
   const slug = generateSlug(BUSINESS_NAME || "business", BUSINESS_ID);
   const rating = GOOGLE_RATING ? parseFloat(GOOGLE_RATING) : null;
 
-  const formatUrl = (url: string | undefined) => {
-    if (!url || url.trim() === "" || url === "0" || url === "null") return null;
-
-    // Handle regular URLs
-    if (!/^https?:\/\//i.test(url)) {
-      return `https://${url}`;
-    }
-    return url;
-  };
 
   const socialLinks = {
-    facebook: formatUrl(FACEBOOK_LINK),
-    instagram: formatUrl(INSTA_LINK),
+    facebook: toExternalUrl(FACEBOOK_LINK),
+    instagram: toExternalUrl(INSTA_LINK),
     whatsapp: WHATSAPP_NUMBER,
   };
 
@@ -172,7 +163,7 @@ const BusinessCard: React.FC<BusinessCardProps> = ({ business }) => {
               <div className="flex items-center text-sm lg:text-base text-text-main">
                 <Globe size={14} className="mr-2 text-primary" />
                 <a
-                  href={formatUrl(WEB_ADDRESS) || "#"}
+                  href={toExternalUrl(WEB_ADDRESS) || "#"}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hover:text-accent transition-colors line-clamp-1"
