@@ -41,7 +41,7 @@ export default function PricingPage() {
       const user = session.data?.user;
       if (user) {
         setIsBusinessOwnerFunctionLoading(true);
-        const ifBusinessOwnerExist = await checkBusinessOwnerExist(Number(user.id))
+        const ifBusinessOwnerExist = await checkBusinessOwnerExist()
         setIsBusinessOwnerFunctionLoading(false);
         if (ifBusinessOwnerExist) {
           window.open('/contact', '_blank');

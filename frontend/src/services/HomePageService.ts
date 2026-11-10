@@ -120,8 +120,12 @@ export async function getBusinessByFoodtypeCategoryLocation(params: {
   limit?: number;
   skip?: number;
 }) {
-  const { foodType, categoryId, city, zipCode, businessName, limit = 12, skip = 0 } = params;
-  const normalizedType = foodType.toLowerCase();
+  const { foodType, categoryId, city, zipCode, businessName } = params;
+  // Browser-callable: never trust page sizes from the caller.
+  // shortcut: "Load more" refetches perPage * batch rows from the start, so the cap is generous; switch the list to `skip` paging to lower it.
+  const limit = Math.min(Math.max(1, Math.trunc(Number(params.limit ?? 12)) || 12), 500);
+  const skip = Math.max(0, Math.trunc(Number(params.skip ?? 0)) || 0);
+  const normalizedType = String(foodType ?? "").toLowerCase();
 
   try {
     const whereClause: Prisma.business_detail_view_allWhereInput = {};
@@ -220,6 +224,9 @@ export async function getTopRatedRestaurantsNearYou(
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
     return [];
   }
+  // Browser-callable: cap the result size and search area.
+  limit = Math.min(Math.max(1, Math.trunc(Number(limit)) || 4), 20);
+  radius = Math.min(Math.max(0.1, Number(radius) || 1), 50);
 
   try {
     const restaurants = await prisma.$queryRaw<BusinessDetail[]>`
