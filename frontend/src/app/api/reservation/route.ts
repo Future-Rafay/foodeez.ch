@@ -29,8 +29,22 @@ export async function POST(request: Request) {
     if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       return NextResponse.json({ error: 'Enter a valid email address.' }, { status: 400 });
     }
+    // These fields reach the address typed above, so they must not be able to carry a message or a link.
+    if (typeof name !== 'string' || name.trim().length > 60 || /https?:|www\.|[/@<>]/i.test(name)) {
+      return NextResponse.json({ error: 'Enter your name (up to 60 characters).' }, { status: 400 });
+    }
+    if (typeof phone !== 'string' || !/^[+0-9 ()-]{6,20}$/.test(phone.trim())) {
+      return NextResponse.json({ error: 'Enter a valid phone number.' }, { status: 400 });
+    }
+    if (typeof time !== 'string' || !/^\d{1,2}:\d{2}( [AP]M)?$/.test(time)) {
+      return NextResponse.json({ error: 'Choose a valid time.' }, { status: 400 });
+    }
+    const guestCount = Number(guests);
+    if (!Number.isInteger(guestCount) || guestCount < 1 || guestCount > 50) {
+      return NextResponse.json({ error: 'Choose the number of guests.' }, { status: 400 });
+    }
     const reservationDate = new Date(date);
-    if (Number.isNaN(reservationDate.getTime())) {
+    if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(reservationDate.getTime())) {
       return NextResponse.json({ error: 'Enter a valid date.' }, { status: 400 });
     }
 
@@ -53,13 +67,13 @@ export async function POST(request: Request) {
         BUSINESS_ID: Number(businessId),
         RESERVATION_SOURCE: 1,
         VISITOR_ID: 0,
-        RESERVATION_AS_NAME: name,
+        RESERVATION_AS_NAME: name.trim(),
         EMAIL_ADDRESS: email,
-        PHONE_NUMBER: phone,
+        PHONE_NUMBER: phone.trim(),
         RESERVATION_DATE: reservationDate,
         EXPECTED_TIME: time,
         RESERVATION_FOR: occasion || '',
-        RESERVATION_NUMBER: Number(guests) || 0,
+        RESERVATION_NUMBER: guestCount,
         REMARKS: specialRequests || '',
         STATUS: 1,
         ADMIN_REMARKS: '',
@@ -77,7 +91,7 @@ export async function POST(request: Request) {
           phone,
           date,
           time,
-          guests: String(Number(guests) || 0),
+          guests: String(guestCount),
           businessName
         }
       );
