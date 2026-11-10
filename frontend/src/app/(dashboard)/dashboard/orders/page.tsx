@@ -28,7 +28,7 @@ import {
   PAYMENT_DONE,
   isUnpaidCardOrder,
   isPickupOrder,
-} from "@/lib/orderStatus";
+} from "@/lib/order";
 import {
   ChangedField,
   ChangedOrders,

@@ -13,9 +13,9 @@ import {
   getOrderStatusLabel,
   getPaymentStatusLabel,
   isPickupOrder,
-} from "@/lib/orderStatus";
+  PAYMENT_DONE,
+} from "@/lib/order";
 import { generateSlug } from "@/lib/utils/genSlug";
-import { PAYMENT_DONE } from "@/lib/order";
 
 type Order = {
   BUSINESS_ORDER_ID: number;

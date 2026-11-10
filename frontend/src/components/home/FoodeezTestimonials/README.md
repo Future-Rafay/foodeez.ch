@@ -24,10 +24,8 @@ A comprehensive testimonials system for the Foodeez platform that allows users t
 - `ReviewCard.tsx` - Individual review display card
 - `ReviewForm.tsx` - Form for creating/editing reviews
 - `ReviewsGrid.tsx` - Responsive grid layout for reviews
-- `ReviewsFilter.tsx` - Filtering and sorting controls
 - `EditReviewModal.tsx` - Modal for editing reviews
 - `DeleteConfirmModal.tsx` - Confirmation modal for deleting reviews
-- `AdminReviewsPanel.tsx` - Administrative panel for managing reviews
 
 ### API Routes
 - `/api/foodeez-reviews` - GET (fetch reviews), POST (create review)
@@ -60,8 +58,7 @@ function HomePage() {
 import { 
   ReviewCard, 
   ReviewForm, 
-  ReviewsGrid,
-  ReviewsFilter 
+  ReviewsGrid
 } from '@/components/home/FoodeezTestimonials';
 ```
 
@@ -98,10 +95,8 @@ FoodeezTestimonials/
 ├── ReviewCard.tsx             # Individual review card
 ├── ReviewForm.tsx             # Review creation/editing form
 ├── ReviewsGrid.tsx            # Reviews grid layout
-├── ReviewsFilter.tsx          # Filtering and sorting
 ├── EditReviewModal.tsx        # Edit review modal
 ├── DeleteConfirmModal.tsx     # Delete confirmation modal
-├── AdminReviewsPanel.tsx      # Admin management panel
 ├── index.tsx                  # Component exports
 └── README.md                  # This documentation
 ```

@@ -6,7 +6,7 @@ import Link from "next/link";
 import FoodTypeBadges from "@/components/core/FoodTypeBadges";
 import type { business_detail_view_all } from "@/lib/prisma";
 import Separator from "@/components/ui/separator";
-import { formatCHF } from "@/lib/orderStatus";
+import { formatCHF } from "@/lib/order";
 import { toExternalUrl } from "@/lib/utils";
 
 type DeliveryZone = {

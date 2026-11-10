@@ -10,7 +10,7 @@ import { useRouter } from "next/navigation";
 import ProductDetailsModal from "@/components/menu/ProductDetailsModal";
 import { useSession } from "next-auth/react";
 import { calculateCartTotals } from "@/lib/cartTotals";
-import { formatCHF, ORDER_TYPE } from "@/lib/orderStatus";
+import { formatCHF, ORDER_TYPE } from "@/lib/order";
 import { toast } from "react-hot-toast";
 
 type SummaryProps = {
