@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { after, NextRequest, NextResponse } from 'next/server';
 import { UnifiedGoogleService } from '@/services/UnifiedGoogleService';
 import {
   BusinessGoogleData,
@@ -141,26 +141,16 @@ async function handleFirstVisit(
 // Called when cached data is STALE. The response has already been sent to the
 // user by the time this runs, so they experience zero extra latency.
 //
-// NOTE on serverless environments (Vercel/AWS Lambda):
-//   Fire-and-forget promises may be cut short if the function runtime exits
-//   immediately after sending the response. If you are on Next.js 15+ you can
-//   replace this with:
-//
-//     import { unstable_after as after } from 'next/server';
-//     after(() => refreshGoogleData(businessId, placeId));
-//
-//   That API guarantees the callback runs even after the response is flushed.
+// after() keeps the serverless function alive until the refresh finishes.
 // ─────────────────────────────────────────────────────────────────────────────
 function scheduleBackgroundRefresh(businessId: number, placeId: string): void {
-  UnifiedGoogleService.fetchGooglePlaceDetails(placeId)
-    .then(freshData => saveBusinessDataToDb(businessId, placeId, freshData))
-    .then(() =>
-      console.log(`[BackgroundRefresh] Updated Google data for business ${businessId}`)
-    )
-    .catch(error =>
-      console.error(`[BackgroundRefresh] Failed for business ${businessId}:`, error)
-    );
-  // Intentionally not awaited.
+  after(() =>
+    UnifiedGoogleService.fetchGooglePlaceDetails(placeId)
+      .then(freshData => saveBusinessDataToDb(businessId, placeId, freshData))
+      .catch(error =>
+        console.error(`[BackgroundRefresh] Failed for business ${businessId}:`, error)
+      )
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -277,7 +267,8 @@ async function getCachedBusinessData(
       }`
     }));
 
-    const photos: GooglePhoto[] = cachedPhotos.map(p => ({
+    // Older rows embed the Maps API key in the URL; never send those to the browser.
+    const photos: GooglePhoto[] = cachedPhotos.filter(p => p.IMAGE_URL && !p.IMAGE_URL.includes('key=')).map(p => ({
       photoUrl: p.IMAGE_URL || '',
       width: Number(p.WIDTH ?? 800) || 800,
       height: Number(p.HEIGHT ?? 600) || 600

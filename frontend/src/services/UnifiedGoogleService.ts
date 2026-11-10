@@ -7,7 +7,8 @@ import {
 } from '@/types/google-business';
 
 export class UnifiedGoogleService {
-  private static readonly API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  // Server-side web-service key. The public Maps key is only a fallback until GOOGLE_PLACES_API_KEY is set.
+  private static readonly API_KEY = process.env.GOOGLE_PLACES_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
   private static readonly BASE_URL = 'https://maps.googleapis.com/maps/api/place/details/json';
   private static readonly FIELDS = 'name,rating,user_ratings_total,reviews,url,opening_hours,photos,geometry';
 
@@ -33,7 +34,7 @@ export class UnifiedGoogleService {
         throw new Error(data.error_message || "Failed to fetch place details");
       }
 
-      return this.transformGoogleApiResponse(data);
+      return await this.transformGoogleApiResponse(data);
     } catch (error) {
       console.error("Error fetching Google place details:", error);
       throw error;
@@ -43,7 +44,7 @@ export class UnifiedGoogleService {
   /**
    * Transform Google API response to our unified format
    */
-  private static transformGoogleApiResponse(data: GooglePlacesApiResponse): BusinessGoogleData {
+  private static async transformGoogleApiResponse(data: GooglePlacesApiResponse): Promise<BusinessGoogleData> {
     const result = data.result;
 
     // Transform reviews
@@ -57,12 +58,15 @@ export class UnifiedGoogleService {
         profile_photo_url: review.profile_photo_url,
       }));
 
-    // Transform photos
-    const photos: GooglePhoto[] = (result.photos || []).map((photo: any) => ({
-      photoUrl: `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${photo.photo_reference}&key=${this.API_KEY}`,
-      width: photo.width,
-      height: photo.height,
-    }));
+    // Photos are saved as the image URL Google redirects to, so the API key never reaches the database or the page.
+    const photos: GooglePhoto[] = (
+      await Promise.all(
+        (result.photos || []).map(async (photo: any) => {
+          const photoUrl = await this.resolvePhotoUrl(photo.photo_reference);
+          return photoUrl ? { photoUrl, width: photo.width, height: photo.height } : null;
+        })
+      )
+    ).filter((photo): photo is GooglePhoto => photo !== null);
 
     // Transform opening hours
     let openingHours: OpeningHourDay[] = [];
@@ -89,14 +93,17 @@ export class UnifiedGoogleService {
     };
   }
 
-  /**
-   * Generate photo URL for Google Places photo reference
-   */
-  static generatePhotoUrl(photoReference: string, maxWidth: number = 800): string {
-    if (!this.API_KEY) {
-      throw new Error("Google API key is not configured");
+  private static async resolvePhotoUrl(photoReference: string): Promise<string | null> {
+    try {
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${encodeURIComponent(photoReference)}&key=${this.API_KEY}`,
+        { redirect: "manual" }
+      );
+      const location = response.headers.get("location");
+      return location && !location.includes("key=") ? location : null;
+    } catch (error) {
+      console.error("Google photo lookup failed:", error);
+      return null;
     }
-
-    return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=${maxWidth}&photoreference=${photoReference}&key=${this.API_KEY}`;
   }
 }

@@ -55,6 +55,11 @@ const nextConfig = {
         pathname: "/**",
       },
       {
+        // Google Places photos are saved as their final googleusercontent URL.
+        protocol: "https",
+        hostname: "*.googleusercontent.com",
+      },
+      {
         protocol: "https",
         hostname: "*.s3.amazonaws.com",
       },

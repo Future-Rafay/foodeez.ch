@@ -56,7 +56,8 @@ async function getGoogleBusinessData(businessId: number): Promise<BusinessGoogle
           hours.OPEN_2 ? `, ${hours.OPEN_2} - ${hours.CLOSE_2}` : ""
         }`,
       })),
-      photos: photos.map((photo) => ({
+      // Older rows embed the Maps API key in the URL; never send those to the browser.
+      photos: photos.filter((photo) => photo.IMAGE_URL && !photo.IMAGE_URL.includes("key=")).map((photo) => ({
         photoUrl: photo.IMAGE_URL || "",
         width: photo.WIDTH ?? 800,
         height: photo.HEIGHT ?? 600,
