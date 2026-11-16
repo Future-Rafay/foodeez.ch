@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { areUploadedMediaUrls } from '@/lib/s3-storage';
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -56,6 +57,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
     }
     const body = await request.json();
+    if (!areUploadedMediaUrls([body.PIC_1, body.PIC_2, body.PIC_3], [journey.PIC_1, journey.PIC_2, journey.PIC_3])) {
+      return NextResponse.json({ error: 'Photos and videos must be uploaded through Foodeez.' }, { status: 400 });
+    }
     const updatedJourney = await prisma.visitor_food_journey.update({
       where: { VISITOR_FOOD_JOURNEY_ID: Number((await params).id) },
       data: {

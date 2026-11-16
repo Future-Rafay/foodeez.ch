@@ -30,6 +30,12 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ businessId: string }> }
 ) {
+  // Each call can spend Google Places quota and no page calls this route, so it is closed to the public.
+  const secret = process.env.CRON_SECRET;
+  if (!secret || request.headers.get('authorization') !== `Bearer ${secret}`) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const businessId = parseInt((await params).businessId);
     if (!businessId) {

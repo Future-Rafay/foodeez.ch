@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { S3Storage } from "@/lib/s3-storage";
+import { publicFormRateLimitResponse, UPLOAD_LIMITS } from "@/lib/checkout-rate-limit";
 import {
   ALLOWED_IMAGE_TYPES,
   ALLOWED_VIDEO_TYPES,
@@ -18,6 +19,10 @@ export async function POST(req: NextRequest) {
     if (!session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // Files land in a public bucket, so one account cannot upload without limit.
+    const limited = await publicFormRateLimitResponse(req.headers, "upload", session.user.email, UPLOAD_LIMITS);
+    if (limited) return limited;
 
     const formData = await req.formData();
     const file = formData.get("file") as File | null;

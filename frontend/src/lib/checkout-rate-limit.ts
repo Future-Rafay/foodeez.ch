@@ -27,6 +27,12 @@ export const COUPON_LIMITS: Limits = {
   email: { limit: 40, windowMs: 10 * 60 * 1000 },
 };
 
+// A review holds 10 photos and a video, so this leaves room for several reviews and edits an hour.
+export const UPLOAD_LIMITS: Limits = {
+  ip: { limit: 120, windowMs: 60 * 60 * 1000 },
+  email: { limit: 60, windowMs: 60 * 60 * 1000 },
+};
+
 export class RateLimitError extends Error {
   constructor(
     public readonly retryAfterSeconds: number,

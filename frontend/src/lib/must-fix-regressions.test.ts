@@ -175,3 +175,68 @@ test("a password session ends once the account password changes or is cleared", 
   assert.equal(await checkPasswordSession(blip, async () => { throw new Error("timeout"); }, later), true);
   assert.equal(blip.pwCheckedAt, signedInAt);
 });
+
+test("a refused checkout may be changed and retried, but an order that may exist keeps its retry id", async () => {
+  const { checkoutOrderMayExist } = await import("./checkout-retry");
+  // Refused before any order was made: stock, menu, form, discount, rate limit.
+  for (const [status, message] of [
+    [400, "Only 2 left in stock for Pizza."],
+    [409, "Only 0 left in stock for Pizza."],
+    [409, "One or more products are no longer available online. Refresh the menu and try again."],
+    [400, "This payment method is not available for the selected order type."],
+    [409, "Invalid coupon code."],
+    [409, "This checkout expired. Please submit the cart again."],
+    [429, "Too many checkout attempts. Please wait and try again."],
+  ] as const) {
+    assert.equal(checkoutOrderMayExist(status, message), false, message);
+  }
+  // The order may exist, so the same id and the same answers must be sent again.
+  for (const [status, message] of [
+    [502, "Card checkout could not be started. Please retry this checkout."],
+    [503, "Checkout could not be completed. Please retry."],
+    [409, "Checkout request conflicts with an existing order."],
+    [409, "This checkout is already awaiting card payment."],
+  ] as const) {
+    assert.equal(checkoutOrderMayExist(status, message), true, message);
+  }
+});
+
+test("stored uploads take their extension from the checked type, never from the browser's file name", async () => {
+  const { extensionForType } = await import("./s3-storage");
+  assert.equal(extensionForType("image/png"), "png");
+  assert.equal(extensionForType("video/quicktime"), "mov");
+  assert.equal(extensionForType("application/x-msdownload"), "bin");
+});
+
+test("the content security policy lets S3 review videos and upload previews play", async () => {
+  const { default: config } = await import("../../next.config.mjs");
+  const [{ headers }] = await config.headers();
+  const csp = headers.find((header: { key: string }) => header.key === "Content-Security-Policy")?.value;
+  assert.match(String(csp), /media-src 'self' blob: https:\/\/\*\.amazonaws\.com/);
+});
+
+test("review and story media must be this app's uploads, or links the record already holds", async () => {
+  const { areUploadedMediaUrls } = await import("./s3-storage");
+  const own = `https://${process.env.S3_BUCKET}.s3.${process.env.S3_REGION || "us-east-1"}.amazonaws.com/uploads/1-a.png`;
+  assert.equal(areUploadedMediaUrls([own, null, "", undefined]), true);
+  assert.equal(areUploadedMediaUrls(["https://evil.example/a.png"]), false);
+  assert.equal(areUploadedMediaUrls(["javascript:alert(1)"]), false);
+  assert.equal(areUploadedMediaUrls([{ not: "" }]), false);
+  // Editing keeps an older link that is already saved, but cannot add a new outside one.
+  assert.equal(areUploadedMediaUrls(["https://old.example/a.png", own], ["https://old.example/a.png"]), true);
+});
+
+test("the Google data route stays closed without the cron secret", async () => {
+  const { GET } = await import("@/app/api/business-google-data/[businessId]/route");
+  const { NextRequest } = await import("next/server");
+  const call = (authorization?: string) => GET(
+    new NextRequest("http://localhost/api/business-google-data/1", { headers: authorization ? { authorization } : {} }),
+    { params: Promise.resolve({ businessId: "1" }) }
+  );
+
+  delete process.env.CRON_SECRET;
+  assert.equal((await call("Bearer undefined")).status, 401);
+  process.env.CRON_SECRET = "test-cron-secret";
+  assert.equal((await call()).status, 401);
+  assert.equal((await call("Bearer wrong")).status, 401);
+});

@@ -21,14 +21,6 @@ export class FoodeezReviewService {
     return response.json();
   }
 
-  static async getReview(id: string): Promise<foodeez_review_view> {
-    const response = await fetch(`${API_BASE}/${id}`);
-    if (!response.ok) {
-      throw new Error('Failed to fetch review');
-    }
-    return response.json();
-  }
-
   static async createReview(data: CreateFoodeezReviewData): Promise<foodeez_review_view> {
     const response = await fetch(API_BASE, {
       method: 'POST',

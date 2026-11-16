@@ -2,42 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { pickReviewUpdate, serializeBigInt, withoutForeignEmail } from '@/lib/foodeez-review';
+import { pickReviewUpdate, serializeBigInt } from '@/lib/foodeez-review';
+import { areUploadedMediaUrls } from '@/lib/s3-storage';
 
-
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const review = await prisma.foodeez_review.findUnique({
-      where: {
-        FOODEEZ_REVIEW_ID: BigInt((await params).id),
-      },
-    });
-    const session = await getServerSession(authOptions);
-    const viewerEmail = session?.user?.email || null;
-
-    // Pending reviews are visible only to their author.
-    if (!review || (review.APPROVED !== 1 && review.REVIEWER_EMAIL !== viewerEmail)) {
-      return NextResponse.json(
-        { error: 'Review not found' },
-        { status: 404 }
-      );
-    }
-
-    // Serialize BigInt values before sending response
-    const serializedReview = serializeBigInt(withoutForeignEmail(review, viewerEmail));
-
-    return NextResponse.json(serializedReview);
-  } catch (error) {
-    console.error('Error fetching review:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch review' },
-      { status: 500 }
-    );
-  }
-}
 
 export async function PUT(
   request: NextRequest,
@@ -80,11 +47,19 @@ export async function PUT(
       );
     }
 
+    const data = pickReviewUpdate(body);
+    if (!areUploadedMediaUrls(
+      [data.PIC_1, data.PIC_2, data.PIC_3],
+      [existingReview.PIC_1, existingReview.PIC_2, existingReview.PIC_3]
+    )) {
+      return NextResponse.json({ error: 'Photos and videos must be uploaded through Foodeez.' }, { status: 400 });
+    }
+
     const updatedReview = await prisma.foodeez_review.update({
       where: {
         FOODEEZ_REVIEW_ID: BigInt((await params).id),
       },
-      data: pickReviewUpdate(body),
+      data,
     });
 
     // Serialize BigInt values before sending response
