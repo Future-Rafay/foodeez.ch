@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import {
   Building2,
   MapPin,
@@ -24,6 +26,7 @@ interface FormData {
   addressTown: string;
   addressCountry: string;
   phoneNumber: string;
+  emailAddress: string;
   phoneNumberShort: string;
   whatsappNumber: string;
   webAddress: string;
@@ -44,6 +47,7 @@ const initialFormData: FormData = {
   addressTown: "",
   addressCountry: "",
   phoneNumber: "",
+  emailAddress: "",
   phoneNumberShort: "",
   whatsappNumber: "",
   webAddress: "",
@@ -54,7 +58,16 @@ const initialFormData: FormData = {
   imageUrl: "",
 };
 
+// Which fields each step shows, so Next only checks the current step and submit errors open the right one.
+const STEP_FIELDS: (keyof FormData)[][] = [
+  ["businessName", "shortName", "description", "imageUrl"],
+  ["addressStreet", "addressZip", "addressTown", "addressCountry"],
+  ["phoneNumber", "emailAddress", "phoneNumberShort", "whatsappNumber", "webAddress"],
+  ["facebookLink", "instaLink", "tiktokLink", "googleProfile"],
+];
+
 export default function BusinessRegistrationForm() {
+  const { status } = useSession();
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>(
     {}
@@ -83,7 +96,7 @@ export default function BusinessRegistrationForm() {
     }
   };
 
-  const validateForm = (): boolean => {
+  const findErrors = () => {
     const newErrors: Partial<Record<keyof FormData, string>> = {};
 
     if (!formData.businessName.trim()) {
@@ -116,8 +129,27 @@ export default function BusinessRegistrationForm() {
       newErrors.phoneNumber = "Phone number is required";
     }
 
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.emailAddress.trim())) {
+      newErrors.emailAddress = "A valid business email is required";
+    }
+
+    return newErrors;
+  };
+
+  const validateForm = (): boolean => {
+    const newErrors = findErrors();
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    const firstStep = STEP_FIELDS.findIndex((fields) => fields.some((field) => newErrors[field]));
+    if (firstStep >= 0) setCurrentStep(firstStep + 1);
+    return firstStep < 0;
+  };
+
+  const nextStep = () => {
+    const stepErrors = Object.fromEntries(
+      Object.entries(findErrors()).filter(([field]) => STEP_FIELDS[currentStep - 1].includes(field as keyof FormData))
+    );
+    setErrors(stepErrors);
+    if (Object.keys(stepErrors).length === 0) setCurrentStep((prev) => Math.min(prev + 1, 4));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -136,13 +168,14 @@ export default function BusinessRegistrationForm() {
         SHORT_NAME: formData.shortName,
         DESCRIPTION: formData.description,
         ADDRESS_STREET: formData.addressStreet,
-        ADDRESS_ZIP: formData.addressZip ? parseInt(formData.addressZip) : null,
+        ADDRESS_ZIP: formData.addressZip.trim(),
         ADDRESS_CITY_ID: formData.addressCity
           ? parseInt(formData.addressCity)
           : null,
         ADDRESS_TOWN: formData.addressTown,
         ADDRESS_COUNTRY: formData.addressCountry,
         PHONE_NUMBER: formData.phoneNumber,
+        EMAIL_ADDRESS: formData.emailAddress.trim(),
         PHONE_NUMBER_SHORT: formData.phoneNumberShort,
         WHATSAPP_NUMBER: formData.whatsappNumber,
         WEB_ADDRESS: formData.webAddress,
@@ -181,10 +214,6 @@ export default function BusinessRegistrationForm() {
     }
   };
 
-  // const nextStep = () => {
-  //   setCurrentStep((prev) => Math.min(prev + 1, 4));
-  // };
-
   const prevStep = () => {
     setCurrentStep((prev) => Math.max(prev - 1, 1));
   };
@@ -200,8 +229,8 @@ export default function BusinessRegistrationForm() {
             Registration Successful!
           </h2>
           <p className="text-text-muted mb-8">
-            Your business has been submitted for review. You will be redirected
-            shortly.
+            Your restaurant has been submitted. The Foodeez team will review it
+            and email you once it is live and you can manage it.
           </p>
           <Button
             variant="primary"
@@ -217,6 +246,28 @@ export default function BusinessRegistrationForm() {
           >
             Go to Dashboard
           </Button> */}
+        </div>
+      </div>
+    );
+  }
+
+  if (status !== "authenticated") {
+    return (
+      <div className="flex items-center justify-center px-4">
+        <div className="bg-white p-8 rounded-2xl shadow-lg max-w-md w-full text-center">
+          <h2 className="text-2xl font-bold text-text-main mb-4">Sign in to register</h2>
+          <p className="text-text-muted mb-8">
+            Your restaurant is linked to your Foodeez account, so you can manage
+            it once it is approved. Signing up is free.
+          </p>
+          {status === "loading" ? null : (
+            <Link
+              href="/auth/signin?callbackUrl=%2Fbusiness%2Fregister"
+              className="inline-flex w-full items-center justify-center rounded-full bg-primary px-6 py-3 font-semibold text-white shadow-md hover:bg-primary-dark"
+            >
+              Sign in or create an account
+            </Link>
+          )}
         </div>
       </div>
     );
@@ -432,6 +483,17 @@ export default function BusinessRegistrationForm() {
                 />
 
                 <Input
+                  label="Business Email"
+                  name="emailAddress"
+                  type="email"
+                  value={formData.emailAddress}
+                  onChange={handleChange}
+                  required
+                  error={errors.emailAddress}
+                  className="bg-background focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
+                />
+
+                <Input
                   label="Short Phone Number (optional)"
                   name="phoneNumberShort"
                   value={formData.phoneNumberShort}
@@ -527,12 +589,11 @@ export default function BusinessRegistrationForm() {
             {currentStep < 4 ? (
               <Button
                 variant="primary"
-                // onClick={nextStep}
+                onClick={nextStep}
                 type="button"
                 className="px-8"
               >
-                {/* Next */}
-                Coming Soon
+                Next
               </Button>
             ) : (
               <Button
