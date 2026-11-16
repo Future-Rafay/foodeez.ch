@@ -143,11 +143,28 @@ Guidance for every AI coding tool (Claude, Codex and others) working in this rep
 - Never echo user-typed free text to a user-typed address. Contact messages go only to `ADMIN_EMAIL`; the reservation customer copy omits occasion and special requests and takes the restaurant name from the database.
 - Foodeez platform reviews are public only when `APPROVED = 1`; a signed-in reviewer also sees their own pending reviews. Other reviewers' `REVIEWER_EMAIL` values are nulled through `frontend/src/lib/foodeez-review.ts`. Reviewer edits go through `pickReviewUpdate` and always reset `APPROVED` to `0`; approval belongs to the admin repository.
 - Editing a restaurant review (`/api/reviews` PUT) also resets `APPROVED` to `0`, and only changes media fields the client sent.
+- `/api/upload` is limited per account and IP (`UPLOAD_LIMITS`), and `extensionForType` in `frontend/src/lib/s3-storage.ts` names stored files from the checked type, never from the browser's file name. The file bytes are still not inspected.
 - Uploads pass through Vercel functions, so `MAX_UPLOAD_SIZE_BYTES` and `MAX_VIDEO_UPLOAD_SIZE_BYTES` in `frontend/src/lib/media.ts` stay at 4 MB until uploads move to presigned S3 URLs. Profile image replacement deletes the old S3 object only after the new URL is saved.
 - Credentials sign-in (`frontend/src/lib/auth.ts`) and registration are rate-limited through the same helper; passwords need at least `MIN_PASSWORD_LENGTH` (8) characters on register, reset, and profile change.
 - `/api/discounts/quote` rate-limits by IP only when a coupon code is sent, so automatic discounts keep re-quoting freely.
 - Review likes are limited to one per account per review per day through the rate-limit table. The permanent one-like design is drafted in `docs/sql/create_visitor_review_likes.sql` and needs manual approval before it is applied.
 - Food journey author name, email, and picture always come from the signed-in account.
+
+## Checkout Retry and Stripe Return
+
+- `checkoutOrderMayExist` in `frontend/src/lib/checkout-retry.ts` decides what the checkout form does after an error. Only a 5xx answer or the two "order exists" 409 messages keep the request id and lock the form's answers; every other refusal starts a fresh id so the customer can change the cart. A new `/api/checkout` error that leaves an order behind must be covered there.
+- Before the Stripe redirect the form stores the session id in `sessionStorage`. `/cart` (the Stripe `cancel_url`) sends it to `/api/checkout/cancel`, which expires an open session and releases its stock through `releaseExpiredStripeOrderInventory`. A paid session is left alone.
+- The CSP `media-src` line allows `blob:` and `*.amazonaws.com` so review videos and upload previews play.
+
+## Page Titles, Media Links, and Order Totals
+
+- Page titles and descriptions come from `layout.tsx` files beside the pages (`business/[slug]` and its `menu`, `reservation` and `reviews`, `contact`, `faq`, `food-journey`, `pricing`, `reset-password`). Next reads metadata only from `page` and `layout` files; `params` is a Promise there. They read the database only, never Google.
+- Review and story photo and video links pass `areUploadedMediaUrls` in `frontend/src/lib/s3-storage.ts`: only this app's `uploads/` links, or links already saved on the record being edited. Platform review avatars come from the signed-in account only. `/api/reviews` and `/api/food-journey` POST are rate-limited with the public form helper.
+- Search, city lists, `getBusinessById` (profile pages and titles) and new checkout orders all require `business.APPROVED = 1 AND STATUS = 1`. On 2026-11-11 all 8,366 restaurants had both flags set, so the filter hid nothing.
+- `orderFinalAmount` in `frontend/src/lib/payment-amount.ts` is the one place that computes what the customer pays; checkout stores it, emails it and compares Stripe's total with it.
+- `/api/checkout` refuses carts over 100 lines and customer fields longer than `CHECKOUT_FIELD_MAX_LENGTH` in `frontend/src/lib/order.ts` (the `business_order` column sizes).
+- `/api/checkout` returns Stripe's own `url` for the payment page and the browser navigates to it; `@stripe/stripe-js` is no longer used. A retry of an order with a saved session re-reads that session: open returns its URL, expired releases the stock and asks for a new checkout.
+- The navbar bell calls `/api/orders/history?view=notifications`, which loads only the newest `NOTIFICATION_ORDER_LIMIT` orders and returns no order list.
 
 ## Stripe Paid-State Guard
 
@@ -182,12 +199,11 @@ Guidance for every AI coding tool (Claude, Codex and others) working in this rep
 
 Check these before assuming a feature works. Remove an item once it is fixed.
 
-- None of the 11 `metadata.ts` files under `frontend/src/app/` are used, because Next only reads metadata exported from `page` or `layout` files. Except `/business`, whose `page.tsx` exports its own, those routes fall back to the root layout's title and description. The files also read `params` synchronously and `business/[slug]/metadata.ts` calls Google Places on every render, so fix both before wiring them in.
-- Google reviews, hours and photos are never refreshed (see Business Profile Notes). Whether to wire `/api/business-google-data` back in, at Google API cost, or delete it is the owner's decision. Its `business_opening_hours` inserts use `MAX(id) + 1` because that column has no auto-increment; changing that needs an approved schema change.
+- Google reviews, hours and photos are never refreshed (see Business Profile Notes). `/api/business-google-data` now answers only with `Authorization: Bearer $CRON_SECRET`, so the public cannot spend Google quota. Whether to schedule it, at Google API cost, or delete it is the owner's decision. Its `business_opening_hours` inserts use `MAX(id) + 1` because that column has no auto-increment; changing that needs an approved schema change.
 - `GOOGLE_PLACES_API_KEY` must be set in Vercel, or server photo lookups fail.
 - The stale-checkout cron runs once a day at 03:00 UTC (`frontend/vercel.json`). Vercel's Hobby plan rejects more frequent crons, so confirm the plan before changing it.
 - The root `frontend/src/app/loading.tsx` streams every page, so `notFound()` renders the 404 page with `noindex` but the HTTP status stays 200.
-- `frontend/src/components/home/FoodeezTestimonials/DeleteConfirmModal.tsx` performs its own delete and does not render through `ModalPortal`; the shared dialog is `components/core/DeleteConfirmModal.tsx`.
 - Password sessions issued before 2026-11-10 carry no password fingerprint, so they are not rechecked and run until they expire (up to 30 days).
 - Checkout, Stripe payment and signed-in flows have not been browser-tested since the Next 16 upgrade.
 - GitHub Dependabot reports open alerts on `main` that have not been triaged.
+- A guest can place cash orders that reserve tracked stock without paying (up to 999 per item). Limiting cash to signed-in customers or capping guest quantity is the owner's decision.
