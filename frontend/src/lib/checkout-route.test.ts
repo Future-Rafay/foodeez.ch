@@ -61,3 +61,43 @@ test("checkout API rejects a non-array cart before database access", async () =>
   assert.equal(response.status, 400);
   assert.equal(await response.text(), "Cart is empty");
 });
+
+test("checkout cancel rejects anything that is not a Stripe session id before database access", async () => {
+  await checkoutPost();
+  const { POST } = await import("@/app/api/checkout/cancel/route");
+  for (const sessionId of [undefined, 42, "", "order-17", "cs_test_a1 OR 1=1"]) {
+    const response = await POST(new Request("http://localhost/api/checkout/cancel", {
+      method: "POST",
+      body: JSON.stringify({ sessionId }),
+    }));
+    assert.equal(response.status, 400);
+  }
+});
+
+test("checkout API refuses values longer than the order columns before database access", async () => {
+  const POST = await checkoutPost();
+  const response = await POST(new NextRequest("http://localhost/api/checkout", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      ...checkoutBody,
+      paymentMethod: "card",
+      customerInfo: { ...checkoutBody.customerInfo, phone: "+41 79 123 45 67 / +41 44 123 45 67" },
+    }),
+  }));
+
+  assert.equal(response.status, 400);
+  assert.equal(await response.text(), "Too long: phone (max 20 characters)");
+});
+
+test("checkout API refuses a cart with more than 100 lines before database access", async () => {
+  const POST = await checkoutPost();
+  const response = await POST(new NextRequest("http://localhost/api/checkout", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...checkoutBody, paymentMethod: "card", items: Array(101).fill(checkoutBody.items[0]) }),
+  }));
+
+  assert.equal(response.status, 400);
+  assert.equal(await response.text(), "Cart has too many items.");
+});

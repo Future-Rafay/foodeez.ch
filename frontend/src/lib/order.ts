@@ -19,6 +19,18 @@ export const ORDER_TYPE = {
   pickup: "pickup",
 } as const;
 
+/** Sizes of the business_order text columns. Checkout refuses longer values instead of failing in the database. */
+export const CHECKOUT_FIELD_MAX_LENGTH = {
+  firstName: 100,
+  lastName: 100,
+  email: 255,
+  phone: 20,
+  street: 100,
+  zip: 10,
+  city: 100,
+  country: 45,
+} as const;
+
 type OrderLike = {
   BUSINESS_ORDER_ID?: number | null;
   ORDER_NUMBER?: string | null;

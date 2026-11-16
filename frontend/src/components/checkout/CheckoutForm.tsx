@@ -4,8 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useCartStore } from "@/stores/cartStore";
-import { getStripe } from "@/lib/stripe";
-import { formatCHF, ORDER_TYPE } from "@/lib/order";
+import { CHECKOUT_FIELD_MAX_LENGTH, formatCHF, ORDER_TYPE } from "@/lib/order";
+import { checkoutOrderMayExist, OPEN_STRIPE_SESSION_KEY } from "@/lib/checkout-retry";
 import type { DeliveryQuote, DeliveryZoneDisplay } from "@/lib/fulfillment";
 import {
   getAvailablePaymentMethods,
@@ -297,7 +297,7 @@ export default function CheckoutForm({
 
       if (!response.ok) {
         const message = await response.text();
-        if (response.status === 409 && /checkout expired|Order total changed|Coupon is invalid|Card payments require/.test(message)) {
+        if (!checkoutOrderMayExist(response.status, message)) {
           setCheckoutRequestId(crypto.randomUUID());
           attemptedFingerprint.current = null;
         }
@@ -305,10 +305,11 @@ export default function CheckoutForm({
       }
 
       const data = await response.json();
-      if (data.sessionId) {
-        const stripe = await getStripe();
-        const result = await stripe?.redirectToCheckout({ sessionId: data.sessionId });
-        if (result?.error) throw result.error;
+      if (data.url) {
+        // If the customer comes back without paying, the cart page closes this session and frees its stock.
+        try { window.sessionStorage.setItem(OPEN_STRIPE_SESSION_KEY, data.sessionId); } catch {}
+        // Stripe's hosted payment page; the server only returns its own session's URL.
+        window.location.assign(data.url);
         return;
       }
       // page scroll to top
@@ -384,6 +385,7 @@ export default function CheckoutForm({
                 value={formData[name as keyof CheckoutFormData] as string}
                 onChange={handleChange}
                 required
+                maxLength={CHECKOUT_FIELD_MAX_LENGTH[name as keyof CheckoutFormData]}
                 className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
               />
             </div>
@@ -399,26 +401,26 @@ export default function CheckoutForm({
               <label htmlFor="street" className="block text-sm font-medium text-gray-700 mb-1">
                 Street address *
               </label>
-              <input id="street" name="street" value={formData.street} onChange={handleChange} required className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+              <input id="street" name="street" value={formData.street} onChange={handleChange} required maxLength={CHECKOUT_FIELD_MAX_LENGTH.street} className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label htmlFor="zip" className="block text-sm font-medium text-gray-700 mb-1">
                   Postal code / ZIP *
                 </label>
-                <input id="zip" name="zip" value={formData.zip} onChange={handleChange} required className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                <input id="zip" name="zip" value={formData.zip} onChange={handleChange} required maxLength={CHECKOUT_FIELD_MAX_LENGTH.zip} className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
               </div>
               <div>
                 <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-1">
                   Town/city *
                 </label>
-                <input id="city" name="city" value={formData.city} onChange={handleChange} required className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                <input id="city" name="city" value={formData.city} onChange={handleChange} required maxLength={CHECKOUT_FIELD_MAX_LENGTH.city} className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
               </div>
               <div>
                 <label htmlFor="country" className="block text-sm font-medium text-gray-700 mb-1">
                   Country code *
                 </label>
-                <input id="country" name="country" value={formData.country} onChange={handleChange} required className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
+                <input id="country" name="country" value={formData.country} onChange={handleChange} required maxLength={CHECKOUT_FIELD_MAX_LENGTH.country} className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
               </div>
             </div>
           </div>
