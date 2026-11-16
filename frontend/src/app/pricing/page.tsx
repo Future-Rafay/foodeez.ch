@@ -98,7 +98,7 @@ export default function PricingPage() {
             className="rounded-3xl border border-secondary-light bg-secondary-light/5 shadow-md p-8 flex flex-col "
             variants={itemVariants}
             whileHover={{ translateY: -5, boxShadow: "0 10px 15px rgba(0,0,0,0.1)" }}
-            transition={{ type: "spring", stiffness: 300 }}
+            transition={{ type: "spring" as const, stiffness: 300 }}
           >
             <h2 className="text-xl lg:text-2xl font-semibold text-primary mb-1">
               Basic{" "}
@@ -146,7 +146,7 @@ export default function PricingPage() {
             className="rounded-3xl border-2 border-primary bg-primary/10 shadow-lg p-8 flex flex-col"
             variants={itemVariants}
             whileHover={{ translateY: -5, boxShadow: "0 10px 15px rgba(0,0,0,0.1)" }}
-            transition={{ type: "spring", stiffness: 300 }}
+            transition={{ type: "spring" as const, stiffness: 300 }}
           >
             <h2 className="text-xl lg:text-2xl font-semibold text-primary-dark mb-1">
               Premium{" "}

@@ -35,7 +35,7 @@ export default function DropdownMenu({ label, items }: DropdownMenuProps) {
     hidden: { opacity: 0, y: -10, scale: 0.95 },
     visible: {
       opacity: 1, y: 0, scale: 1,
-      transition: { type: "spring", damping: 20, stiffness: 300 }
+      transition: { type: "spring" as const, damping: 20, stiffness: 300 }
     },
     exit: { opacity: 0, y: -10, transition: { duration: 0.2 } }
   };
@@ -44,7 +44,7 @@ export default function DropdownMenu({ label, items }: DropdownMenuProps) {
     hidden: { x: -10, opacity: 0 },
     visible: (i: number) => ({
       x: 0, opacity: 1,
-      transition: { delay: i * 0.05, type: "spring", stiffness: 300 }
+      transition: { delay: i * 0.05, type: "spring" as const, stiffness: 300 }
     })
   };
 

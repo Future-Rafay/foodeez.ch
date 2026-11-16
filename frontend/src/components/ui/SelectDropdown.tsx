@@ -64,7 +64,7 @@ export default function SelectDropdown({
     hidden: { opacity: 0, y: -10, scale: 0.95 },
     visible: {
       opacity: 1, y: 0, scale: 1,
-      transition: { type: "spring", damping: 20, stiffness: 300 }
+      transition: { type: "spring" as const, damping: 20, stiffness: 300 }
     },
     exit: { opacity: 0, y: -10, transition: { duration: 0.2 } }
   };

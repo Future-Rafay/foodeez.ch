@@ -61,7 +61,7 @@ export default function EventCard({ event }: EventCardProps) {
       initial={{ opacity: 0, y: 40 }}
       whileInView={{ opacity: 1, y: 0 }}
       whileHover={{ scale: 1.03, boxShadow: "0 8px 32px rgba(0,0,0,0.12)" }}
-      transition={{ duration: 0.5, type: "spring" }}
+      transition={{ duration: 0.5, type: "spring" as const }}
       viewport={{ once: true }}
       className="flex flex-col md:flex-row items-start p-4 md:p-6 rounded-lg border border-accent border-dashed bg-white shadow-sm group focus-within:ring-2 focus-within:ring-primary relative h-full"
       tabIndex={0}
