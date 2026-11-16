@@ -200,10 +200,6 @@ export default function BusinessRegistrationForm() {
       }
 
       setSubmitSuccess(true);
-
-      setTimeout(() => {
-        router.push("/business");
-      }, 2000);
     } catch (error) {
       console.error("Error registering business:", error);
       setSubmitError(
@@ -586,8 +582,10 @@ export default function BusinessRegistrationForm() {
               Previous
             </Button>
 
+            {/* Separate keys: reusing one element lets the Next click on step 3 submit the form once it becomes type="submit". */}
             {currentStep < 4 ? (
               <Button
+                key="next-step"
                 variant="primary"
                 onClick={nextStep}
                 type="button"
@@ -597,6 +595,7 @@ export default function BusinessRegistrationForm() {
               </Button>
             ) : (
               <Button
+                key="submit-registration"
                 variant="primary"
                 type="submit"
                 isLoading={isSubmitting}
