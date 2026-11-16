@@ -1,5 +1,4 @@
 import Separator from "@/components/ui/separator";
-// import { isOpenNow } from "@/lib/isOpenNow";
 import { OpeningHourDay } from "@/types/google-business";
 import { format } from "date-fns";
 import { Clock } from "lucide-react";
@@ -12,7 +11,6 @@ const OpeningHours: React.FC<OpeningHoursProps> = ({ openingHours }) => {
   if (!openingHours || openingHours.length === 0) return null;
 
   const currentDay = format(new Date(), "EEEE");
-  // const openNow = isOpenNow(openingHours);
 
   return (
     <>

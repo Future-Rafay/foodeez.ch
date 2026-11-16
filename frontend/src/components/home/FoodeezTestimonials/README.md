@@ -25,7 +25,7 @@ A comprehensive testimonials system for the Foodeez platform that allows users t
 - `ReviewForm.tsx` - Form for creating/editing reviews
 - `ReviewsGrid.tsx` - Responsive grid layout for reviews
 - `EditReviewModal.tsx` - Modal for editing reviews
-- `DeleteConfirmModal.tsx` - Confirmation modal for deleting reviews
+- Delete confirmation uses the shared `components/core/DeleteConfirmModal.tsx`
 
 ### API Routes
 - `/api/foodeez-reviews` - GET (fetch reviews), POST (create review)
@@ -96,7 +96,6 @@ FoodeezTestimonials/
 ├── ReviewForm.tsx             # Review creation/editing form
 ├── ReviewsGrid.tsx            # Reviews grid layout
 ├── EditReviewModal.tsx        # Edit review modal
-├── DeleteConfirmModal.tsx     # Delete confirmation modal
 ├── index.tsx                  # Component exports
 └── README.md                  # This documentation
 ```

@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils/cn";
+import { cn } from "@/lib/utils";
 
 export default function FoodTypeFilter({
   foodTypes,
