@@ -9,6 +9,8 @@ import BusinessInfoSection, { FulfillmentOptions } from "@/components/BusinessSl
 import ResturantProfilePageHeader from "@/components/BusinessSlug/ResturantProfilePageHeader";
 import { unstable_cache } from "next/cache";
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
+import { refreshGoogleDataIfStale } from "@/lib/google-business-refresh";
 
 async function getBusinessFulfillmentOptions(businessId: number): Promise<FulfillmentOptions | null> {
   const settings = await prisma.business_settings.findUnique({ where: { BUSINESS_ID: businessId } });
@@ -87,6 +89,9 @@ export default async function BusinessDetailPage({ params }: { params: Promise<{
   ]);
 
   if (!business) notFound();
+
+  // Shows what is stored now; missing or 90-day-old Google data refreshes in the background for the next visit.
+  await refreshGoogleDataIfStale(businessId, business.PLACE_ID, (await headers()).get("user-agent"));
 
   const genSlug = generateSlug(business.BUSINESS_NAME || "business", business.BUSINESS_ID || 0);
 

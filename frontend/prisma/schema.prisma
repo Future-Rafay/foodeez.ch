@@ -1002,3 +1002,8 @@ model business_onboarding_request {
   @@index([BUSINESS_ID], map: "idx_business_onboarding_request_business")
   @@index([VISITORS_ACCOUNT_ID], map: "idx_business_onboarding_request_account")
 }
+
+model business_google_refresh {
+  BUSINESS_ID           Int      @id
+  LAST_ATTEMPT_DATETIME DateTime @db.DateTime(0)
+}
