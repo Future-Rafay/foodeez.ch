@@ -11,7 +11,7 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint src",
-    "test": "tsx --test \"src/**/*.test.ts\""
+    "test": "tsx --test \"src/**/*.test.ts\" \"src/**/*.test.tsx\""
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1069.0",
@@ -21,8 +21,8 @@
     "@prisma/client": "^7.8.0",
     "@radix-ui/react-label": "^2.1.7",
     "@radix-ui/react-slot": "^1.2.3",
-    "@react-email/components": "^0.0.42",
-    "@react-email/render": "^1.1.2",
+    "@react-email/components": "^1.0.12",
+    "@react-email/render": "^2.3.1",
     "@react-google-maps/api": "^2.20.6",
     "@tailwindcss/typography": "^0.5.16",
     "bcryptjs": "^3.0.2",
@@ -31,8 +31,8 @@
     "date-fns": "^4.1.0",
     "embla-carousel-autoplay": "^8.6.0",
     "embla-carousel-react": "^8.6.0",
-    "framer-motion": "^12.6.3",
-    "lucide-react": "^0.483.0",
+    "framer-motion": "^14.14.0",
+    "lucide-react": "^1.73.0",
     "next": "^16.4.4",
     "next-auth": "^4.24.15",
     "react": "^19.3.1",
@@ -57,6 +57,6 @@
     "prisma": "^7.8.0",
     "tailwindcss": "^3.4.1",
     "tsx": "^4.22.4",
-    "typescript": "^5"
+    "typescript": "^5.9.3"
   }
 }
