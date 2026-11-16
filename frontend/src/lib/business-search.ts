@@ -85,7 +85,8 @@ export function buildBusinessSearchQuery(filters: BusinessSearchFilters) {
     params.push(rating);
   }
 
-  const where = ["1=1", ...conditions].join(" AND ");
+  // Restaurants the admin switched off or has not approved stay out of every listing.
+  const where = ["APPROVED = 1 AND STATUS = 1", ...conditions].join(" AND ");
   const limit = wholeNumber(filters.limit, 12, 1, MAX_LIMIT);
   const page = wholeNumber(filters.page, 1, 1, Number.MAX_SAFE_INTEGER);
   const orderBy = ORDER_BY.get(String(filters.sortBy)) ?? DEFAULT_ORDER_BY;

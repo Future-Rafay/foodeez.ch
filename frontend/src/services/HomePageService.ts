@@ -41,11 +41,11 @@ export async function getBusinessesByLocation({
       // Prioritize zip code if provided
       const numericZip = Number(trimmedZip);
       if (!isNaN(numericZip)) {
-        whereClause = { ADDRESS_ZIP: { equals: numericZip } };
+        whereClause = { ADDRESS_ZIP: { equals: numericZip }, APPROVED: 1, STATUS: 1 };
       }
     } else if (trimmedCity) {
       // Fallback to city if no zip code is provided
-      whereClause = { CITY_NAME: { equals: trimmedCity } };
+      whereClause = { CITY_NAME: { equals: trimmedCity }, APPROVED: 1, STATUS: 1 };
     }
 
     if (!whereClause) {
@@ -128,7 +128,7 @@ export async function getBusinessByFoodtypeCategoryLocation(params: {
   const normalizedType = String(foodType ?? "").toLowerCase();
 
   try {
-    const whereClause: Prisma.business_detail_view_allWhereInput = {};
+    const whereClause: Prisma.business_detail_view_allWhereInput = { APPROVED: 1, STATUS: 1 };
 
     // Combine filters instead of overwriting
     if (zipCode) {

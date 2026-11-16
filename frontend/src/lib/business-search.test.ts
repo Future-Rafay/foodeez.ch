@@ -51,3 +51,9 @@ test("known filters still apply", () => {
   assert.ok(sql.includes("ORDER BY BUSINESS_ID DESC"));
   assert.deepEqual(params, [5, 6, 1, 4, 12, 0]);
 });
+
+test("every search and its count leave out switched-off and unapproved restaurants", () => {
+  const { sql, countSql } = buildBusinessSearchQuery({ searchTerm: "pizza" });
+  assert.match(sql, /WHERE APPROVED = 1 AND STATUS = 1 AND /);
+  assert.match(countSql, /WHERE APPROVED = 1 AND STATUS = 1 AND /);
+});
