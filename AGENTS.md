@@ -208,4 +208,4 @@ Check these before assuming a feature works. Remove an item once it is fixed.
 - Checkout, Stripe payment and signed-in flows have not been browser-tested since the Next 16 upgrade.
 - GitHub Dependabot reports open alerts on `main` that have not been triaged.
 - A guest can place cash orders that reserve tracked stock without paying (up to 999 per item). Limiting cash to signed-in customers or capping guest quantity is the owner's decision. The owner deferred it on 2026-11-16 and asked to be reminded.
-- Major upgrades not yet done: Stripe 18 → 23, Tailwind 3 → 4, TypeScript 7, ESLint 10, framer-motion 14, lucide-react 1. Each needs its own browser-tested change; Prisma 8 is still a release candidate.
+- Major upgrades not yet done (2026-11-17): Stripe 18 → 23 (pinned at exactly 18.4.0, because 18.5 changes the Stripe API version) and Tailwind 3 → 4 each need a browser-tested change. ESLint 10 waits for eslint-plugin-react support, TypeScript 7 has no JavaScript API for `next build`, and Prisma 8 is a release candidate. `src/emails/render.test.tsx` guards React Email upgrades.
