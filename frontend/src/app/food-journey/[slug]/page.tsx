@@ -38,7 +38,7 @@ const FoodJourneyDetailPage = () => {
 
   if (loading || !story) return <FoodJourneyDetailSkeleton />;
 
-  const images = [story.PIC_1, story.PIC_2, story.PIC_4].filter(Boolean);
+  const images = [story.PIC_1, story.PIC_2, story.PIC_3].filter(Boolean);
   const isOwner = session?.user?.id && story.VISITORS_ACCOUNT_ID && String(story.VISITORS_ACCOUNT_ID) === String(session.user.id);
 
   const handleEdit = () => {
