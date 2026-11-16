@@ -7,3 +7,8 @@ export const metadata: Metadata = generatePageMetadata({
   url: 'https://foodeez.ch/reset-password',
   noindex: true, // It's best practice to not index password reset pages
 });
+
+// Next.js reads metadata only from page and layout files; this layout exists to carry it.
+export default function Layout({ children }: { children: React.ReactNode }) {
+  return children;
+}

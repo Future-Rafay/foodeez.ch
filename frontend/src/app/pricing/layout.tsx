@@ -7,3 +7,8 @@ export const metadata: Metadata = generatePageMetadata({
   keywords: ['pricing', 'plans', 'subscription', 'business', 'restaurant marketing'],
   url: 'https://foodeez.ch/pricing',
 });
+
+// Next.js reads metadata only from page and layout files; this layout exists to carry it.
+export default function Layout({ children }: { children: React.ReactNode }) {
+  return children;
+}
