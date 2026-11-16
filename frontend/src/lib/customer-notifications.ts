@@ -26,8 +26,11 @@ const snapshot = (order: CustomerOrder): Snapshot => ({
 const eventKey = (orderId: number, type: string, value: unknown) =>
   createHash("sha256").update(`${orderId}:${type}:${JSON.stringify(value)}`).digest("hex");
 
+/** Only the newest orders get notifications, so the bell needs to load no more than these. */
+export const NOTIFICATION_ORDER_LIMIT = 20;
+
 export async function syncCustomerNotifications(visitorId: number, orders: CustomerOrder[]) {
-  const tracked = orders.slice(0, 20);
+  const tracked = orders.slice(0, NOTIFICATION_ORDER_LIMIT);
   const existing = await prisma.customer_order_notification.findMany({
     where: { VISITORS_ACCOUNT_ID: visitorId, BUSINESS_ORDER_ID: { in: tracked.map((order) => order.BUSINESS_ORDER_ID) } },
     orderBy: { CUSTOMER_ORDER_NOTIFICATION_ID: "desc" },
