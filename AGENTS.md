@@ -121,10 +121,10 @@ Guidance for every AI coding tool (Claude, Codex and others) working in this rep
 ## Business Profile Notes
 
 - The business-profile map is `frontend/src/components/BusinessSlug/MapSectionBusinesProfile.tsx`, shared by both profile routes; missing API keys, place IDs, Places errors, and initialization errors must render an in-card fallback instead of leaving a broken map surface.
-- Business profile pages read Google reviews, hours and photos straight from the `business_google_*` tables. Nothing in the app calls `/api/business-google-data` since July 2026, so that data is not refreshed. Server Google calls use `GOOGLE_PLACES_API_KEY` (falling back to the public Maps key); photos are saved as their keyless googleusercontent redirect URL, and stored URLs containing `key=` are never sent to the browser.
+- Business profile pages read Google reviews, hours and photos straight from the `business_google_*` tables, then call `refreshGoogleDataIfStale` from `frontend/src/lib/google-business-refresh.ts`. When the stored data is missing or older than 90 days (`NEXT_PUBLIC_GOOGLE_CACHE_TTL_MS`), it fetches once in `after()` and the next visit shows the new data. `business_google_refresh` (manual SQL `docs/sql/create_business_google_refresh.sql`) records the last attempt per restaurant: at most one Google fetch per restaurant per 90 days, a failed fetch retries after a day, concurrent visits cannot both fetch, and bots or link previews (`isBotUserAgent`) never fetch. This cache keeps Google API cost low; keep its 90-day rule. Server Google calls use `GOOGLE_PLACES_API_KEY` (falling back to the public Maps key); photos are saved as their keyless googleusercontent redirect URL, and stored URLs containing `key=` are never sent to the browser.
 - Foodeez reviews are currently hidden on `frontend/src/app/(business-owner)/manage-business/[slug]/page.tsx`; do not re-enable them without confirming the intended owner-profile review experience.
 - Shared business-profile presentation components live in `frontend/src/components/BusinessSlug/`; both `/business/[slug]` and `/manage-business/[slug]` should reuse them instead of maintaining duplicate copies.
-- The manage-business claim card is mounted between Google reviews and the map through its local `BusinessDeferredSections`. Its dialog lives in `ClaimBusinessSection.tsx`, submits the official email and business identity to `/api/claim-business`, and sends the request to `ADMIN_EMAIL` through the existing email service.
+- The manage-business claim card is mounted between Google reviews and the map through its local `BusinessDeferredSections`. Its dialog lives in `ClaimBusinessSection.tsx` and needs a signed-in account. `/api/claim-business` `start` sends a 6-digit code to the restaurant's saved `business.EMAIL_ADDRESS` (never an address the claimant types, shown masked); `verify` moves the `business_onboarding_request` to `pending`. Codes are HMAC-bound to their request (`frontend/src/lib/onboarding.ts`), expire after 15 minutes and allow 5 tries. A restaurant with no saved email goes straight to `pending` for a manual check; an owned restaurant cannot be claimed. A Super Admin approves in the admin app (`/platform/requests`), which creates the owner link.
 
 ## Homepage Performance, Accessibility, and Security Notes
 
@@ -192,18 +192,20 @@ Guidance for every AI coding tool (Claude, Codex and others) working in this rep
 - Checkout no longer asks Stripe for address or phone; the order uses the checkout form's values.
 - Stripe sessions expire 35 minutes after the order was created, tied to the order so retries reuse the same idempotent request. Only a `StripeInvalidRequestError` on `expires_at` (`isStripeExpiryRejection`) releases the reservation at once and asks for a new checkout; other rejections return the retryable 502 and keep the same order until the stale-checkout job releases it.
 - `/api/cron/release-stale-checkouts` (scheduled in `frontend/vercel.json`, needs `CRON_SECRET`) releases card orders over an hour old that never saved a session.
-- `/api/business/register` emails the request to `ADMIN_EMAIL` and creates no database rows.
+- `/api/business/register` needs a signed-in account, validates every field against the `business` column sizes (`parseRegistration`), and creates the restaurant hidden (`APPROVED = 0`, `STATUS = 0`) with a pending `business_onboarding_request`, then notifies `ADMIN_EMAIL`. A Super Admin approval puts it live and links the account as owner. At most three registrations per account wait at once.
+- `business_onboarding_request` and `visitors_account.PLATFORM_ROLE` come from the admin repository's manual `20261117000000_add_platform_admin` migration; keep this schema identical for them. Deploy the registration, claim and Google changes only after that SQL and `docs/sql/create_business_google_refresh.sql` are applied.
 - `shortPhotoUrl` leaves out photo URLs over 100 characters until `docs/sql/widen_review_and_journey_avatar_columns.sql` is approved and applied.
 
-## Known Gaps and Open Decisions (as of 2026-11-10)
+## Known Gaps and Open Decisions (as of 2026-11-17)
 
 Check these before assuming a feature works. Remove an item once it is fixed.
 
-- Google reviews, hours and photos are never refreshed (see Business Profile Notes). `/api/business-google-data` now answers only with `Authorization: Bearer $CRON_SECRET`, so the public cannot spend Google quota. Whether to schedule it, at Google API cost, or delete it is the owner's decision. Its `business_opening_hours` inserts use `MAX(id) + 1` because that column has no auto-increment; changing that needs an approved schema change.
+- `/api/business-google-data` answers only with `Authorization: Bearer $CRON_SECRET` and is not scheduled; pages refresh through `refreshGoogleDataIfStale` instead. The shared save in `google-business-refresh.ts` inserts `business_opening_hours` with `MAX(id) + 1` because that column has no auto-increment; changing that needs an approved schema change.
 - `GOOGLE_PLACES_API_KEY` must be set in Vercel, or server photo lookups fail.
 - The stale-checkout cron runs once a day at 03:00 UTC (`frontend/vercel.json`). Vercel's Hobby plan rejects more frequent crons, so confirm the plan before changing it.
 - The root `frontend/src/app/loading.tsx` streams every page, so `notFound()` renders the 404 page with `noindex` but the HTTP status stays 200.
 - Password sessions issued before 2026-11-10 carry no password fingerprint, so they are not rechecked and run until they expire (up to 30 days).
 - Checkout, Stripe payment and signed-in flows have not been browser-tested since the Next 16 upgrade.
 - GitHub Dependabot reports open alerts on `main` that have not been triaged.
-- A guest can place cash orders that reserve tracked stock without paying (up to 999 per item). Limiting cash to signed-in customers or capping guest quantity is the owner's decision.
+- A guest can place cash orders that reserve tracked stock without paying (up to 999 per item). Limiting cash to signed-in customers or capping guest quantity is the owner's decision. The owner deferred it on 2026-11-16 and asked to be reminded.
+- Major upgrades not yet done: Stripe 18 → 23, Tailwind 3 → 4, TypeScript 7, ESLint 10, framer-motion 14, lucide-react 1. Each needs its own browser-tested change; Prisma 8 is still a release candidate.
