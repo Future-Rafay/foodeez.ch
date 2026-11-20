@@ -6,6 +6,7 @@ import { CreateFoodeezReviewData } from '@/types/foodeez-review.types';
 import { shortPhotoUrl } from '@/lib/media';
 import { isValidRating, MAX_FOODEEZ_REVIEWS, serializeBigInt, withoutForeignEmail } from '@/lib/foodeez-review';
 import { publicFormRateLimitResponse } from '@/lib/checkout-rate-limit';
+import { areUploadedMediaUrls } from '@/lib/s3-storage';
 
 
 export async function GET(request: NextRequest) {
@@ -54,7 +55,8 @@ export async function POST(request: NextRequest) {
     let reviewerName = body.REVIEWER_NAME;
     // Ownership is the session email only; a request cannot claim someone else's address.
     let reviewerEmail: string | null | undefined;
-    let avatar = body.AVATAR;
+    // The avatar comes from the signed-in account only; a request cannot supply its own image link.
+    let avatar: string | undefined;
 
     if (session?.user?.email) {
       // If logged in, get user details from DB
@@ -82,6 +84,10 @@ export async function POST(request: NextRequest) {
     }
     if (!isValidRating(body.RATING) || typeof body.REVIEW !== 'string' || !body.REVIEW.trim()) {
       return NextResponse.json({ error: 'Rating and review are required.' }, { status: 400 });
+    }
+
+    if (!areUploadedMediaUrls([body.PIC_1, body.PIC_2, body.PIC_3])) {
+      return NextResponse.json({ error: 'Photos and videos must be uploaded through Foodeez.' }, { status: 400 });
     }
 
     const reviewData = {

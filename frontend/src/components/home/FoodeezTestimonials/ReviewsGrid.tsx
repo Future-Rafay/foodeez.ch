@@ -133,7 +133,7 @@ const ReviewsGrid: React.FC<ReviewsGridProps> = ({
               transition={{
                 duration: 0.5,
                 delay: index * 0.1,
-                type: "spring",
+                type: "spring" as const,
                 stiffness: 100,
               }}
               className="w-[272px] flex-shrink-0"

@@ -1,6 +1,6 @@
 "use client";
 
-import { cn } from "@/lib/utils/cn";
+import { cn } from "@/lib/utils";
 import { BusinessCategory } from "@/types/business.types";
 import SelectDropdown from "@/components/ui/SelectDropdown";
 

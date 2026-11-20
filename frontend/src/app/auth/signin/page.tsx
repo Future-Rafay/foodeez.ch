@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
+import { EMAIL_NOT_VERIFIED } from "@/lib/email-verification-constants";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/components/core/Input";
 import { Button } from "@/components/core/Button";
@@ -22,6 +23,28 @@ function SignInContent() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [needsVerification, setNeedsVerification] = useState(false);
+  const [notice, setNotice] = useState(
+    searchParams.get("verified") ? "Your email is confirmed. You can log in now." : ""
+  );
+  const invalidLink = Boolean(searchParams.get("invalid"));
+
+  const resendVerification = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch("/api/auth/resend-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: formData.email }),
+      });
+      const data = await response.json().catch(() => ({}));
+      setNotice(data.message || "If that account is waiting for confirmation, we sent a new link.");
+      setErrorMessage("");
+      setNeedsVerification(false);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (error) {
@@ -51,7 +74,13 @@ function SignInContent() {
       });
 
       if (result?.error) {
-        setErrorMessage(result.error.startsWith("Too many") ? result.error : "Invalid email or password");
+        const unverified = result.error === EMAIL_NOT_VERIFIED;
+        setNeedsVerification(unverified);
+        setErrorMessage(
+          unverified
+            ? "Please confirm your email first. Open the link we sent when you signed up."
+            : result.error.startsWith("Too many") ? result.error : "Invalid email or password"
+        );
         return;
       }
 
@@ -105,9 +134,31 @@ function SignInContent() {
           </p>
         </div>
 
+        {notice && (
+          <div role="status" className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg text-sm">
+            {notice}
+          </div>
+        )}
+
+        {invalidLink && !notice && (
+          <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
+            This confirmation link is invalid or has expired. Log in with your email and password to get a new one.
+          </div>
+        )}
+
         {errorMessage && (
           <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
             {errorMessage}
+            {needsVerification && (
+              <button
+                type="button"
+                onClick={resendVerification}
+                disabled={isLoading}
+                className="mt-2 block font-semibold text-primary underline-offset-2 hover:underline disabled:opacity-50"
+              >
+                Send a new confirmation link
+              </button>
+            )}
           </div>
         )}
 

@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { shortPhotoUrl } from '@/lib/media';
+import { areUploadedMediaUrls } from '@/lib/s3-storage';
+import { publicFormRateLimitResponse } from '@/lib/checkout-rate-limit';
 
 
 export async function POST(request: NextRequest) {
@@ -23,6 +25,13 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
+    if (!areUploadedMediaUrls([body.PIC_1, body.PIC_2, body.PIC_3])) {
+      return NextResponse.json({ error: 'Photos and videos must be uploaded through Foodeez.' }, { status: 400 });
+    }
+
+    // Stories wait for moderation, so one account cannot flood the queue.
+    const limited = await publicFormRateLimitResponse(request.headers, 'food-journey', session.user.email);
+    if (limited) return limited;
 
     const journeyData = {
       VISITORS_ACCOUNT_ID: Number(user.VISITORS_ACCOUNT_ID),

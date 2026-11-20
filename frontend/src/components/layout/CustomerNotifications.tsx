@@ -73,7 +73,7 @@ export default function CustomerNotifications({
 
     const load = async () => {
       if (document.hidden) return;
-      const response = await fetch("/api/orders/history", { cache: "no-store" });
+      const response = await fetch("/api/orders/history?view=notifications", { cache: "no-store" });
       if (!response.ok) return;
       const data = await response.json();
       updateNotifications(Array.isArray(data.notifications) ? data.notifications : []);

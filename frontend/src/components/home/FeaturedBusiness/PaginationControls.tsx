@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils/cn";
+import { cn } from "@/lib/utils";
 import { ChevronDown, Loader2 } from "lucide-react";
 
 export const PER_PAGE_OPTIONS: number[] = [20, 40, 60, 80, 100];

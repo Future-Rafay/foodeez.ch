@@ -4,6 +4,8 @@ const csp = [
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://maps.googleapis.com https://maps.gstatic.com https://js.stripe.com https://www.googletagmanager.com",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://maps.googleapis.com",
   "img-src 'self' data: blob: https:",
+  // Review videos are stored on S3; blob: is the preview shown before upload.
+  "media-src 'self' blob: https://*.amazonaws.com",
   "font-src 'self' data: https://fonts.gstatic.com",
   "connect-src 'self' https: wss:",
   "frame-src 'self' https://js.stripe.com https://hooks.stripe.com",

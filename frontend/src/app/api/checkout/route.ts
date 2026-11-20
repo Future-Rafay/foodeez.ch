@@ -13,7 +13,14 @@ import {
 import { getAvailablePaymentMethods, type PaymentMethod } from "@/lib/payment-options";
 import { getPublicAppOrigin } from "@/lib/public-app-url";
 import { sendGuestOrderEmailSafely } from "@/lib/guest-order-email";
-import { generateOrderNumberFromId, ORDER_STATUS, ORDER_TYPE, PAYMENT_DONE } from "@/lib/order";
+import {
+  CHECKOUT_FIELD_MAX_LENGTH,
+  generateOrderNumberFromId,
+  ORDER_STATUS,
+  ORDER_TYPE,
+  PAYMENT_DONE,
+} from "@/lib/order";
+import { orderFinalAmount } from "@/lib/payment-amount";
 import {
   releaseExpiredStripeOrderInventory,
   reserveCartInventory,
@@ -146,7 +153,7 @@ async function createUnpaidOrder(params: {
           DISCOUNT_VALUE: params.discount?.value ?? null,
           DISCOUNT_CODE: params.discount?.code ?? null,
           SHIPPING_CHARGES: params.shippingCharges,
-          ORDER_FINAL_AMOUNT: params.totalAmount - chf(params.discount?.amountCents ?? 0) + params.shippingCharges,
+          ORDER_FINAL_AMOUNT: orderFinalAmount(params.totalAmount, params.discount?.amountCents ?? 0, params.shippingCharges),
           CHECKOUT_REQUEST_ID: params.requestId,
         },
       });
@@ -173,6 +180,27 @@ async function createUnpaidOrder(params: {
     const duplicate = await findByRequestId(params.requestId);
     if (duplicate) return { order: duplicate, created: false };
     throw error;
+  }
+}
+
+/** Sends the customer back to a payment page saved earlier. A session that is no longer open has none. */
+async function savedSessionResponse(order: ExistingOrder) {
+  try {
+    const session = await stripe.checkout.sessions.retrieve(order.STRIPE_CHECKOUT_SESSION_ID!);
+    if (session.status === "open" && session.url) {
+      return NextResponse.json({ sessionId: session.id, url: session.url, orderId: order.BUSINESS_ORDER_ID });
+    }
+    if (session.status === "complete") {
+      return new NextResponse("This order is already paid. Please check My Orders.", { status: 409 });
+    }
+    await prisma.$transaction((tx) => releaseExpiredStripeOrderInventory(tx, order.BUSINESS_ORDER_ID));
+    return new NextResponse("This checkout expired. Please submit the cart again.", { status: 409 });
+  } catch (error) {
+    console.error("Saved Stripe session could not be loaded", {
+      orderId: order.BUSINESS_ORDER_ID,
+      error: error instanceof Error ? error.message : "Unknown Stripe error",
+    });
+    return new NextResponse("Card checkout could not be started. Please retry this checkout.", { status: 502 });
   }
 }
 
@@ -212,6 +240,10 @@ export async function POST(req: NextRequest) {
   if (!Array.isArray(items) || !items.length) {
     return new NextResponse("Cart is empty", { status: 400 });
   }
+  // Same cap as /api/discounts/quote: every item is one insert inside the order transaction.
+  if (items.length > 100) {
+    return new NextResponse("Cart has too many items.", { status: 400 });
+  }
   if (!customerInfo || typeof customerInfo !== "object") {
     return new NextResponse("Customer information is required", { status: 400 });
   }
@@ -232,6 +264,15 @@ export async function POST(req: NextRequest) {
   ];
   if (textFields.some((field) => typeof customerInfo[field] !== "string")) {
     return new NextResponse("Customer fields must be text.", { status: 400 });
+  }
+  const tooLong = (Object.keys(CHECKOUT_FIELD_MAX_LENGTH) as (keyof typeof CHECKOUT_FIELD_MAX_LENGTH)[]).filter(
+    (field) => String(customerInfo[field] ?? "").trim().length > CHECKOUT_FIELD_MAX_LENGTH[field]
+  );
+  if (tooLong.length) {
+    return new NextResponse(
+      `Too long: ${tooLong.map((field) => `${field} (max ${CHECKOUT_FIELD_MAX_LENGTH[field]} characters)`).join(", ")}`,
+      { status: 400 }
+    );
   }
   if (!(["card", "cash_on_delivery", "pay_at_pickup"] as string[]).includes(paymentMethod)) {
     return new NextResponse("Invalid payment method", { status: 400 });
@@ -261,12 +302,7 @@ export async function POST(req: NextRequest) {
     if (existing.INVENTORY_RELEASED_DATETIME) {
       return new NextResponse("This checkout expired. Please submit the cart again.", { status: 409 });
     }
-    if (existing.STRIPE_CHECKOUT_SESSION_ID) {
-      return NextResponse.json({
-        sessionId: existing.STRIPE_CHECKOUT_SESSION_ID,
-        orderId: existing.BUSINESS_ORDER_ID,
-      });
-    }
+    if (existing.STRIPE_CHECKOUT_SESSION_ID) return savedSessionResponse(existing);
     if (existing.PAYMENT_MODE !== "stripe") {
       const tracking = isGuest ? guestTracking(existing, origin) : null;
       return NextResponse.json({
@@ -380,9 +416,13 @@ export async function POST(req: NextRequest) {
     `,
     prisma.business.findUnique({
       where: { BUSINESS_ID: businessId },
-      select: { BUSINESS_NAME: true },
+      select: { BUSINESS_NAME: true, APPROVED: true, STATUS: true },
     }),
   ]);
+  // A restaurant the admin switched off takes no new orders; an order already awaiting payment may still finish.
+  if (!resumingCardOrder && (business?.APPROVED !== 1 || business?.STATUS !== 1)) {
+    return new NextResponse("This restaurant is not taking orders right now.", { status: 400 });
+  }
   const options = getFulfillmentOptions(settings);
   const totalAmount = resumingCardOrder
     ? Number(existing?.ORDER_GROSS_AMOUNT ?? 0)
@@ -440,7 +480,7 @@ export async function POST(req: NextRequest) {
   if (!allowedPaymentMethods.includes(paymentMethod)) {
     return new NextResponse("This payment method is not available for the selected order type.", { status: 400 });
   }
-  if (paymentMethod === "card" && cents(totalAmount - chf(appliedDiscount?.amountCents ?? 0) + shippingCharges) < 50) {
+  if (paymentMethod === "card" && cents(orderFinalAmount(totalAmount, appliedDiscount?.amountCents ?? 0, shippingCharges)) < 50) {
     return new NextResponse("Card payments require at least CHF 0.50 after discounts.", { status: 409 });
   }
 
@@ -484,8 +524,10 @@ export async function POST(req: NextRequest) {
   } : null;
   const tracking = isGuest ? guestTracking(order, origin) : null;
 
-  const emailGuest = async (paymentStatus: string) => {
-    if (!isGuest || !result.created || !tracking) return;
+  // Guests get their private tracking link; signed-in customers are sent to My Orders.
+  const confirmationLink = tracking?.url ?? `${origin}/dashboard/orders`;
+  const emailCustomer = async (paymentStatus: string) => {
+    if (!result.created) return;
     await sendGuestOrderEmailSafely(
       sendEmail,
       customerInfo.email,
@@ -498,28 +540,23 @@ export async function POST(req: NextRequest) {
           subtotal: `CHF ${(item.price * item.quantity).toFixed(2)}`,
         })),
         discount: appliedDiscount ? { name: appliedDiscount.name, amount: `CHF ${chf(appliedDiscount.amountCents).toFixed(2)}` } : null,
-        total: `CHF ${(totalAmount - chf(appliedDiscount?.amountCents ?? 0) + shippingCharges).toFixed(2)}`,
+        total: `CHF ${orderFinalAmount(totalAmount, appliedDiscount?.amountCents ?? 0, shippingCharges).toFixed(2)}`,
         paymentStatus,
         fulfillment: effectiveOrderType === "pickup" ? "Pickup" : "Delivery",
-        trackingUrl: tracking.url,
+        trackingUrl: confirmationLink,
       },
       order.BUSINESS_ORDER_ID
     );
   };
 
   if (paymentMethod !== "card") {
-    await emailGuest("Payment pending");
+    await emailCustomer("Payment pending");
     return NextResponse.json({
       orderId: order.BUSINESS_ORDER_ID,
       redirectUrl: tracking?.path || `/order/success?orderId=${order.BUSINESS_ORDER_ID}`,
     });
   }
-  if (order.STRIPE_CHECKOUT_SESSION_ID) {
-    return NextResponse.json({
-      sessionId: order.STRIPE_CHECKOUT_SESSION_ID,
-      orderId: order.BUSINESS_ORDER_ID,
-    });
-  }
+  if (order.STRIPE_CHECKOUT_SESSION_ID) return savedSessionResponse(order);
 
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = trustedItems.map((item) => ({
     price_data: {
@@ -543,7 +580,7 @@ export async function POST(req: NextRequest) {
     orderType: effectiveOrderType,
     paymentMethod,
     shippingCharges: shippingCharges.toFixed(2),
-    totalAmount: (totalAmount - chf(appliedDiscount?.amountCents ?? 0) + shippingCharges).toFixed(2),
+    totalAmount: orderFinalAmount(totalAmount, appliedDiscount?.amountCents ?? 0, shippingCharges).toFixed(2),
   };
   const successParams = tracking
     ? `&orderId=${order.BUSINESS_ORDER_ID}&guestToken=${encodeURIComponent(tracking.token)}`
@@ -597,6 +634,7 @@ export async function POST(req: NextRequest) {
     if (checkoutSession.currency !== "chf" || checkoutSession.amount_total !== cents(Number(order.ORDER_FINAL_AMOUNT))) {
       throw new Error("Stripe checkout amount does not match the order total.");
     }
+    if (!checkoutSession.url) throw new Error("Stripe returned no payment page.");
     const paymentIntentId =
       typeof checkoutSession.payment_intent === "string"
         ? checkoutSession.payment_intent
@@ -623,9 +661,10 @@ export async function POST(req: NextRequest) {
       status: 502,
     });
   }
-  await emailGuest("Card payment pending");
+  await emailCustomer("Card payment pending");
   return NextResponse.json({
     sessionId: checkoutSession.id,
+    url: checkoutSession.url,
     orderId: order.BUSINESS_ORDER_ID,
   });
 }

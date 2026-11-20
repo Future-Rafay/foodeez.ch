@@ -9,7 +9,7 @@ import { FoodeezReviewService } from "@/services/FoodeezReviewService";
 import type { foodeez_review_view } from "@/lib/prisma";
 import ReviewsGrid from "./ReviewsGrid";
 import EditReviewModal from "./EditReviewModal";
-import DeleteConfirmModal from "./DeleteConfirmModal";
+import DeleteConfirmModal from "@/components/core/DeleteConfirmModal";
 import ReviewFormModal from "./ReviewFormModal";
 
 const TestimonialsSection: React.FC = () => {
@@ -23,6 +23,7 @@ const TestimonialsSection: React.FC = () => {
     null
   );
   const [deletingReviewId, setDeletingReviewId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   // const [showAdminPanel, setShowAdminPanel] = useState(false);
 
   // Load reviews on component mount
@@ -84,8 +85,17 @@ const TestimonialsSection: React.FC = () => {
   };
 
   const handleReviewDeleteConfirm = async () => {
-    await loadReviews();
-    setDeletingReviewId(null);
+    if (!deletingReviewId) return;
+    setIsDeleting(true);
+    try {
+      await FoodeezReviewService.deleteReview(deletingReviewId);
+      await loadReviews();
+      setDeletingReviewId(null);
+    } catch (error) {
+      console.error("Error deleting review:", error);
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -144,10 +154,12 @@ const TestimonialsSection: React.FC = () => {
 
         {/* Delete Confirmation Modal */}
         <DeleteConfirmModal
-          reviewId={deletingReviewId}
           isOpen={!!deletingReviewId}
-          onClose={() => setDeletingReviewId(null)}
-          onDelete={handleReviewDeleteConfirm}
+          title="Delete Review"
+          message="This action cannot be undone. Your review will be permanently deleted."
+          loading={isDeleting}
+          onCancel={() => setDeletingReviewId(null)}
+          onConfirm={handleReviewDeleteConfirm}
         />
       </div>
     </section>

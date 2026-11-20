@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import { motion } from "framer-motion";
 import { Input } from "@/components/core/Input";
 import { Button } from "@/components/core/Button";
@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import ImageUploadModal from "@/components/ui/ImageUploadModal";
+import DeleteConfirmModal from "@/components/core/DeleteConfirmModal";
 import { toast } from "react-hot-toast";
 
 export default function ProfilePage() {
@@ -25,6 +26,27 @@ export default function ProfilePage() {
   const [success, setSuccess] = useState("");
   const [activeTab, setActiveTab] = useState("general");
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const deleteAccount = async () => {
+    setIsDeleting(true);
+    try {
+      const response = await fetch("/api/user/account", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirm: "DELETE" }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "We couldn't delete your account. Please try again.");
+      toast.success("Your account has been deleted.");
+      await signOut({ callbackUrl: "/" });
+    } catch (caught) {
+      toast.error(caught instanceof Error ? caught.message : "We couldn't delete your account. Please try again.");
+      setIsDeleting(false);
+      setIsDeleteOpen(false);
+    }
+  };
 
 
   const [formData, setFormData] = useState({
@@ -345,6 +367,30 @@ export default function ProfilePage() {
           </form>
         </div>
       </motion.div>
+
+      {/* Kept apart from Save Changes so it cannot be clicked by accident; the dialog asks again. */}
+      <section aria-labelledby="delete-account-title" className="mt-10 rounded-2xl border border-red-200 bg-white p-6 sm:p-8">
+        <h2 id="delete-account-title" className="text-lg font-semibold text-gray-900">Delete account</h2>
+        <p className="mt-2 text-sm text-gray-600">
+          Removes your name, email, password, photo, reviews and food stories, and signs you out. Your past orders stay with the restaurants for their records, without your account.
+        </p>
+        <button
+          type="button"
+          onClick={() => setIsDeleteOpen(true)}
+          className="mt-4 rounded-full border border-red-300 px-5 py-2 text-sm font-semibold text-red-700 hover:bg-red-50"
+        >
+          Delete my account
+        </button>
+      </section>
+
+      <DeleteConfirmModal
+        isOpen={isDeleteOpen}
+        onCancel={() => setIsDeleteOpen(false)}
+        onConfirm={deleteAccount}
+        loading={isDeleting}
+        title="Delete your Foodeez account?"
+        message="This cannot be undone. Your reviews and food stories are removed, and you will be signed out."
+      />
 
       <ImageUploadModal
         isOpen={isImageModalOpen}

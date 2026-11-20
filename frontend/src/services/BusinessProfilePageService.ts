@@ -4,28 +4,14 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "../lib/prisma";
 
-export async function getBusinesses() {
-  try {
-    const businesses = await prisma.business_detail_view_all.findMany({
-      take: 9, // Limit to 9 results
-      orderBy: {
-        BUSINESS_ID: "asc", // Order by BUSINESS_ID ascending
-      },
-    })
-    // Return as is - already using uppercase field names from the DB view
-    return businesses
-  } catch (error) {
-    console.error('Error fetching businesses:', error)
-    return []
-  }
-}
-
-// Returns null only when the business does not exist; database errors throw so pages can show a retry.
+// Returns null when the business does not exist, is switched off or is not approved; database errors throw so pages can show a retry.
 export async function getBusinessById(id: number) {
   if (!Number.isInteger(id) || id < 1) return null;
   return prisma.business_detail_view_all.findFirst({
     where: {
-      BUSINESS_ID: id
+      BUSINESS_ID: id,
+      APPROVED: 1,
+      STATUS: 1,
     }
   })
 }

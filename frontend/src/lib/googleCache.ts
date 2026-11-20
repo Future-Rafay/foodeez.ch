@@ -1,6 +1,15 @@
-export const GOOGLE_DATA_TTL_MS = Number(
-  process.env.NEXT_PUBLIC_GOOGLE_CACHE_TTL_MS ?? 90 * 24 * 60 * 60 * 1000
-);
+const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
+
+/**
+ * Reads the first number in the setting, so a value written with a trailing note ("7776000000" 90 days) still works.
+ * Anything missing, unreadable or under a minute falls back to 90 days: a broken value must never mean "fetch on every visit".
+ */
+export function parseGoogleCacheTtl(value: string | undefined) {
+  const ms = Number(value?.match(/\d+/)?.[0]);
+  return Number.isSafeInteger(ms) && ms >= 60_000 ? ms : NINETY_DAYS_MS;
+}
+
+export const GOOGLE_DATA_TTL_MS = parseGoogleCacheTtl(process.env.NEXT_PUBLIC_GOOGLE_CACHE_TTL_MS);
 
 export type GoogleCacheSection = {
   hasData: boolean;

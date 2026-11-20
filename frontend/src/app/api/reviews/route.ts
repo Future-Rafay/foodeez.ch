@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { isValidRating } from '@/lib/foodeez-review';
+import { areUploadedMediaUrls } from '@/lib/s3-storage';
+import { publicFormRateLimitResponse } from '@/lib/checkout-rate-limit';
 
 export async function POST(request: Request) {
   try {
@@ -24,6 +26,14 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+
+    if ((picUrls != null && !Array.isArray(picUrls)) || !areUploadedMediaUrls([...(picUrls ?? []), videoUrl])) {
+      return NextResponse.json({ error: 'Photos and videos must be uploaded through Foodeez.' }, { status: 400 });
+    }
+
+    // Reviews wait for moderation, so one account cannot flood the queue.
+    const limited = await publicFormRateLimitResponse(request.headers, 'business-review', session.user.email);
+    if (limited) return limited;
 
     // Save review to DB
     const user = await prisma.visitors_account.findUnique({
@@ -127,6 +137,13 @@ export async function PUT(request: Request) {
     });
     if (!user || Number(review.VISITORS_ACCOUNT_ID) !== Number(user.VISITORS_ACCOUNT_ID)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    const savedMedia = [
+      review.PIC_1, review.PIC_2, review.PIC_3, review.PIC_4, review.PIC_5,
+      review.PIC_6, review.PIC_7, review.PIC_8, review.PIC_9, review.PIC_10, review.VIDEO_1,
+    ];
+    if (!areUploadedMediaUrls([...(Array.isArray(picUrls) ? picUrls : []), videoUrl], savedMedia)) {
+      return NextResponse.json({ error: 'Photos and videos must be uploaded through Foodeez.' }, { status: 400 });
     }
     // Map picUrls to PIC_1...PIC_10, but only when the client sent a list; otherwise keep the saved media
     const picFields: { [key: string]: string | null } = {};

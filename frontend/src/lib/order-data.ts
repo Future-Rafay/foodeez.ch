@@ -191,11 +191,11 @@ function formatOrder(
 // shortcut: My Orders and the bell poll every 30s, so only the newest orders load; add paging if customers need older history.
 const CUSTOMER_ORDER_LIMIT = 100;
 
-export async function getCustomerOrders(visitorId: number, email: string) {
+export async function getCustomerOrders(visitorId: number, email: string, limit = CUSTOMER_ORDER_LIMIT) {
   const orders = await prisma.business_order.findMany({
     where: visitorId ? { VISITOR_ID: visitorId } : { EMAIL_ADDRESS: email },
     orderBy: { CREATION_DATETIME: "desc" },
-    take: CUSTOMER_ORDER_LIMIT,
+    take: limit,
   });
 
   return hydrateOrders(orders);

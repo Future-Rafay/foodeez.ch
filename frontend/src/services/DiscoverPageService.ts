@@ -62,32 +62,3 @@ export async function getFoodCategories(): Promise<{ id: number; name: string; c
     return [];
   }
 }
-
-/**
- * Get dietary preferences
- */
-export async function getDietaryPreferences(): Promise<{ id: number; name: string; count: number }[]> {
-  try {
-    const preferences = await prisma.$queryRaw`
-      SELECT 
-        ft.FOOD_TYPE_ID as id,
-        ft.FOOD_TYPE_NAME as name,
-        COUNT(b2ft.BUSINESS_ID) as count
-      FROM 
-        food_type ft
-      LEFT JOIN 
-        business_2_food_type b2ft ON ft.FOOD_TYPE_ID = b2ft.FOOD_TYPE_ID
-      GROUP BY 
-        ft.FOOD_TYPE_ID
-      HAVING 
-        count > 0
-      ORDER BY 
-        count DESC
-    `;
-
-    return preferences as { id: number; name: string; count: number }[];
-  } catch (error) {
-    console.error("Error fetching dietary preferences:", error);
-    return [];
-  }
-}

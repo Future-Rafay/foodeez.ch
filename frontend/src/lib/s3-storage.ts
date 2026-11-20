@@ -16,14 +16,35 @@ const secretAccessKey = process.env.S3_SECRET_KEY!;
 const forcePathStyle =
   String(process.env.S3_FORCE_PATH_STYLE || "false") === "true";
 
-function extFrom(filename: string, mimetype: string) {
-  if (filename.includes(".")) return filename.split(".").pop() || "bin";
-  if (mimetype === "image/png") return "png";
-  if (mimetype === "image/jpeg") return "jpg";
-  if (mimetype === "image/webp") return "webp";
-  if (mimetype === "image/gif") return "gif";
-  return "bin";
-}
+const EXTENSIONS: Record<string, string> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/webp": "webp",
+  "image/gif": "gif",
+  "video/mp4": "mp4",
+  "video/quicktime": "mov",
+  "video/webm": "webm",
+};
+
+/** The stored extension follows the checked type, never the file name the browser sent ("tool.exe"). */
+export const extensionForType = (mimetype: string) => EXTENSIONS[mimetype] ?? "bin";
+
+/**
+ * Review and story media must be files this app uploaded, or links already saved on the record being
+ * edited. Any other link can point at outside content, and a host next/image does not know makes the
+ * page throw for every visitor.
+ */
+export const areUploadedMediaUrls = (
+  values: unknown[],
+  alreadySaved: (string | null | undefined)[] = []
+) =>
+  values.every(
+    (value) =>
+      value == null ||
+      value === "" ||
+      (typeof value === "string" &&
+        (value.startsWith(`https://${bucket}.s3.${region}.amazonaws.com/uploads/`) || alreadySaved.includes(value)))
+  );
 
 function streamToNodeReadable(stream: NodeJS.ReadableStream): Readable {
   return stream as Readable;
@@ -65,7 +86,7 @@ export class S3Storage {
     mimetype: string;
     stream: NodeJS.ReadableStream;
   }): Promise<UploadResult> {
-    const ext = extFrom(filename, mimetype);
+    const ext = extensionForType(mimetype);
     const base = path
       .basename(filename, path.extname(filename))
       .replace(/[^a-zA-Z0-9-_]/g, "");

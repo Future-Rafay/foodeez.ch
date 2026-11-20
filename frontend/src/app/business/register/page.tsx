@@ -3,7 +3,7 @@ import BusinessRegistrationForm from "./components/BusinessRegistrationForm";
 import Banner from "@/components/core/Banner";
 
 export const metadata: Metadata = {
-  title: "Register Your Business | Foodeez",
+  title: "Register Your Business",
   description:
     "List your restaurant or food business on Foodeez to reach more customers.",
 };

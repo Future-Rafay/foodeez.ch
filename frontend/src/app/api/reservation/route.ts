@@ -51,7 +51,7 @@ export async function POST(request: Request) {
     // The restaurant name comes from the database, never from the request.
     const business = await prisma.business.findUnique({
       where: { BUSINESS_ID: Number(businessId) },
-      select: { BUSINESS_NAME: true },
+      select: { BUSINESS_NAME: true, EMAIL_ADDRESS: true },
     });
     if (!business) {
       return NextResponse.json({ error: 'Restaurant not found' }, { status: 404 });
@@ -100,24 +100,16 @@ export async function POST(request: Request) {
       // The reservation is already saved; continue with the admin notification.
     }
 
-    try {
-      await sendEmail(
-        process.env.ADMIN_EMAIL || "admin@foodeez.ch",
-        'reservation',
-        {
-          name,
-          email,
-          phone,
-          date,
-          time,
-          guests,
-          occasion,
-          specialRequests,
-          businessName
-        }
-      );
-    } catch (error) {
-      console.error('Failed to send admin reservation email:', error instanceof Error ? error.message : 'Unknown error');
+    // The full copy (with occasion and special requests) goes only to addresses we own or the restaurant saved, never one typed into the form.
+    // The restaurant confirms or declines in its dashboard, which emails the customer the answer.
+    const restaurantEmail = business.EMAIL_ADDRESS?.trim();
+    const staffRecipients = [process.env.ADMIN_EMAIL || "admin@foodeez.ch", ...(restaurantEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(restaurantEmail) ? [restaurantEmail] : [])];
+    for (const recipient of staffRecipients) {
+      try {
+        await sendEmail(recipient, 'reservation', { name, email, phone, date, time, guests, occasion, specialRequests, businessName });
+      } catch (error) {
+        console.error('Failed to send staff reservation email:', error instanceof Error ? error.message : 'Unknown error');
+      }
     }
 
     return NextResponse.json(

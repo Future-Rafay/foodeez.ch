@@ -11,6 +11,7 @@ import ProductDetailsModal from "@/components/menu/ProductDetailsModal";
 import { useSession } from "next-auth/react";
 import { calculateCartTotals } from "@/lib/cartTotals";
 import { formatCHF, ORDER_TYPE } from "@/lib/order";
+import { OPEN_STRIPE_SESSION_KEY } from "@/lib/checkout-retry";
 import { toast } from "react-hot-toast";
 
 type SummaryProps = {
@@ -144,6 +145,7 @@ export default function CartPage() {
   const { status } = useSession();
   const [isClient, setIsClient] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
+  const [releasingCheckout, setReleasingCheckout] = useState(false);
   const [checkoutSummary, setCheckoutSummary] = useState<CheckoutSummaryState | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
   const router = useRouter();
@@ -155,6 +157,33 @@ export default function CartPage() {
   useEffect(() => {
     setIsClient(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
+  // Back from Stripe without paying: close that payment page so its reserved stock is free for the next try.
+  useEffect(() => {
+    const release = async (restored: boolean) => {
+      let sessionId: string | null = null;
+      try {
+        sessionId = window.sessionStorage.getItem(OPEN_STRIPE_SESSION_KEY);
+        window.sessionStorage.removeItem(OPEN_STRIPE_SESSION_KEY);
+      } catch {}
+      if (!sessionId) return;
+      setReleasingCheckout(true);
+      await fetch("/api/checkout/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId }),
+      }).catch(() => null);
+      // A page the browser's Back button restored still shows the old "Processing..." form, so load it fresh.
+      if (restored) window.location.reload();
+      else setReleasingCheckout(false);
+    };
+    void release(false);
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) void release(true);
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
   }, []);
 
   useEffect(() => {
@@ -213,7 +242,7 @@ export default function CartPage() {
     return items.some(item => item.id === productId);
   };
 
-  if (!isClient) {
+  if (!isClient || releasingCheckout) {
     return <div className="container mx-auto px-4 py-8 text-center">Loading Cart...</div>;
   }
 

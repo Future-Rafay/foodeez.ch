@@ -1,6 +1,6 @@
 "use client";
 
-import { cn } from "@/lib/utils/cn";
+import { cn } from "@/lib/utils";
 import SelectDropdown from "@/components/ui/SelectDropdown";
 
 interface CitySelectionButtonsProps {

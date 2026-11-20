@@ -121,10 +121,10 @@ Guidance for every AI coding tool (Claude, Codex and others) working in this rep
 ## Business Profile Notes
 
 - The business-profile map is `frontend/src/components/BusinessSlug/MapSectionBusinesProfile.tsx`, shared by both profile routes; missing API keys, place IDs, Places errors, and initialization errors must render an in-card fallback instead of leaving a broken map surface.
-- Business profile pages read Google reviews, hours and photos straight from the `business_google_*` tables. Nothing in the app calls `/api/business-google-data` since July 2026, so that data is not refreshed. Server Google calls use `GOOGLE_PLACES_API_KEY` (falling back to the public Maps key); photos are saved as their keyless googleusercontent redirect URL, and stored URLs containing `key=` are never sent to the browser.
+- Business profile pages read Google reviews, hours and photos straight from the `business_google_*` tables, then call `refreshGoogleDataIfStale` from `frontend/src/lib/google-business-refresh.ts`. When the stored data is missing or older than 90 days (`NEXT_PUBLIC_GOOGLE_CACHE_TTL_MS`), it fetches once in `after()` and the next visit shows the new data. `business_google_refresh` (manual SQL `docs/sql/create_business_google_refresh.sql`) records the last attempt per restaurant: at most one Google fetch per restaurant per 90 days, a failed fetch retries after a day, concurrent visits cannot both fetch, and bots or link previews (`isBotUserAgent`) never fetch. This cache keeps Google API cost low; keep its 90-day rule. Server Google calls use `GOOGLE_PLACES_API_KEY` (falling back to the public Maps key); photos are saved as their keyless googleusercontent redirect URL, and stored URLs containing `key=` are never sent to the browser.
 - Foodeez reviews are currently hidden on `frontend/src/app/(business-owner)/manage-business/[slug]/page.tsx`; do not re-enable them without confirming the intended owner-profile review experience.
 - Shared business-profile presentation components live in `frontend/src/components/BusinessSlug/`; both `/business/[slug]` and `/manage-business/[slug]` should reuse them instead of maintaining duplicate copies.
-- The manage-business claim card is mounted between Google reviews and the map through its local `BusinessDeferredSections`. Its dialog lives in `ClaimBusinessSection.tsx`, submits the official email and business identity to `/api/claim-business`, and sends the request to `ADMIN_EMAIL` through the existing email service.
+- The manage-business claim card is mounted between Google reviews and the map through its local `BusinessDeferredSections`. Its dialog lives in `ClaimBusinessSection.tsx` and needs a signed-in account. `/api/claim-business` `start` sends a 6-digit code to the restaurant's saved `business.EMAIL_ADDRESS` (never an address the claimant types, shown masked); `verify` moves the `business_onboarding_request` to `pending`. Codes are HMAC-bound to their request (`frontend/src/lib/onboarding.ts`), expire after 15 minutes and allow 5 tries. A restaurant with no saved email goes straight to `pending` for a manual check; an owned restaurant cannot be claimed. A Super Admin approves in the admin app (`/platform/requests`), which creates the owner link.
 
 ## Homepage Performance, Accessibility, and Security Notes
 
@@ -143,11 +143,28 @@ Guidance for every AI coding tool (Claude, Codex and others) working in this rep
 - Never echo user-typed free text to a user-typed address. Contact messages go only to `ADMIN_EMAIL`; the reservation customer copy omits occasion and special requests and takes the restaurant name from the database.
 - Foodeez platform reviews are public only when `APPROVED = 1`; a signed-in reviewer also sees their own pending reviews. Other reviewers' `REVIEWER_EMAIL` values are nulled through `frontend/src/lib/foodeez-review.ts`. Reviewer edits go through `pickReviewUpdate` and always reset `APPROVED` to `0`; approval belongs to the admin repository.
 - Editing a restaurant review (`/api/reviews` PUT) also resets `APPROVED` to `0`, and only changes media fields the client sent.
+- `/api/upload` is limited per account and IP (`UPLOAD_LIMITS`), and `extensionForType` in `frontend/src/lib/s3-storage.ts` names stored files from the checked type, never from the browser's file name. The file bytes are still not inspected.
 - Uploads pass through Vercel functions, so `MAX_UPLOAD_SIZE_BYTES` and `MAX_VIDEO_UPLOAD_SIZE_BYTES` in `frontend/src/lib/media.ts` stay at 4 MB until uploads move to presigned S3 URLs. Profile image replacement deletes the old S3 object only after the new URL is saved.
 - Credentials sign-in (`frontend/src/lib/auth.ts`) and registration are rate-limited through the same helper; passwords need at least `MIN_PASSWORD_LENGTH` (8) characters on register, reset, and profile change.
 - `/api/discounts/quote` rate-limits by IP only when a coupon code is sent, so automatic discounts keep re-quoting freely.
 - Review likes are limited to one per account per review per day through the rate-limit table. The permanent one-like design is drafted in `docs/sql/create_visitor_review_likes.sql` and needs manual approval before it is applied.
 - Food journey author name, email, and picture always come from the signed-in account.
+
+## Checkout Retry and Stripe Return
+
+- `checkoutOrderMayExist` in `frontend/src/lib/checkout-retry.ts` decides what the checkout form does after an error. Only a 5xx answer or the two "order exists" 409 messages keep the request id and lock the form's answers; every other refusal starts a fresh id so the customer can change the cart. A new `/api/checkout` error that leaves an order behind must be covered there.
+- Before the Stripe redirect the form stores the session id in `sessionStorage`. `/cart` (the Stripe `cancel_url`) sends it to `/api/checkout/cancel`, which expires an open session and releases its stock through `releaseExpiredStripeOrderInventory`. A paid session is left alone.
+- The CSP `media-src` line allows `blob:` and `*.amazonaws.com` so review videos and upload previews play.
+
+## Page Titles, Media Links, and Order Totals
+
+- Page titles and descriptions come from `layout.tsx` files beside the pages (`business/[slug]` and its `menu`, `reservation` and `reviews`, `contact`, `faq`, `food-journey`, `pricing`, `reset-password`). Next reads metadata only from `page` and `layout` files; `params` is a Promise there. They read the database only, never Google.
+- Review and story photo and video links pass `areUploadedMediaUrls` in `frontend/src/lib/s3-storage.ts`: only this app's `uploads/` links, or links already saved on the record being edited. Platform review avatars come from the signed-in account only. `/api/reviews` and `/api/food-journey` POST are rate-limited with the public form helper.
+- Search, city lists, `getBusinessById` (profile pages and titles) and new checkout orders all require `business.APPROVED = 1 AND STATUS = 1`. On 2026-11-11 all 8,366 restaurants had both flags set, so the filter hid nothing.
+- `orderFinalAmount` in `frontend/src/lib/payment-amount.ts` is the one place that computes what the customer pays; checkout stores it, emails it and compares Stripe's total with it.
+- `/api/checkout` refuses carts over 100 lines and customer fields longer than `CHECKOUT_FIELD_MAX_LENGTH` in `frontend/src/lib/order.ts` (the `business_order` column sizes).
+- `/api/checkout` returns Stripe's own `url` for the payment page and the browser navigates to it; `@stripe/stripe-js` is no longer used. A retry of an order with a saved session re-reads that session: open returns its URL, expired releases the stock and asks for a new checkout.
+- The navbar bell calls `/api/orders/history?view=notifications`, which loads only the newest `NOTIFICATION_ORDER_LIMIT` orders and returns no order list.
 
 ## Stripe Paid-State Guard
 
@@ -175,19 +192,28 @@ Guidance for every AI coding tool (Claude, Codex and others) working in this rep
 - Checkout no longer asks Stripe for address or phone; the order uses the checkout form's values.
 - Stripe sessions expire 35 minutes after the order was created, tied to the order so retries reuse the same idempotent request. Only a `StripeInvalidRequestError` on `expires_at` (`isStripeExpiryRejection`) releases the reservation at once and asks for a new checkout; other rejections return the retryable 502 and keep the same order until the stale-checkout job releases it.
 - `/api/cron/release-stale-checkouts` (scheduled in `frontend/vercel.json`, needs `CRON_SECRET`) releases card orders over an hour old that never saved a session.
-- `/api/business/register` emails the request to `ADMIN_EMAIL` and creates no database rows.
+- `/api/business/register` needs a signed-in account, validates every field against the `business` column sizes (`parseRegistration`), and creates the restaurant hidden (`APPROVED = 0`, `STATUS = 0`) with a pending `business_onboarding_request`, then notifies `ADMIN_EMAIL`. A Super Admin approval puts it live and links the account as owner. At most three registrations per account wait at once.
+- `business_onboarding_request` and `visitors_account.PLATFORM_ROLE` come from the admin repository's manual `20261117000000_add_platform_admin` migration; keep this schema identical for them. Deploy the registration, claim and Google changes only after that SQL and `docs/sql/create_business_google_refresh.sql` are applied.
 - `shortPhotoUrl` leaves out photo URLs over 100 characters until `docs/sql/widen_review_and_journey_avatar_columns.sql` is approved and applied.
 
-## Known Gaps and Open Decisions (as of 2026-11-10)
+## Customer Accounts, Order Emails and Reservations (2026-11-20)
+
+- New password sign-ups must confirm their email before password sign-in (`visitors_account.EMAIL_VERIFIED_DATETIME`, admin repository's manual `20261120000000_add_email_verification` migration, which marks existing accounts verified). Links come from `frontend/src/lib/email-verification.ts`: stateless, 48 hours, HMAC bound to account id and email. `/api/auth/verify-email` confirms and sets the completed-reset marker so Google sign-in keeps that password; `/api/auth/resend-verification` answers the same way for every address. Google sign-in and a completed password reset also confirm the email. `authorize` checks verification only after the password matches. Browser components import `EMAIL_NOT_VERIFIED` from `email-verification-constants.ts`.
+- Profile → Delete account calls `DELETE /api/user/account` with `{ confirm: "DELETE" }`. `anonymiseAccount` in `frontend/src/lib/account-deletion.ts` deletes reviews, stories, favourites, follows and notifications, clears personal fields, sets the email to `deleted-<id>@deleted.invalid` and detaches orders (`VISITOR_ID` 0) without deleting them. Restaurant owners and Super Admins are refused. Uploaded review media stays in S3.
+- Signed-in customers get the same order confirmation email as guests, linking to My Orders.
+- New reservations email the customer (no free text), `ADMIN_EMAIL` and the restaurant's saved `business.EMAIL_ADDRESS` (full copy). Restaurants confirm or decline in the admin dashboard; `reserve_table.STATUS` is 1 waiting, 2 confirmed, 3 declined.
+- Locally, both apps on `localhost` share the NextAuth cookie across ports, so signing into one app replaces the other's session. Production uses separate domains.
+
+## Known Gaps and Open Decisions (as of 2026-11-17)
 
 Check these before assuming a feature works. Remove an item once it is fixed.
 
-- None of the 11 `metadata.ts` files under `frontend/src/app/` are used, because Next only reads metadata exported from `page` or `layout` files. Except `/business`, whose `page.tsx` exports its own, those routes fall back to the root layout's title and description. The files also read `params` synchronously and `business/[slug]/metadata.ts` calls Google Places on every render, so fix both before wiring them in.
-- Google reviews, hours and photos are never refreshed (see Business Profile Notes). Whether to wire `/api/business-google-data` back in, at Google API cost, or delete it is the owner's decision. Its `business_opening_hours` inserts use `MAX(id) + 1` because that column has no auto-increment; changing that needs an approved schema change.
+- `/api/business-google-data` answers only with `Authorization: Bearer $CRON_SECRET` and is not scheduled; pages refresh through `refreshGoogleDataIfStale` instead. The shared save in `google-business-refresh.ts` inserts `business_opening_hours` with `MAX(id) + 1` because that column has no auto-increment; changing that needs an approved schema change.
 - `GOOGLE_PLACES_API_KEY` must be set in Vercel, or server photo lookups fail.
 - The stale-checkout cron runs once a day at 03:00 UTC (`frontend/vercel.json`). Vercel's Hobby plan rejects more frequent crons, so confirm the plan before changing it.
 - The root `frontend/src/app/loading.tsx` streams every page, so `notFound()` renders the 404 page with `noindex` but the HTTP status stays 200.
-- `frontend/src/components/home/FoodeezTestimonials/DeleteConfirmModal.tsx` performs its own delete and does not render through `ModalPortal`; the shared dialog is `components/core/DeleteConfirmModal.tsx`.
 - Password sessions issued before 2026-11-10 carry no password fingerprint, so they are not rechecked and run until they expire (up to 30 days).
 - Checkout, Stripe payment and signed-in flows have not been browser-tested since the Next 16 upgrade.
 - GitHub Dependabot reports open alerts on `main` that have not been triaged.
+- A guest can place cash orders that reserve tracked stock without paying (up to 999 per item). Limiting cash to signed-in customers or capping guest quantity is the owner's decision. The owner deferred it on 2026-11-16 and asked to be reminded.
+- Major upgrades not yet done (2026-11-17): Stripe 18 → 23 (pinned at exactly 18.4.0, because 18.5 changes the Stripe API version) and Tailwind 3 → 4 each need a browser-tested change. ESLint 10 waits for eslint-plugin-react support, TypeScript 7 has no JavaScript API for `next build`, and Prisma 8 is a release candidate. `src/emails/render.test.tsx` guards React Email upgrades.

@@ -3,14 +3,15 @@ import { generatePageMetadata } from '@/lib/seo';
 import { parseSlug } from '@/lib/utils/genSlug';
 import { Metadata } from 'next';
 
-export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
-  const { id } = parseSlug(params.slug);
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  const { id } = parseSlug(slug);
 
   if (!id) {
     return generatePageMetadata({
       title: 'Food Journey Not Found',
       description: 'The food journey you are looking for could not be found.',
-      url: `https://foodeez.ch/food-journey/${params.slug}`,
+      url: `https://foodeez.ch/food-journey/${slug}`,
     });
   }
 
@@ -20,7 +21,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     return generatePageMetadata({
       title: 'Food Journey Not Found',
       description: 'The food journey you are looking for could not be found.',
-      url: `https://foodeez.ch/food-journey/${params.slug}`,
+      url: `https://foodeez.ch/food-journey/${slug}`,
     });
   }
 
@@ -33,6 +34,11 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     description,
     keywords: story.TITLE?.split(' ') || ['food', 'journey', 'story'],
     image: story.PIC_1 || undefined,
-    url: `https://foodeez.ch/food-journey/${params.slug}`,
+    url: `https://foodeez.ch/food-journey/${slug}`,
   });
+}
+
+// Next.js reads metadata only from page and layout files; this layout exists to carry it.
+export default function Layout({ children }: { children: React.ReactNode }) {
+  return children;
 }

@@ -1,15 +1,26 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { Building2, CheckCircle2, ShieldCheck, X } from "lucide-react";
-import toast from "react-hot-toast";
 import ModalPortal from "@/components/core/ModalPortal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+type Step = { name: "start" } | { name: "code"; requestId: number; sentTo: string } | { name: "done"; manual: boolean };
+
+const primaryButton = "h-auto rounded-full bg-primary px-6 py-2.5 font-semibold text-white shadow-md hover:bg-primary-dark";
+const outlineButton = "h-auto rounded-full border-primary px-6 py-2.5 font-semibold text-primary hover:bg-primary/10 hover:text-primary";
+
 export default function ClaimBusinessSection({ businessId, businessName }: { businessId: number; businessName: string }) {
+  const { status } = useSession();
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const [email, setEmail] = useState("");
+  const [step, setStep] = useState<Step>({ name: "start" });
+  const [code, setCode] = useState("");
+  const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -19,26 +30,47 @@ export default function ClaimBusinessSection({ businessId, businessName }: { bus
     return () => window.removeEventListener("keydown", close);
   }, [open]);
 
-  async function submit(event: FormEvent) {
-    event.preventDefault();
+  async function send(body: Record<string, unknown>) {
     setSubmitting(true);
+    setError("");
     try {
       const response = await fetch("/api/claim-business", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, businessId, businessName }),
+        body: JSON.stringify(body),
       });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error);
-      toast.success("Your claim request has been submitted.");
-      setEmail("");
-      setOpen(false);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "We couldn't submit your request. Please try again.");
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || result.message || "We couldn't process your claim. Please try again.");
+      if (result.status === "email_pending") setStep({ name: "code", requestId: result.requestId, sentTo: result.sentTo });
+      else setStep({ name: "done", manual: Boolean(result.manual) });
+      setCode("");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "We couldn't process your claim. Please try again.");
     } finally {
       setSubmitting(false);
     }
   }
+
+  function startClaim(event: FormEvent) {
+    event.preventDefault();
+    void send({ action: "start", businessId });
+  }
+
+  function verifyCode(event: FormEvent) {
+    event.preventDefault();
+    if (step.name === "code") void send({ action: "verify", requestId: step.requestId, code: code.trim() });
+  }
+
+  const description =
+    status !== "authenticated"
+      ? "Sign in or create a free Foodeez account first. The restaurant will be linked to that account."
+      : step.name === "start"
+        ? "We will send a 6-digit code to the email address this restaurant has on Foodeez. After you enter it, our team checks the claim and gives you access."
+        : step.name === "code"
+          ? `We sent a 6-digit code to ${step.sentTo}. It expires in 15 minutes.`
+          : step.manual
+            ? "This restaurant has no email on file, so our team will check your claim by hand and email you."
+            : "Thank you. Your email is confirmed and our team will review your claim. We will email you once you have access.";
 
   return (
     <>
@@ -54,7 +86,7 @@ export default function ClaimBusinessSection({ businessId, businessName }: { bus
               <div>
                 <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl">Is this your business?</h2>
                 <p className="mt-3 text-base leading-7 text-gray-600">Claim your profile to manage how {businessName} appears on Foodeez and keep your business information up to date.</p>
-                <p className="mt-3 flex items-center gap-2 text-sm font-medium text-gray-700"><CheckCircle2 className="h-4 w-4 text-primary" aria-hidden="true" /> Quick verification by the Foodeez team</p>
+                <p className="mt-3 flex items-center gap-2 text-sm font-medium text-gray-700"><CheckCircle2 className="h-4 w-4 text-primary" aria-hidden="true" /> Verified through your restaurant's email, then checked by the Foodeez team</p>
               </div>
             </div>
           </div>
@@ -68,17 +100,37 @@ export default function ClaimBusinessSection({ businessId, businessName }: { bus
             <div role="dialog" aria-modal="true" aria-labelledby="claim-title" aria-describedby="claim-description" className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-xl sm:p-8">
               <button type="button" aria-label="Close claim form" onClick={() => setOpen(false)} className="absolute right-4 top-4 rounded-full p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900"><X aria-hidden="true" /></button>
               <h2 id="claim-title" className="pr-10 text-2xl font-semibold text-gray-900">Claim {businessName}</h2>
-              <p id="claim-description" className="mt-2 text-gray-600">Please enter your official business email. Our team will contact you after reviewing your request.</p>
-              <form onSubmit={submit} className="mt-6 space-y-5">
-                <div>
-                  <label htmlFor="claim-email" className="mb-2 block text-sm font-medium text-gray-900">Official email</label>
-                  <Input id="claim-email" type="email" autoComplete="email" required autoFocus value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@business.com" />
+              <p id="claim-description" className="mt-2 text-gray-600">{description}</p>
+              {error ? <p role="alert" className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
+
+              {status !== "authenticated" ? (
+                <div className="mt-6 flex justify-end gap-3">
+                  <Button type="button" variant="outline" className={outlineButton} onClick={() => setOpen(false)}>Cancel</Button>
+                  <Button asChild className={primaryButton}>
+                    <Link href={`/auth/signin?callbackUrl=${encodeURIComponent(pathname)}`}>Sign in</Link>
+                  </Button>
                 </div>
-                <div className="flex justify-end gap-3">
-                  <Button type="button" variant="outline" className="h-auto rounded-full border-primary px-6 py-2.5 font-semibold text-primary hover:bg-primary/10 hover:text-primary" onClick={() => setOpen(false)}>Cancel</Button>
-                  <Button type="submit" className="h-auto rounded-full bg-primary px-6 py-2.5 font-semibold text-white shadow-md hover:bg-primary-dark" disabled={submitting}>{submitting ? "Submitting..." : "Submit claim"}</Button>
+              ) : step.name === "start" ? (
+                <form onSubmit={startClaim} className="mt-6 flex justify-end gap-3">
+                  <Button type="button" variant="outline" className={outlineButton} onClick={() => setOpen(false)}>Cancel</Button>
+                  <Button type="submit" className={primaryButton} disabled={submitting}>{submitting ? "Sending..." : "Send code"}</Button>
+                </form>
+              ) : step.name === "code" ? (
+                <form onSubmit={verifyCode} className="mt-6 space-y-5">
+                  <div>
+                    <label htmlFor="claim-code" className="mb-2 block text-sm font-medium text-gray-900">Verification code</label>
+                    <Input id="claim-code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required autoFocus value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))} placeholder="123456" />
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <button type="button" className="text-sm font-medium text-primary hover:underline disabled:opacity-50" disabled={submitting} onClick={() => void send({ action: "start", businessId })}>Send a new code</button>
+                    <Button type="submit" className={primaryButton} disabled={submitting || code.length !== 6}>{submitting ? "Checking..." : "Confirm"}</Button>
+                  </div>
+                </form>
+              ) : (
+                <div className="mt-6 flex justify-end">
+                  <Button type="button" className={primaryButton} onClick={() => setOpen(false)} autoFocus>Done</Button>
                 </div>
-              </form>
+              )}
             </div>
           </div>
         </ModalPortal>

@@ -1,6 +1,7 @@
 'use client';
 
-import { X, Copy, Facebook, Twitter, Phone } from 'lucide-react';
+import { X, Copy, Phone } from 'lucide-react';
+import { FaFacebook, FaXTwitter } from 'react-icons/fa6';
 import React from 'react';
 import Image from 'next/image';
 
@@ -98,7 +99,7 @@ const ReviewShareModal: React.FC<ReviewShareModalProps> = ({
             className="p-2 rounded-full bg-blue-500/10 hover:bg-blue-500/20 transition"
             aria-label="Share on Facebook"
           >
-            <Facebook className="text-blue-600 w-5 h-5" />
+            <FaFacebook className="text-blue-600 w-5 h-5" aria-hidden="true" />
           </a>
           <a
             href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}`}
@@ -107,7 +108,7 @@ const ReviewShareModal: React.FC<ReviewShareModalProps> = ({
             className="p-2 rounded-full bg-sky-500/10 hover:bg-sky-500/20 transition"
             aria-label="Share on Twitter"
           >
-            <Twitter className="text-sky-500 w-5 h-5" />
+            <FaXTwitter className="text-sky-500 w-5 h-5" aria-hidden="true" />
           </a>
         </div>
 

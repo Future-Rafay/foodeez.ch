@@ -197,6 +197,8 @@ model visitors_account {
   PIC                 String?   @db.VarChar(255)
   RESET_TOKEN         String?   @db.VarChar(255)
   RESET_TOKEN_EXPIRY  DateTime? @db.DateTime(0)
+  PLATFORM_ROLE       String?   @db.VarChar(20)
+  EMAIL_VERIFIED_DATETIME DateTime? @db.DateTime(0)
 }
 
 model visitor_business_review {
@@ -977,4 +979,32 @@ view visitor_food_journey_view {
   PIC_2                   String? @db.VarChar(255)
   PIC_3                   String? @db.VarChar(255)
   APPROVED                Int?    @default(0) @db.TinyInt
+}
+
+model business_onboarding_request {
+  REQUEST_ID              Int       @id @default(autoincrement())
+  CREATION_DATETIME       DateTime  @default(now()) @db.DateTime(0)
+  REQUEST_TYPE            String    @db.VarChar(20)
+  STATUS                  String    @db.VarChar(20)
+  BUSINESS_ID             Int
+  VISITORS_ACCOUNT_ID     BigInt
+  CONTACT_NAME            String?   @db.VarChar(100)
+  CONTACT_PHONE           String?   @db.VarChar(45)
+  MESSAGE                 String?   @db.VarChar(1000)
+  EMAIL_CODE_HASH         String?   @db.Char(64)
+  EMAIL_CODE_EXPIRES      DateTime? @db.DateTime(0)
+  EMAIL_CODE_ATTEMPTS     Int       @default(0) @db.TinyInt
+  EMAIL_VERIFIED_DATETIME DateTime? @db.DateTime(0)
+  REVIEWED_BY             BigInt?
+  REVIEWED_DATETIME       DateTime? @db.DateTime(0)
+  REVIEW_NOTE             String?   @db.VarChar(500)
+
+  @@index([STATUS, CREATION_DATETIME], map: "idx_business_onboarding_request_status")
+  @@index([BUSINESS_ID], map: "idx_business_onboarding_request_business")
+  @@index([VISITORS_ACCOUNT_ID], map: "idx_business_onboarding_request_account")
+}
+
+model business_google_refresh {
+  BUSINESS_ID           Int      @id
+  LAST_ATTEMPT_DATETIME DateTime @db.DateTime(0)
 }
