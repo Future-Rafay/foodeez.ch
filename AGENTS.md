@@ -196,6 +196,14 @@ Guidance for every AI coding tool (Claude, Codex and others) working in this rep
 - `business_onboarding_request` and `visitors_account.PLATFORM_ROLE` come from the admin repository's manual `20261117000000_add_platform_admin` migration; keep this schema identical for them. Deploy the registration, claim and Google changes only after that SQL and `docs/sql/create_business_google_refresh.sql` are applied.
 - `shortPhotoUrl` leaves out photo URLs over 100 characters until `docs/sql/widen_review_and_journey_avatar_columns.sql` is approved and applied.
 
+## Customer Accounts, Order Emails and Reservations (2026-11-20)
+
+- New password sign-ups must confirm their email before password sign-in (`visitors_account.EMAIL_VERIFIED_DATETIME`, admin repository's manual `20261120000000_add_email_verification` migration, which marks existing accounts verified). Links come from `frontend/src/lib/email-verification.ts`: stateless, 48 hours, HMAC bound to account id and email. `/api/auth/verify-email` confirms and sets the completed-reset marker so Google sign-in keeps that password; `/api/auth/resend-verification` answers the same way for every address. Google sign-in and a completed password reset also confirm the email. `authorize` checks verification only after the password matches. Browser components import `EMAIL_NOT_VERIFIED` from `email-verification-constants.ts`.
+- Profile → Delete account calls `DELETE /api/user/account` with `{ confirm: "DELETE" }`. `anonymiseAccount` in `frontend/src/lib/account-deletion.ts` deletes reviews, stories, favourites, follows and notifications, clears personal fields, sets the email to `deleted-<id>@deleted.invalid` and detaches orders (`VISITOR_ID` 0) without deleting them. Restaurant owners and Super Admins are refused. Uploaded review media stays in S3.
+- Signed-in customers get the same order confirmation email as guests, linking to My Orders.
+- New reservations email the customer (no free text), `ADMIN_EMAIL` and the restaurant's saved `business.EMAIL_ADDRESS` (full copy). Restaurants confirm or decline in the admin dashboard; `reserve_table.STATUS` is 1 waiting, 2 confirmed, 3 declined.
+- Locally, both apps on `localhost` share the NextAuth cookie across ports, so signing into one app replaces the other's session. Production uses separate domains.
+
 ## Known Gaps and Open Decisions (as of 2026-11-17)
 
 Check these before assuming a feature works. Remove an item once it is fixed.
