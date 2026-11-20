@@ -114,9 +114,10 @@ export default function SelectDropdown({
             id="no-scrollbar"
           >
             <div className="p-2 space-y-1">
-              {options.map((option) => (
+              {options.map((option, index) => (
                 <button
-                  key={option.value}
+                  // Two options can share a value (the category list has two "Fish " rows), so the position makes the key unique.
+                  key={`${option.value}-${index}`}
                   onClick={() => handleOptionClick(option.value)}
                   className={`w-full text-left px-4 py-2 rounded-md text-sm transition-colors relative ${selectedValue === option.value ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-primary/10 text-text-main'}`}
                   disabled={disabled}
