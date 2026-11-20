@@ -15,7 +15,7 @@ Guidance for every AI coding tool (Claude, Codex and others) working in this rep
 | Task | Command | Notes |
 |---|---|---|
 | Dev server | `npm.cmd run dev` | http://localhost:3000 |
-| Tests | `npm.cmd test` | `tsx --test` over `src/**/*.test.ts`; no database needed |
+| Tests | `npm.cmd test` | `tsx --test` over `src/**/*.test.ts` and `src/**/*.test.tsx`; no database needed |
 | Typecheck | `npx.cmd tsc --noEmit` | |
 | Lint | `npm.cmd run lint` | ESLint 9 with `eslint.config.mjs`. The build does not run it, and about 43 existing errors remain (mostly `react-hooks/set-state-in-effect`), so check only the files you changed |
 | Build | `npm.cmd run build` | Runs `prisma generate`, then `next build` |
@@ -193,7 +193,7 @@ Guidance for every AI coding tool (Claude, Codex and others) working in this rep
 - Stripe sessions expire 35 minutes after the order was created, tied to the order so retries reuse the same idempotent request. Only a `StripeInvalidRequestError` on `expires_at` (`isStripeExpiryRejection`) releases the reservation at once and asks for a new checkout; other rejections return the retryable 502 and keep the same order until the stale-checkout job releases it.
 - `/api/cron/release-stale-checkouts` (scheduled in `frontend/vercel.json`, needs `CRON_SECRET`) releases card orders over an hour old that never saved a session.
 - `/api/business/register` needs a signed-in account, validates every field against the `business` column sizes (`parseRegistration`), and creates the restaurant hidden (`APPROVED = 0`, `STATUS = 0`) with a pending `business_onboarding_request`, then notifies `ADMIN_EMAIL`. A Super Admin approval puts it live and links the account as owner. At most three registrations per account wait at once.
-- `business_onboarding_request` and `visitors_account.PLATFORM_ROLE` come from the admin repository's manual `20261117000000_add_platform_admin` migration; keep this schema identical for them. Deploy the registration, claim and Google changes only after that SQL and `docs/sql/create_business_google_refresh.sql` are applied.
+- `business_onboarding_request` and `visitors_account.PLATFORM_ROLE` come from the admin repository's manual `20261117000000_add_platform_admin` migration; keep this schema identical for them. That SQL and `docs/sql/create_business_google_refresh.sql` were applied to the Clever Cloud database on 2026-11-17.
 - `shortPhotoUrl` leaves out photo URLs over 100 characters until `docs/sql/widen_review_and_journey_avatar_columns.sql` is approved and applied.
 
 ## Customer Accounts, Order Emails and Reservations (2026-11-20)
@@ -204,7 +204,15 @@ Guidance for every AI coding tool (Claude, Codex and others) working in this rep
 - New reservations email the customer (no free text), `ADMIN_EMAIL` and the restaurant's saved `business.EMAIL_ADDRESS` (full copy). Restaurants confirm or decline in the admin dashboard; `reserve_table.STATUS` is 1 waiting, 2 confirmed, 3 declined.
 - Locally, both apps on `localhost` share the NextAuth cookie across ports, so signing into one app replaces the other's session. Production uses separate domains.
 
-## Known Gaps and Open Decisions (as of 2026-11-17)
+## Database State and Local Testing (2026-11-20)
+
+- Applied to the Clever Cloud production database and to the local `foodeez` database: the admin repository's `20261117000000_add_platform_admin` and `20261120000000_add_email_verification` migrations, and `docs/sql/create_business_google_refresh.sql`. Super Admins are set by `PLATFORM_ROLE = 'super_admin'` (see the admin repository's `agents.md`).
+- The local `foodeez` database is the owner's development database. It lacks the admin repository's October 2026 migrations (POS channels and cash settings, order auto-increment, checkout rate limit, discounts), so checkout and sign-in rate limits fail against it until those are applied. Do not write to it without asking.
+- Write tests and browser tests run against the local `foodeez_test` database: a copy of local `foodeez` with every migration applied and every email address rewritten to `delivered+…@resend.dev` test inboxes, so no real person is emailed. Point an app at it only through a temporary, gitignored `frontend/.env.local` (`DATABASE_*` and `DATABASE_URL` for `foodeez_test`, `ADMIN_EMAIL` set to a test inbox), and delete that file afterwards.
+- The `RESEND_API_KEY` in the local `.env` files is invalid, so emails fail locally ("API key is invalid"); every email path reports or logs that failure. Production's key in Vercel is separate.
+- Browser-tested on `foodeez_test`: guest card checkout up to Stripe's test page and stock release on return, registration, claim codes, sign-up confirmation, account deletion, and reservations. Not yet tested: completing a card payment (Stripe's page does not render in a hidden browser pane) and real email delivery.
+
+## Known Gaps and Open Decisions (as of 2026-11-20)
 
 Check these before assuming a feature works. Remove an item once it is fixed.
 
@@ -213,7 +221,8 @@ Check these before assuming a feature works. Remove an item once it is fixed.
 - The stale-checkout cron runs once a day at 03:00 UTC (`frontend/vercel.json`). Vercel's Hobby plan rejects more frequent crons, so confirm the plan before changing it.
 - The root `frontend/src/app/loading.tsx` streams every page, so `notFound()` renders the 404 page with `noindex` but the HTTP status stays 200.
 - Password sessions issued before 2026-11-10 carry no password fingerprint, so they are not rechecked and run until they expire (up to 30 days).
-- Checkout, Stripe payment and signed-in flows have not been browser-tested since the Next 16 upgrade.
+- A completed Stripe card payment and real email delivery have not been tested since the Next 16 upgrade (see Database State and Local Testing).
 - GitHub Dependabot reports open alerts on `main` that have not been triaged.
+- SEO and languages were deferred by the owner on 2026-11-20: the root layout's `alternates.canonical: '/'` is inherited by pages without their own canonical, `components/seo/SEO.tsx` uses `next/head` (ignored by the App Router), the sitemap lists static pages only, no structured data is emitted, `/discover` is linked but has no route, and the site is English only.
 - A guest can place cash orders that reserve tracked stock without paying (up to 999 per item). Limiting cash to signed-in customers or capping guest quantity is the owner's decision. The owner deferred it on 2026-11-16 and asked to be reminded.
 - Major upgrades not yet done (2026-11-17): Stripe 18 → 23 (pinned at exactly 18.4.0, because 18.5 changes the Stripe API version) and Tailwind 3 → 4 each need a browser-tested change. ESLint 10 waits for eslint-plugin-react support, TypeScript 7 has no JavaScript API for `next build`, and Prisma 8 is a release candidate. `src/emails/render.test.tsx` guards React Email upgrades.
