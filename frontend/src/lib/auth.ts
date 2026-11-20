@@ -5,6 +5,7 @@ import { prisma } from './prisma';
 import bcrypt from 'bcryptjs';
 import { createHash } from 'node:crypto';
 import { enforceRateLimit, LOGIN_LIMITS, RateLimitError } from './checkout-rate-limit';
+import { EMAIL_NOT_VERIFIED } from './email-verification';
 
 export const MIN_PASSWORD_LENGTH = 8;
 
@@ -108,6 +109,11 @@ export const authOptions: NextAuthOptions = {
           throw new Error('Invalid credentials');
         }
 
+        // Checked after the password, so the message never reveals whether an email has an account.
+        if (!user.EMAIL_VERIFIED_DATETIME) {
+          throw new Error(EMAIL_NOT_VERIFIED);
+        }
+
         return {
           id: user.VISITORS_ACCOUNT_ID.toString(),
           name: `${user.FIRST_NAME} ${user.LAST_NAME}`,
@@ -142,13 +148,18 @@ export const authOptions: NextAuthOptions = {
                 FIRST_NAME: user.name?.split(' ')[0] || '',
                 LAST_NAME: user.name?.split(' ').slice(1).join(' ') || '',
                 CREATION_DATETIME: new Date(),
+                EMAIL_VERIFIED_DATETIME: new Date(),
                 PIC: user.image || '',
                 LANGUAGE: 'en',
               }
             });
           } else {
-            const update = googleAccountUpdate(existingUser, user.image);
-            if (update) {
+            // Google has confirmed this inbox, so the email counts as verified from now on.
+            const update = {
+              ...googleAccountUpdate(existingUser, user.image),
+              ...(existingUser.EMAIL_VERIFIED_DATETIME ? {} : { EMAIL_VERIFIED_DATETIME: new Date() }),
+            };
+            if (Object.keys(update).length) {
               await prisma.visitors_account.update({
                 where: { EMAIL_ADDRESS: user.email! },
                 data: update
