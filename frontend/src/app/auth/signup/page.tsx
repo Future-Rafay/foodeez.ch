@@ -24,6 +24,7 @@ function SignUpContent() {
   const [error, setError] = useState("");
   // Set once the account exists: new password accounts confirm their email before the first sign-in.
   const [sentTo, setSentTo] = useState("");
+  const [emailFailed, setEmailFailed] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -65,6 +66,7 @@ function SignUpContent() {
       }
 
       setSentTo(formData.email);
+      setEmailFailed(data.verificationEmailSent === false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
       console.error("Sign up error:", err);
@@ -127,7 +129,11 @@ function SignUpContent() {
 
         {sentTo && (
           <div role="status" className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg text-sm">
-            Your account is created. We sent a confirmation link to <strong>{sentTo}</strong>. Open it to activate your account, then log in.
+            {emailFailed ? (
+              <>Your account is created, but we could not send the confirmation email to <strong>{sentTo}</strong>. Log in to get a new link.</>
+            ) : (
+              <>Your account is created. We sent a confirmation link to <strong>{sentTo}</strong>. Open it to activate your account, then log in.</>
+            )}
           </div>
         )}
 
