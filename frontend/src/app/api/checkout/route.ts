@@ -524,8 +524,10 @@ export async function POST(req: NextRequest) {
   } : null;
   const tracking = isGuest ? guestTracking(order, origin) : null;
 
-  const emailGuest = async (paymentStatus: string) => {
-    if (!isGuest || !result.created || !tracking) return;
+  // Guests get their private tracking link; signed-in customers are sent to My Orders.
+  const confirmationLink = tracking?.url ?? `${origin}/dashboard/orders`;
+  const emailCustomer = async (paymentStatus: string) => {
+    if (!result.created) return;
     await sendGuestOrderEmailSafely(
       sendEmail,
       customerInfo.email,
@@ -541,14 +543,14 @@ export async function POST(req: NextRequest) {
         total: `CHF ${orderFinalAmount(totalAmount, appliedDiscount?.amountCents ?? 0, shippingCharges).toFixed(2)}`,
         paymentStatus,
         fulfillment: effectiveOrderType === "pickup" ? "Pickup" : "Delivery",
-        trackingUrl: tracking.url,
+        trackingUrl: confirmationLink,
       },
       order.BUSINESS_ORDER_ID
     );
   };
 
   if (paymentMethod !== "card") {
-    await emailGuest("Payment pending");
+    await emailCustomer("Payment pending");
     return NextResponse.json({
       orderId: order.BUSINESS_ORDER_ID,
       redirectUrl: tracking?.path || `/order/success?orderId=${order.BUSINESS_ORDER_ID}`,
@@ -659,7 +661,7 @@ export async function POST(req: NextRequest) {
       status: 502,
     });
   }
-  await emailGuest("Card payment pending");
+  await emailCustomer("Card payment pending");
   return NextResponse.json({
     sessionId: checkoutSession.id,
     url: checkoutSession.url,
