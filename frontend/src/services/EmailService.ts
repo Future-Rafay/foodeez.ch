@@ -5,11 +5,12 @@ import ReservationEmail from '@/emails/ReservationEmail';
 import NewsletterEmail from '@/emails/NewsletterEmail';
 import PasswordResetEmail from '@/emails/PasswordResetEmail';
 import ClaimCodeEmail from '@/emails/ClaimCodeEmail';
+import VerifyEmailEmail from '@/emails/VerifyEmailEmail';
 import GuestOrderConfirmationEmail, { type GuestOrderConfirmationData } from '@/emails/GuestOrderConfirmationEmail';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-type EmailTemplateType = 'contact' | 'reservation' | 'newsletter' | 'passwordReset' | 'guestOrderConfirmation' | 'claimCode';
+type EmailTemplateType = 'contact' | 'reservation' | 'newsletter' | 'passwordReset' | 'guestOrderConfirmation' | 'claimCode' | 'verifyEmail';
 
 interface ContactFormData {
   name: string;
@@ -38,6 +39,10 @@ interface PasswordResetData {
   resetUrl: string;
 }
 
+interface VerifyEmailData {
+  verifyUrl: string;
+}
+
 interface ClaimCodeData {
   code: string;
   businessName: string;
@@ -46,7 +51,7 @@ interface ClaimCodeData {
 export const sendEmail = async (
   to: string,
   template: EmailTemplateType,
-  data: ContactFormData | ReservationFormData | NewsletterData | PasswordResetData | GuestOrderConfirmationData | ClaimCodeData
+  data: ContactFormData | ReservationFormData | NewsletterData | PasswordResetData | GuestOrderConfirmationData | ClaimCodeData | VerifyEmailData
 ) => {
   try {
     let emailComponent;
@@ -72,6 +77,10 @@ export const sendEmail = async (
       case 'guestOrderConfirmation':
         emailComponent = GuestOrderConfirmationEmail(data as GuestOrderConfirmationData);
         subject = `Your Foodeez order ${(data as GuestOrderConfirmationData).orderNumber}`;
+        break;
+      case 'verifyEmail':
+        emailComponent = VerifyEmailEmail(data as VerifyEmailData);
+        subject = 'Confirm your Foodeez email';
         break;
       case 'claimCode':
         emailComponent = ClaimCodeEmail(data as ClaimCodeData);

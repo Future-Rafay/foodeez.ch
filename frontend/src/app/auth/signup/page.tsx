@@ -4,14 +4,13 @@ import Link from "next/link";
 import Image from "next/image";
 import { Suspense, useState } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Input } from "@/components/core/Input";
 import { Button } from "@/components/core/Button";
 import { FcGoogle } from "react-icons/fc";
 import SEO from "@/components/seo/SEO";
 
 function SignUpContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/";
   const [formData, setFormData] = useState({
@@ -23,6 +22,8 @@ function SignUpContent() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  // Set once the account exists: new password accounts confirm their email before the first sign-in.
+  const [sentTo, setSentTo] = useState("");
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -63,21 +64,7 @@ function SignUpContent() {
         throw new Error(data.message || "Something went wrong");
       }
 
-      // Log in the user after successful registration
-      const result = await signIn("credentials", {
-        email: formData.email,
-        password: formData.password,
-        redirect: false,
-      });
-
-
-      if (result?.error) {
-        setError("Failed to Log in after registration");
-        return;
-      }
-
-      router.push(callbackUrl);
-      router.refresh();
+      setSentTo(formData.email);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
       console.error("Sign up error:", err);
@@ -135,6 +122,12 @@ function SignUpContent() {
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
             {error}
+          </div>
+        )}
+
+        {sentTo && (
+          <div role="status" className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg text-sm">
+            Your account is created. We sent a confirmation link to <strong>{sentTo}</strong>. Open it to activate your account, then log in.
           </div>
         )}
 

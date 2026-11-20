@@ -1,4 +1,7 @@
 import { NextResponse } from 'next/server';
+import { emailVerificationToken } from '@/lib/email-verification';
+import { getPublicAppOrigin } from '@/lib/public-app-url';
+import { sendEmail } from '@/services/EmailService';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 import { MIN_PASSWORD_LENGTH } from '@/lib/auth';
@@ -55,9 +58,17 @@ export async function POST(req: Request) {
       },
     });
 
+    // The account cannot sign in with its password until this link is opened; a failed email can be resent from sign-in.
+    const verifyUrl = `${getPublicAppOrigin()}/api/auth/verify-email?token=${encodeURIComponent(emailVerificationToken(user.VISITORS_ACCOUNT_ID, user.EMAIL_ADDRESS ?? email))}`;
+    const emailed = await sendEmail(email, 'verifyEmail', { verifyUrl }).then(() => true, (error) => {
+      console.error('Verification email failed:', error instanceof Error ? error.message : error);
+      return false;
+    });
+
     return NextResponse.json(
       {
         message: 'User created successfully',
+        verificationEmailSent: emailed,
         user: {
           id: user.VISITORS_ACCOUNT_ID.toString(),
           email: user.EMAIL_ADDRESS,
