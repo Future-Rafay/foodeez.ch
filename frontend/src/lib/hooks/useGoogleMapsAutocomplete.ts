@@ -61,7 +61,7 @@ export function useGoogleMapsAutocomplete({
 
       setError(null);
     } catch (err) {
-      console.error('Google Places Autocomplete error:', err);
+      console.warn('[Google Maps] Place suggestions could not start:', err);
       setError('Failed to initialize location search');
     }
   }, [isLoaded, inputRef, onPlaceSelect, types, componentRestrictions, fields]);

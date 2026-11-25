@@ -36,7 +36,8 @@ export default function ZipCodeSearch({
     }
   };
 
-  const { error } = useGoogleMapsAutocomplete({
+  // Suggestion failures are logged by the hook; the ZIP search keeps working without them.
+  useGoogleMapsAutocomplete({
     inputRef,
     onPlaceSelect: handlePlaceSelect,
     types: ['(regions)'],
@@ -116,11 +117,6 @@ export default function ZipCodeSearch({
           </motion.button>
         </div>
         
-        {error && (
-          <div className="mt-2 text-sm text-red-600 text-center">
-            {error}
-          </div>
-        )}
       </motion.form>
     </GoogleMapsProvider>
   );
