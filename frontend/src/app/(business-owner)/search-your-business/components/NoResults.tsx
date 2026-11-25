@@ -38,7 +38,7 @@ export default function NoResults({ query }: NoResultsProps) {
       
       <div className="flex flex-wrap justify-center gap-3">
         <Link
-          href="/discover"
+          href="/search-your-business"
           className="inline-flex items-center px-5 py-2.5 bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors shadow-sm"
         >
           <RefreshCw size={16} className="mr-2" />
