@@ -7,7 +7,7 @@ Guidance for every AI coding tool (Claude, Codex and others) working in this rep
 - This is the customer-facing Foodeez website (foodeez.ch). The restaurant owner/admin app is the separate `myfoodeez.foodeez.ch` repository; both use the same MySQL database.
 - The Next.js app lives in `frontend/`. Run every npm command from `frontend/`; on Windows use `npm.cmd` and `npx.cmd`.
 - Stack: Next.js 16 (App Router) and React 19, TypeScript, Tailwind CSS 3 with Radix/shadcn primitives, Prisma 7 with the MariaDB adapter on MySQL, NextAuth 4 (JWT sessions), Stripe Checkout, Resend, AWS S3, Google Maps and Places, Zustand and Framer Motion.
-- Vercel deploys production from `main`, so pushing `main` is a production release. Ask before pushing.
+- Releases and deployment: see "Release v1.0.0 and Deployment" below. Ask before pushing `main`.
 - `frontend/.env` may point at the production database. Never run write tests, seed scripts, `prisma migrate` or `prisma db push` against it; use an isolated test database for anything that writes.
 
 ## Commands (run from `frontend/`)
@@ -212,20 +212,27 @@ Guidance for every AI coding tool (Claude, Codex and others) working in this rep
 - The `RESEND_API_KEY` in the local `.env` files is invalid, so emails fail locally ("API key is invalid"); every email path reports or logs that failure. Production's key in Vercel is separate.
 - Browser-tested on `foodeez_test`: guest card checkout up to Stripe's test page and stock release on return, registration, claim codes, sign-up confirmation, account deletion, and reservations. Not yet tested: completing a card payment (Stripe's page does not render in a hidden browser pane) and real email delivery.
 
-## Known Gaps and Open Decisions (as of 2026-11-25)
-
-- `frontend/prisma/migrations/20260613000000_add_google_data_fetched_at_columns` was missing in production until 2026-11-25, when it was applied with the owner's approval; Google data saved before then has a null `google_data_fetched_at`, so those restaurants refresh on their next visit.
-- Both local `.env` files point to the production database. Use the `foodeez_test` `.env.local` for any write test.
+## Known Gaps and Open Decisions (as of 2026-11-26)
 
 Check these before assuming a feature works. Remove an item once it is fixed.
+
+- `frontend/prisma/migrations/20260613000000_add_google_data_fetched_at_columns` was missing in production until 2026-11-25, when it was applied with the owner's approval; Google data saved before then has a null `google_data_fetched_at`, so those restaurants refresh on their next visit.
+- The local `.env` files and the developer's Vercel test deployments all use the production database. Use the `foodeez_test` `.env.local` for any write test.
 
 - `/api/business-google-data` answers only with `Authorization: Bearer $CRON_SECRET` and is not scheduled; pages refresh through `refreshGoogleDataIfStale` instead. The shared save in `google-business-refresh.ts` inserts `business_opening_hours` with `MAX(id) + 1` because that column has no auto-increment; changing that needs an approved schema change.
 - `GOOGLE_PLACES_API_KEY` must be set in Vercel, or server photo lookups fail.
 - The stale-checkout cron runs once a day at 03:00 UTC (`frontend/vercel.json`). Vercel's Hobby plan rejects more frequent crons, so confirm the plan before changing it.
 - The root `frontend/src/app/loading.tsx` streams every page, so `notFound()` renders the 404 page with `noindex` but the HTTP status stays 200.
 - Password sessions issued before 2026-11-10 carry no password fingerprint, so they are not rechecked and run until they expire (up to 30 days).
-- A completed Stripe card payment and real email delivery have not been tested since the Next 16 upgrade (see Database State and Local Testing).
+- The owner confirmed a completed Stripe card payment on 2026-11-25. A Stripe refund and real email delivery have not been tested since the Next 16 upgrade; the owner will test the refund in production.
 - GitHub Dependabot reports open alerts on `main` that have not been triaged.
 - SEO and languages were deferred by the owner on 2026-11-20: the root layout's `alternates.canonical: '/'` is inherited by pages without their own canonical, `components/seo/SEO.tsx` uses `next/head` (ignored by the App Router), the sitemap lists static pages only, no structured data is emitted, and the site is English only.
 - A guest can place cash orders that reserve tracked stock without paying (up to 999 per item). On 2026-11-25 the owner left this as it is for v1; fix it in v2 by limiting cash to signed-in customers and capping guest quantities.
 - Major upgrades not yet done (2026-11-17): Stripe 18 → 23 (pinned at exactly 18.4.0, because 18.5 changes the Stripe API version) and Tailwind 3 → 4 each need a browser-tested change. ESLint 10 waits for eslint-plugin-react support, TypeScript 7 has no JavaScript API for `next build`, and Prisma 8 is a release candidate. `src/emails/render.test.tsx` guards React Email upgrades.
+
+## Release v1.0.0 and Deployment (2026-11-26)
+
+- v1.0.0 is tagged on `main` in both this repository and `myfoodeez.foodeez.ch`; `frontend/package.json` is `1.0.0`. It is the first stable release: customer accounts with email confirmation and account deletion, restaurant search and profiles with cached Google data, cart and checkout (card, plus restaurant-enabled cash) for delivery and pickup, online discounts, order history and notifications, reviews and food stories, table reservations, and restaurant registration and claims.
+- Stabilization: for the next few months, ship only minor fixes, tests and small updates. No large features or major dependency upgrades without the owner's approval; bump the patch version (`1.0.x`) for fixes and the minor version for small additions.
+- v2 backlog: guest cash orders (cash for signed-in customers only, capped guest quantities), the "Coming soon" areas (dashboard followers/favorites/reviews/collections, subscriptions, pricing extras, events, food trails, related food stories), SEO and languages, and the items in Known Gaps.
+- Deployment: the `Future-Rafay` repositories deploy to the developer's Vercel test projects (`foodeez-ch-test` here, `myfoodeez-foodeez-ch` for the admin app). The live `www.foodeez.ch` is deployed only when the owner, Mehmood, copies a tested release into his own GitHub repository and Vercel. So a merge to `main` here does not change the live site, and code must still target the real `foodeez.ch` domain.

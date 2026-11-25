@@ -4,11 +4,17 @@ Foodeez is a cutting-edge food exploring platform built with Next.js 16, offerin
 
 ## ✨ Features
 
-- 🎨 Modern and Responsive UI
-- 🔍 Advanced Search and Filtering
-- 📱 Mobile-First Design
-- 🔐 Secure Authentication
-- 🚀 Fast and Optimized Performance
+- 🔍 Restaurant search and profiles with Google reviews, hours and photos
+- 🛒 Cart and checkout for delivery and pickup: Stripe card payments, plus cash where the restaurant allows it
+- 🏷️ Online discounts and coupon codes
+- 📦 Order history, live order status and notifications
+- 🔐 Accounts with email confirmation, password reset and account deletion
+- ⭐ Reviews, food stories and table reservations
+- 🏪 Restaurant registration and ownership claims (approved in the admin app)
+
+## 📌 Version
+
+Current release: **v1.0.0** (2026-11-26), the first stable release. For the next few months only minor fixes and tests are planned; larger features wait for v2. Release, deployment and v2 notes are in [AGENTS.md](AGENTS.md).
 
 ## 🛠️ Tech Stack
 
@@ -31,7 +37,7 @@ Foodeez is a cutting-edge food exploring platform built with Next.js 16, offerin
 
 ### Prerequisites
 
-- Node.js 20 or later
+- Node.js 22 or later
 - npm
 - Access to a MySQL database (use a separate one for development)
 
