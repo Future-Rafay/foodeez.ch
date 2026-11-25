@@ -34,31 +34,3 @@ export async function searchBusinesses(
 }
 
 
-/**
- * Get food categories for filters
- */
-export async function getFoodCategories(): Promise<{ id: number; name: string; count: number }[]> {
-  try {
-    const categories = await prisma.$queryRaw`
-      SELECT 
-        bc.BUSINESS_CATEGORY_ID as id,
-        bc.CATEGORY_NAME as name,
-        COUNT(b2bc.BUSINESS_ID) as count
-      FROM 
-        business_category bc
-      LEFT JOIN 
-        business_2_business_category b2bc ON bc.BUSINESS_CATEGORY_ID = b2bc.BUSINESS_CATEGORY_ID
-      GROUP BY 
-        bc.BUSINESS_CATEGORY_ID
-      HAVING 
-        count > 0
-      ORDER BY 
-        count DESC
-    `;
-
-    return categories as { id: number; name: string; count: number }[];
-  } catch (error) {
-    console.error("Error fetching food categories:", error);
-    return [];
-  }
-}

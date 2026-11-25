@@ -15,7 +15,7 @@ Guidance for every AI coding tool (Claude, Codex and others) working in this rep
 | Task | Command | Notes |
 |---|---|---|
 | Dev server | `npm.cmd run dev` | http://localhost:3000 |
-| Tests | `npm.cmd test` | `tsx --test` over `src/**/*.test.ts`; no database needed |
+| Tests | `npm.cmd test` | `tsx --test` over `src/**/*.test.ts` and `src/**/*.test.tsx`; no database needed |
 | Typecheck | `npx.cmd tsc --noEmit` | |
 | Lint | `npm.cmd run lint` | ESLint 9 with `eslint.config.mjs`. The build does not run it, and about 43 existing errors remain (mostly `react-hooks/set-state-in-effect`), so check only the files you changed |
 | Build | `npm.cmd run build` | Runs `prisma generate`, then `next build` |
@@ -120,7 +120,7 @@ Guidance for every AI coding tool (Claude, Codex and others) working in this rep
 
 ## Business Profile Notes
 
-- The business-profile map is `frontend/src/components/BusinessSlug/MapSectionBusinesProfile.tsx`, shared by both profile routes; missing API keys, place IDs, Places errors, and initialization errors must render an in-card fallback instead of leaving a broken map surface.
+- The business-profile map is `frontend/src/components/BusinessSlug/MapSectionBusinesProfile.tsx`, shared by both profile routes; missing API keys, place IDs, Places errors, and initialization errors hide the map card and log a `[Google Maps]` warning to the browser console. Visitors never see a Google Maps error anywhere: `GoogleMapsProvider` renders its children without maps when `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` is missing, the homepage map renders nothing, and ZIP search works without place suggestions. Server Google refresh failures are `console.warn`, not `console.error`. `/discover` and `/categories` were removed on 2026-11-25; do not link to them.
 - Business profile pages read Google reviews, hours and photos straight from the `business_google_*` tables, then call `refreshGoogleDataIfStale` from `frontend/src/lib/google-business-refresh.ts`. When the stored data is missing or older than 90 days (`NEXT_PUBLIC_GOOGLE_CACHE_TTL_MS`), it fetches once in `after()` and the next visit shows the new data. `business_google_refresh` (manual SQL `docs/sql/create_business_google_refresh.sql`) records the last attempt per restaurant: at most one Google fetch per restaurant per 90 days, a failed fetch retries after a day, concurrent visits cannot both fetch, and bots or link previews (`isBotUserAgent`) never fetch. This cache keeps Google API cost low; keep its 90-day rule. Server Google calls use `GOOGLE_PLACES_API_KEY` (falling back to the public Maps key); photos are saved as their keyless googleusercontent redirect URL, and stored URLs containing `key=` are never sent to the browser.
 - Foodeez reviews are currently hidden on `frontend/src/app/(business-owner)/manage-business/[slug]/page.tsx`; do not re-enable them without confirming the intended owner-profile review experience.
 - Shared business-profile presentation components live in `frontend/src/components/BusinessSlug/`; both `/business/[slug]` and `/manage-business/[slug]` should reuse them instead of maintaining duplicate copies.
@@ -193,7 +193,7 @@ Guidance for every AI coding tool (Claude, Codex and others) working in this rep
 - Stripe sessions expire 35 minutes after the order was created, tied to the order so retries reuse the same idempotent request. Only a `StripeInvalidRequestError` on `expires_at` (`isStripeExpiryRejection`) releases the reservation at once and asks for a new checkout; other rejections return the retryable 502 and keep the same order until the stale-checkout job releases it.
 - `/api/cron/release-stale-checkouts` (scheduled in `frontend/vercel.json`, needs `CRON_SECRET`) releases card orders over an hour old that never saved a session.
 - `/api/business/register` needs a signed-in account, validates every field against the `business` column sizes (`parseRegistration`), and creates the restaurant hidden (`APPROVED = 0`, `STATUS = 0`) with a pending `business_onboarding_request`, then notifies `ADMIN_EMAIL`. A Super Admin approval puts it live and links the account as owner. At most three registrations per account wait at once.
-- `business_onboarding_request` and `visitors_account.PLATFORM_ROLE` come from the admin repository's manual `20261117000000_add_platform_admin` migration; keep this schema identical for them. Deploy the registration, claim and Google changes only after that SQL and `docs/sql/create_business_google_refresh.sql` are applied.
+- `business_onboarding_request` and `visitors_account.PLATFORM_ROLE` come from the admin repository's manual `20261117000000_add_platform_admin` migration; keep this schema identical for them. That SQL and `docs/sql/create_business_google_refresh.sql` were applied to the Clever Cloud database on 2026-11-17.
 - `shortPhotoUrl` leaves out photo URLs over 100 characters until `docs/sql/widen_review_and_journey_avatar_columns.sql` is approved and applied.
 
 ## Customer Accounts, Order Emails and Reservations (2026-11-20)
@@ -204,7 +204,18 @@ Guidance for every AI coding tool (Claude, Codex and others) working in this rep
 - New reservations email the customer (no free text), `ADMIN_EMAIL` and the restaurant's saved `business.EMAIL_ADDRESS` (full copy). Restaurants confirm or decline in the admin dashboard; `reserve_table.STATUS` is 1 waiting, 2 confirmed, 3 declined.
 - Locally, both apps on `localhost` share the NextAuth cookie across ports, so signing into one app replaces the other's session. Production uses separate domains.
 
-## Known Gaps and Open Decisions (as of 2026-11-17)
+## Database State and Local Testing (2026-11-20)
+
+- Applied to the Clever Cloud production database (plus `20260613000000_add_google_data_fetched_at_columns` on 2026-11-25) and to the local `foodeez` database: the admin repository's `20261117000000_add_platform_admin` and `20261120000000_add_email_verification` migrations, and `docs/sql/create_business_google_refresh.sql`. Super Admins are set by `PLATFORM_ROLE = 'super_admin'` (see the admin repository's `agents.md`).
+- The local `foodeez` database is the owner's development database. It lacks the admin repository's October 2026 migrations (POS channels and cash settings, order auto-increment, checkout rate limit, discounts), so checkout and sign-in rate limits fail against it until those are applied. Do not write to it without asking.
+- Write tests and browser tests run against the local `foodeez_test` database: a copy of local `foodeez` with every migration applied and every email address rewritten to `delivered+…@resend.dev` test inboxes, so no real person is emailed. Point an app at it only through a temporary, gitignored `frontend/.env.local` (`DATABASE_*` and `DATABASE_URL` for `foodeez_test`, `ADMIN_EMAIL` set to a test inbox), and delete that file afterwards.
+- The `RESEND_API_KEY` in the local `.env` files is invalid, so emails fail locally ("API key is invalid"); every email path reports or logs that failure. Production's key in Vercel is separate.
+- Browser-tested on `foodeez_test`: guest card checkout up to Stripe's test page and stock release on return, registration, claim codes, sign-up confirmation, account deletion, and reservations. Not yet tested: completing a card payment (Stripe's page does not render in a hidden browser pane) and real email delivery.
+
+## Known Gaps and Open Decisions (as of 2026-11-25)
+
+- `frontend/prisma/migrations/20260613000000_add_google_data_fetched_at_columns` was missing in production until 2026-11-25, when it was applied with the owner's approval; Google data saved before then has a null `google_data_fetched_at`, so those restaurants refresh on their next visit.
+- Both local `.env` files point to the production database. Use the `foodeez_test` `.env.local` for any write test.
 
 Check these before assuming a feature works. Remove an item once it is fixed.
 
@@ -213,7 +224,8 @@ Check these before assuming a feature works. Remove an item once it is fixed.
 - The stale-checkout cron runs once a day at 03:00 UTC (`frontend/vercel.json`). Vercel's Hobby plan rejects more frequent crons, so confirm the plan before changing it.
 - The root `frontend/src/app/loading.tsx` streams every page, so `notFound()` renders the 404 page with `noindex` but the HTTP status stays 200.
 - Password sessions issued before 2026-11-10 carry no password fingerprint, so they are not rechecked and run until they expire (up to 30 days).
-- Checkout, Stripe payment and signed-in flows have not been browser-tested since the Next 16 upgrade.
+- A completed Stripe card payment and real email delivery have not been tested since the Next 16 upgrade (see Database State and Local Testing).
 - GitHub Dependabot reports open alerts on `main` that have not been triaged.
-- A guest can place cash orders that reserve tracked stock without paying (up to 999 per item). Limiting cash to signed-in customers or capping guest quantity is the owner's decision. The owner deferred it on 2026-11-16 and asked to be reminded.
+- SEO and languages were deferred by the owner on 2026-11-20: the root layout's `alternates.canonical: '/'` is inherited by pages without their own canonical, `components/seo/SEO.tsx` uses `next/head` (ignored by the App Router), the sitemap lists static pages only, no structured data is emitted, and the site is English only.
+- A guest can place cash orders that reserve tracked stock without paying (up to 999 per item). On 2026-11-25 the owner left this as it is for v1; fix it in v2 by limiting cash to signed-in customers and capping guest quantities.
 - Major upgrades not yet done (2026-11-17): Stripe 18 → 23 (pinned at exactly 18.4.0, because 18.5 changes the Stripe API version) and Tailwind 3 → 4 each need a browser-tested change. ESLint 10 waits for eslint-plugin-react support, TypeScript 7 has no JavaScript API for `next build`, and Prisma 8 is a release candidate. `src/emails/render.test.tsx` guards React Email upgrades.

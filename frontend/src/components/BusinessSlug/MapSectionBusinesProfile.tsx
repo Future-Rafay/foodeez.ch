@@ -2,7 +2,6 @@
 
 import { useCallback, useRef, useState } from "react";
 import { GoogleMap } from "@react-google-maps/api";
-import { Info } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import GoogleMapsProvider from "@/components/providers/GoogleMapsProvider";
 
@@ -13,7 +12,7 @@ interface MapCardProps {
 export default function MapCard({ placeId }: MapCardProps) {
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
   const [center, setCenter] = useState<{ lat: number; lng: number } | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
   const mapRef = useRef<google.maps.Map | null>(null);
 
   const handleLoad = useCallback(
@@ -21,8 +20,8 @@ export default function MapCard({ placeId }: MapCardProps) {
       mapRef.current = map;
 
       if (!placeId) {
-        setError("Map location is not available at the moment.");
-        console.error("Place ID is missing. Cannot load map location.");
+        console.warn("[Google Maps] This restaurant has no Google Place ID, so its map is hidden.");
+        setFailed(true);
         return;
       }
 
@@ -35,31 +34,27 @@ export default function MapCard({ placeId }: MapCardProps) {
               lng: place.geometry.location.lng(),
             });
           } else {
-            console.error("Google Maps Error:", status);
-            setError("We're unable to load this map right now. Please try later.");
+            console.warn(`[Google Maps] Place details for ${placeId} returned ${status}, so the map is hidden.`);
+            setFailed(true);
           }
         });
       } catch (err) {
-        console.error("Map initialization error:", err);
-        setError("There was a configuration issue. Please check map settings.");
+        console.warn("[Google Maps] The map could not start, so it is hidden:", err);
+        setFailed(true);
       }
     },
     [placeId]
   );
 
+  // Visitors never see map errors: the card is left out and the reason goes to the browser console.
   if (!apiKey) {
-    return (
-      <Card className="overflow-hidden">
-        <MapFallback message="Google Maps is not available some thing went wrong." />
-      </Card>
-    );
+    console.warn("[Google Maps] NEXT_PUBLIC_GOOGLE_MAPS_API_KEY is not set, so the restaurant map is hidden.");
+    return null;
   }
+  if (failed) return null;
 
   return (
     <Card className="overflow-hidden">
-      {error ? (
-        <MapFallback message={error} />
-      ) : (
         <GoogleMapsProvider>
           <GoogleMap
             mapContainerStyle={{ height: "400px", width: "100%" }}
@@ -73,20 +68,6 @@ export default function MapCard({ placeId }: MapCardProps) {
             }}
           />
         </GoogleMapsProvider>
-      )}
     </Card>
-  );
-}
-
-function MapFallback({ message }: { message: string }) {
-  return (
-    <div className="p-8 flex items-center justify-center h-[400px] bg-gray-50 rounded-xl shadow-inner">
-      <div className="text-center max-w-md">
-        <div className="flex justify-center mb-4">
-          <Info className="w-12 h-12 text-primary" />
-        </div>
-        <h3 className="text-lg font-semibold text-text-main">{message}</h3>
-      </div>
-    </div>
   );
 }

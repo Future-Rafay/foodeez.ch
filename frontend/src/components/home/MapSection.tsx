@@ -132,19 +132,14 @@ export default function MapSection() {
     }
   }, [coords]);
 
+  // GoogleMapsProvider already logs the missing key; visitors see no map and no error.
+  if (!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) return null;
   if (loading) return <MapSkeleton />;
 
   if (error) {
     return (
       <ErrorCard
         message={error}
-      />
-    );
-  }
-  if (!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) {
-    return (
-      <ErrorCard
-        message="Google Maps API key is not configured. Please set NEXT_PUBLIC_GOOGLE_MAPS_API_KEY in your environment variables."
       />
     );
   }

@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "customer",
+      "runtimeExecutable": "npm.cmd",
+      "runtimeArgs": ["--prefix", "frontend", "run", "dev"],
+      "port": 3000
+    },
+    {
+      "name": "admin",
+      "runtimeExecutable": "npm.cmd",
+      "runtimeArgs": ["--prefix", "../myfoodeez.foodeez.ch", "run", "dev", "--", "-p", "3001"],
+      "port": 3001
+    }
+  ]
+}

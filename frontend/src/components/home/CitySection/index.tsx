@@ -164,7 +164,6 @@ export default function CitySection() {
         <BusinessGrid businesses={businesses} />
       )}
 
-      {/* <ViewAllLink selectedCity={selectedCity} searchZipCode={searchZipCode} /> */}
     </section>
   );
 }

@@ -207,7 +207,7 @@ export async function refreshGoogleDataIfStale(businessId: number, placeId: stri
         const freshData = await UnifiedGoogleService.fetchGooglePlaceDetails(placeId);
         await saveBusinessDataToDb(businessId, placeId, freshData);
       } catch (error) {
-        console.error(`[GoogleRefresh] Failed for business ${businessId}:`, error);
+        console.warn(`[GoogleRefresh] Google fetch failed for business ${businessId}; the page keeps its stored data:`, error instanceof Error ? error.message : error);
         // Let the next visit after a day try again instead of waiting 90 days.
         await prisma.business_google_refresh
           .update({ where: { BUSINESS_ID: businessId }, data: { LAST_ATTEMPT_DATETIME: new Date(Date.now() - GOOGLE_CACHE_TTL_MS + GOOGLE_FAILED_RETRY_MS) } })
@@ -215,6 +215,7 @@ export async function refreshGoogleDataIfStale(businessId: number, placeId: stri
       }
     });
   } catch (error) {
-    console.error(`[GoogleRefresh] Check failed for business ${businessId}:`, error);
+    // warn, not error: the page still renders its stored Google data, so this must not surface as a page error.
+    console.warn(`[GoogleRefresh] Freshness check skipped for business ${businessId}:`, error instanceof Error ? error.message : error);
   }
 }
